@@ -16,7 +16,7 @@ import type {
 } from "../domain/types";
 
 export type SceneFramingMode = "auto" | "full";
-export type SceneScaleMode = "true-scale" | "diagram";
+export type SceneScaleMode = "survey" | "true-scale" | "diagram";
 
 export interface SceneViewportState {
   framingMode: SceneFramingMode;
@@ -85,7 +85,7 @@ export function createDefaultState(): AppState {
     focusedModel: "primary",
     sceneViewport: {
       framingMode: "auto",
-      scaleMode: "true-scale",
+      scaleMode: "survey",
       zoom: 1,
       verticalZoom: 1,
     },
@@ -116,7 +116,15 @@ function normalizeIntrinsicMode(value: string): IntrinsicCurvatureMode {
 }
 
 function normalizeScaleMode(value: string): SceneScaleMode {
-  return value === "diagram" ? "diagram" : "true-scale";
+  if (value === "diagram") {
+    return "diagram";
+  }
+
+  if (value === "true-scale") {
+    return "true-scale";
+  }
+
+  return "survey";
 }
 
 function updateModel(

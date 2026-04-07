@@ -39,6 +39,8 @@ export function SceneToolbar({
   const scaleSummary =
     state.sceneViewport.scaleMode === "true-scale"
       ? `True scale • vertical x${state.sceneViewport.verticalZoom.toFixed(2)}`
+      : state.sceneViewport.scaleMode === "survey"
+        ? `Survey scale • vertical x${state.sceneViewport.verticalZoom.toFixed(2)}`
       : `Diagram base x${suggestedVerticalScale.toFixed(1)} • vertical x${state.sceneViewport.verticalZoom.toFixed(2)}`;
 
   return (
@@ -71,6 +73,17 @@ export function SceneToolbar({
 
       <div className="scene-toolbar__group">
         <span className="scene-toolbar__label">Scale</span>
+        <ControlButton
+          label="Survey"
+          active={state.sceneViewport.scaleMode === "survey"}
+          onClick={() =>
+            dispatch({
+              type: "setViewportField",
+              key: "scaleMode",
+              value: "survey",
+            })
+          }
+        />
         <ControlButton
           label="True Scale"
           active={state.sceneViewport.scaleMode === "true-scale"}

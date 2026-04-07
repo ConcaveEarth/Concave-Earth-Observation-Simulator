@@ -65,10 +65,20 @@ function createProjector(
     scaleMode === "true-scale"
       ? Math.min(fitWidthScale, fitHeightTrueScale) * zoom
       : fitWidthScale * zoom;
+  const surveyDisplayedScale = Math.min(
+    Math.max(Math.sqrt(Math.max(baseVerticalScale, 1)), 1.35),
+    12,
+  );
+  const naturalSurveyYScale =
+    ((fitWidthScale * zoom) / Math.max(baseVerticalScale, 1)) *
+    surveyDisplayedScale *
+    verticalZoom;
   const yScale =
     scaleMode === "true-scale"
       ? (xScale / Math.max(baseVerticalScale, 1)) * verticalZoom
-      : fitHeightDiagramScale * zoom * verticalZoom;
+      : scaleMode === "survey"
+        ? Math.min(fitHeightDiagramScale * zoom * verticalZoom, naturalSurveyYScale)
+        : fitHeightDiagramScale * zoom * verticalZoom;
   const centerX = (bounds.minX + bounds.maxX) / 2;
   const centerY = (bounds.minY + bounds.maxY) / 2;
   const viewportCenterX = panel.x + paddingX + availableWidth / 2;

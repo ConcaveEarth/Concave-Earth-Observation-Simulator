@@ -283,7 +283,11 @@ export function RightPanel({
   );
   const geometricDropM = Math.max(0, -targetBaseLocal.y);
   const scaleModeLabel =
-    state.sceneViewport.scaleMode === "true-scale" ? "True scale" : "Diagram spread";
+    state.sceneViewport.scaleMode === "true-scale"
+      ? "True scale"
+      : state.sceneViewport.scaleMode === "survey"
+        ? "Survey scale"
+        : "Diagram spread";
   const featureDetails = getFeatureMetrics(
     activeResult,
     activeScene,
@@ -399,7 +403,9 @@ export function RightPanel({
             <strong>Vertical display:</strong>{" "}
             {state.sceneViewport.scaleMode === "true-scale"
               ? `${state.sceneViewport.verticalZoom.toFixed(2)}x true-scale factor`
-              : `base x${activeScene.suggestedVerticalScale.toFixed(1)} with control x${state.sceneViewport.verticalZoom.toFixed(2)}`}
+              : state.sceneViewport.scaleMode === "survey"
+                ? `${state.sceneViewport.verticalZoom.toFixed(2)}x survey relief factor`
+                : `base x${activeScene.suggestedVerticalScale.toFixed(1)} with control x${state.sceneViewport.verticalZoom.toFixed(2)}`}
           </p>
         </div>
       </PanelSection>
