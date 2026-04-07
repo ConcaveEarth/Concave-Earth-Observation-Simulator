@@ -1,0 +1,349 @@
+:root {
+  font-family: "Segoe UI Variable Text", "Segoe UI", "Trebuchet MS", sans-serif;
+  color: #edf4ff;
+  background:
+    radial-gradient(circle at top left, rgba(39, 125, 214, 0.22), transparent 30%),
+    radial-gradient(circle at top right, rgba(244, 168, 91, 0.14), transparent 22%),
+    linear-gradient(180deg, #09111b 0%, #071018 54%, #060b11 100%);
+  color-scheme: dark;
+  line-height: 1.4;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.app-shell {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr) minmax(280px, 360px);
+  gap: 20px;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.background-noise {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 90px 90px;
+  mask-image: radial-gradient(circle at center, black 45%, transparent 100%);
+  opacity: 0.4;
+}
+
+.panel {
+  position: relative;
+  border: 1px solid rgba(164, 206, 255, 0.14);
+  border-radius: 28px;
+  background: linear-gradient(180deg, rgba(8, 20, 30, 0.82), rgba(7, 14, 22, 0.72));
+  box-shadow:
+    0 26px 90px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+}
+
+.left-panel,
+.right-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px;
+}
+
+.center-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.panel__intro,
+.hero-card {
+  padding: 22px 24px;
+  border-radius: 28px;
+  border: 1px solid rgba(168, 206, 255, 0.14);
+  background:
+    linear-gradient(145deg, rgba(20, 34, 50, 0.9), rgba(9, 19, 31, 0.72)),
+    radial-gradient(circle at top right, rgba(255, 182, 91, 0.16), transparent 30%);
+}
+
+.hero-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: flex-end;
+}
+
+.hero-card__eyebrow,
+.panel__eyebrow,
+.panel-section__eyebrow {
+  margin: 0 0 8px;
+  color: #85bff5;
+  font-size: 0.74rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.panel__intro h1,
+.hero-card h2 {
+  margin: 0;
+  font-family: "Trebuchet MS", "Segoe UI Variable Display", sans-serif;
+  font-weight: 600;
+  line-height: 1.08;
+}
+
+.panel__intro h1 {
+  font-size: 1.8rem;
+}
+
+.hero-card h2 {
+  font-size: 1.7rem;
+}
+
+.panel__intro p,
+.hero-card__text {
+  margin: 12px 0 0;
+  color: rgba(228, 240, 255, 0.74);
+}
+
+.panel-section {
+  padding: 16px 16px 18px;
+  border-radius: 22px;
+  background: rgba(8, 20, 31, 0.64);
+  border: 1px solid rgba(164, 206, 255, 0.08);
+}
+
+.panel-section__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.panel-section__header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.panel-section__body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: rgba(228, 240, 255, 0.8);
+}
+
+.field span {
+  font-size: 0.9rem;
+}
+
+.field input[type="number"],
+.field select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(159, 200, 255, 0.18);
+  background: rgba(6, 16, 25, 0.9);
+  color: #edf4ff;
+}
+
+.field input[type="range"] {
+  width: 100%;
+}
+
+.field__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.field__value {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.field__value input {
+  width: 92px;
+  padding: 9px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(159, 200, 255, 0.18);
+  background: rgba(6, 16, 25, 0.9);
+  color: #edf4ff;
+}
+
+.pill-group {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.pill,
+.action-button {
+  border: 1px solid rgba(162, 205, 255, 0.15);
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: rgba(9, 25, 39, 0.72);
+  color: #eef6ff;
+  cursor: pointer;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    background 180ms ease;
+}
+
+.pill:hover,
+.action-button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(188, 221, 255, 0.34);
+}
+
+.pill--active,
+.action-button {
+  background:
+    linear-gradient(135deg, rgba(34, 100, 176, 0.92), rgba(14, 57, 110, 0.92));
+}
+
+.action-button--ghost {
+  background: rgba(9, 25, 39, 0.72);
+}
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.switch input {
+  accent-color: #7cc5ff;
+}
+
+.action-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.scene-card {
+  padding: 18px;
+  min-height: 640px;
+}
+
+.scene-svg {
+  width: 100%;
+  height: min(74vh, 820px);
+  display: block;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.metric-card,
+.detail-card {
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(7, 17, 27, 0.78);
+  border: 1px solid rgba(164, 206, 255, 0.08);
+}
+
+.metric-card span {
+  display: block;
+  color: rgba(206, 223, 243, 0.68);
+  font-size: 0.82rem;
+}
+
+.metric-card strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 1.05rem;
+}
+
+.detail-card h4,
+.detail-card p {
+  margin: 0;
+}
+
+.detail-card h4 {
+  margin-bottom: 8px;
+  font-size: 1rem;
+}
+
+.detail-card p + p {
+  margin-top: 8px;
+}
+
+.status-text {
+  margin: 10px 0 0;
+  color: rgba(206, 233, 255, 0.76);
+  font-size: 0.88rem;
+}
+
+@media (max-width: 1280px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .scene-card {
+    order: -1;
+  }
+
+  .hero-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 720px) {
+  .app-shell {
+    padding: 14px;
+    gap: 14px;
+  }
+
+  .scene-card {
+    padding: 10px;
+    min-height: 420px;
+  }
+
+  .scene-svg {
+    height: 58vh;
+  }
+
+  .metrics-grid,
+  .pill-group {
+    grid-template-columns: 1fr;
+  }
+}
+
