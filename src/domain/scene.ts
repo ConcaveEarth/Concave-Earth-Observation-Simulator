@@ -6,6 +6,7 @@ import {
 } from "./geometry";
 import { clamp, formatAngle, formatDistance, formatFraction, formatHeight, roundTo } from "./units";
 import type {
+  SceneBounds,
   SceneLine,
   SceneSegment,
   SceneViewModel,
@@ -14,15 +15,15 @@ import type {
   VisibilitySolveResult,
 } from "./types";
 
-function collectBounds(points: Vec2[]): SceneViewModel["bounds"] {
+function collectBounds(points: Vec2[], paddingFactor = 0.05, minYPad = 180): SceneBounds {
   const xs = points.map((point) => point.x);
   const ys = points.map((point) => point.y);
   const minX = Math.min(...xs);
   const maxX = Math.max(...xs);
   const minY = Math.min(...ys);
   const maxY = Math.max(...ys);
-  const xPad = Math.max((maxX - minX) * 0.05, 900);
-  const yPad = Math.max((maxY - minY) * 0.12, 180);
+  const xPad = Math.max((maxX - minX) * paddingFactor, 900);
+  const yPad = Math.max((maxY - minY) * (paddingFactor * 2.4), minYPad);
 
   return {
     minX: minX - xPad,
@@ -118,6 +119,28 @@ function getVerticalExaggeration(
   const rawSpan = Math.max(maxY - minY, 40);
   const targetSpan = focusDistanceM * 0.28;
   return clamp(targetSpan / rawSpan, 8, 65);
+}
+
+function createFocusBounds(result: VisibilitySolveResult, points: Vec2[]): SceneBounds {
+  const forwardExtent = Math.max(
+    result.scenario.surfaceDistanceM * 1.1,
+    ...points.map((point) => point.x),
+  );
+  const focusForward = clamp(
+    forwardExtent,
+    result.scenario.surfaceDistanceM * 0.95,
+    Math.max(result.scenario.surfaceDistanceM * 1.5, 40_000),
+  );
+  const focusBack = clamp(result.scenario.surfaceDistanceM * 0.12, 1_800, 14_000);
+  const filtered = points.filter(
+    (point) => point.x >= -focusBack && point.x <= focusForward,
+  );
+
+  return collectBounds(
+    filtered.length ? filtered : points,
+    0.08,
+    Math.max(240, result.scenario.targetHeightM * 0.12),
+  );
 }
 
 export function buildSceneViewModel(
@@ -373,21 +396,6 @@ export function buildSceneViewModel(
 
   const labels = [
     {
-      id: "observer-height",
-      featureId: "surface",
-      text: `Observer ${formatHeight(result.scenario.observerHeightM)}`,
-      point: { x: observerBase.x + 1_600, y: observerBase.y * 0.52 },
-    },
-    {
-      id: "target-height",
-      featureId: "surface",
-      text: `Target ${formatHeight(result.scenario.targetHeightM)}`,
-      point: {
-        x: targetTop.x + 2_000,
-        y: (targetTop.y + targetBase.y) / 2,
-      },
-    },
-    {
       id: "distance-label",
       featureId: "apparent",
       text: `Surface distance ${formatDistance(result.scenario.surfaceDistanceM)}`,
@@ -405,6 +413,19 @@ export function buildSceneViewModel(
         y: verticalExaggeration * 18,
       },
     },
+    ...(result.hiddenHeightM > 0
+      ? [
+          {
+            id: "hidden-height",
+            featureId: "hidden",
+            text: `Hidden ${formatHeight(result.hiddenHeightM)}`,
+            point: {
+              x: targetBase.x + 2_400,
+              y: (targetBase.y + targetVisibleStart.y) / 2,
+            },
+          },
+        ]
+      : []),
     {
       id: "apparent-angle",
       featureId: "apparent",
@@ -425,17 +446,22 @@ export function buildSceneViewModel(
     },
   ];
 
-  const bounds = collectBounds([
+  const relevantPoints = [
     ...surfaceSamples,
     ...segments.flatMap((segment) => [segment.from, segment.to]),
     ...markers.map((marker) => marker.point),
     ...lines.flatMap((line) => line.points),
-  ]);
+    ...labels.map((label) => label.point),
+  ];
+  const bounds = collectBounds(relevantPoints);
+  const focusBounds = createFocusBounds(result, relevantPoints);
 
   return {
     title,
     subtitle: `${result.model.label} | hidden ${formatHeight(result.hiddenHeightM)} | apparent ${formatAngle(result.apparentElevationRad)}`,
     bounds,
+    focusBounds,
+    suggestedVerticalScale: verticalExaggeration,
     surfaceFill,
     atmosphereFill,
     surfaceLine: lines[0],

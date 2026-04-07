@@ -166,6 +166,12 @@ select {
   font-size: 0.9rem;
 }
 
+.field__hint {
+  margin: 0;
+  color: rgba(199, 220, 245, 0.62);
+  font-size: 0.82rem;
+}
+
 .field input[type="number"],
 .field select {
   width: 100%;
@@ -255,8 +261,67 @@ select {
 }
 
 .scene-card {
+  position: relative;
   padding: 18px;
   min-height: 640px;
+}
+
+.scene-toolbar {
+  position: absolute;
+  top: 22px;
+  right: 24px;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end;
+  max-width: calc(100% - 44px);
+}
+
+.scene-toolbar__group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 16px;
+  border: 1px solid rgba(160, 204, 255, 0.14);
+  background: rgba(6, 18, 28, 0.78);
+  backdrop-filter: blur(14px);
+}
+
+.scene-toolbar__group--meta {
+  gap: 10px;
+}
+
+.scene-toolbar__label,
+.scene-toolbar__meta,
+.scene-toolbar__value {
+  color: rgba(224, 239, 255, 0.78);
+  font-size: 0.82rem;
+}
+
+.scene-toolbar__meta {
+  color: rgba(176, 214, 255, 0.68);
+}
+
+.scene-toolbar__value {
+  min-width: 52px;
+  text-align: center;
+}
+
+.scene-toolbar__button {
+  min-width: 34px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(162, 205, 255, 0.14);
+  background: rgba(13, 31, 47, 0.74);
+  color: #eef6ff;
+  cursor: pointer;
+}
+
+.scene-toolbar__button--active {
+  background: linear-gradient(135deg, rgba(34, 100, 176, 0.92), rgba(14, 57, 110, 0.92));
 }
 
 .scene-svg {
@@ -337,6 +402,13 @@ select {
     min-height: 420px;
   }
 
+  .scene-toolbar {
+    position: static;
+    margin-bottom: 10px;
+    justify-content: flex-start;
+    max-width: none;
+  }
+
   .scene-svg {
     height: 58vh;
   }
@@ -346,4 +418,3 @@ select {
     grid-template-columns: 1fr;
   }
 }
-

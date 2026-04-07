@@ -159,15 +159,19 @@ export interface ScenePolygon {
   opacity: number;
 }
 
+export interface SceneBounds {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+}
+
 export interface SceneViewModel {
   title: string;
   subtitle: string;
-  bounds: {
-    minX: number;
-    maxX: number;
-    minY: number;
-    maxY: number;
-  };
+  bounds: SceneBounds;
+  focusBounds: SceneBounds;
+  suggestedVerticalScale: number;
   surfaceFill: ScenePolygon;
   atmosphereFill?: ScenePolygon;
   surfaceLine: SceneLine;

@@ -320,6 +320,10 @@ export function ControlsPanel({
           />
           <span>Annotated mode</span>
         </label>
+
+        <p className="field__hint">
+          Fine-tune framing from the scene toolbar in the center panel.
+        </p>
       </PanelSection>
 
       <ModelEditor

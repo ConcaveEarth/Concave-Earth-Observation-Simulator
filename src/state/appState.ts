@@ -5,6 +5,7 @@ import {
   defaultScenario,
   getPresetById,
 } from "../domain/presets";
+import { clamp } from "../domain/units";
 import type {
   FocusedModel,
   GeometryMode,
@@ -14,12 +15,21 @@ import type {
   ViewMode,
 } from "../domain/types";
 
+export type SceneFramingMode = "auto" | "full";
+
+export interface SceneViewportState {
+  framingMode: SceneFramingMode;
+  zoom: number;
+  verticalZoom: number;
+}
+
 export interface AppState {
   scenario: ScenarioInput;
   primaryModel: ModelConfig;
   comparisonModel: ModelConfig;
   viewMode: ViewMode;
   focusedModel: FocusedModel;
+  sceneViewport: SceneViewportState;
   annotated: boolean;
   hoveredFeatureId: string | null;
 }
@@ -43,6 +53,14 @@ export type AppAction =
     }
   | { type: "setViewMode"; value: ViewMode }
   | { type: "setFocusedModel"; value: FocusedModel }
+  | {
+      type: "setViewportField";
+      key: keyof SceneViewportState;
+      value: number | string;
+    }
+  | { type: "adjustViewportZoom"; delta: number }
+  | { type: "adjustViewportVerticalZoom"; delta: number }
+  | { type: "resetViewport" }
   | { type: "setAnnotated"; value: boolean }
   | { type: "setHoveredFeature"; value: string | null }
   | { type: "applyPreset"; presetId: string };
@@ -54,6 +72,11 @@ export function createDefaultState(): AppState {
     comparisonModel: defaultComparisonModel,
     viewMode: "cross-section",
     focusedModel: "primary",
+    sceneViewport: {
+      framingMode: "auto",
+      zoom: 1,
+      verticalZoom: 1,
+    },
     annotated: true,
     hoveredFeatureId: null,
   };
@@ -144,6 +167,40 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, viewMode: action.value };
     case "setFocusedModel":
       return { ...state, focusedModel: action.value };
+    case "setViewportField":
+      return {
+        ...state,
+        sceneViewport: {
+          ...state.sceneViewport,
+          [action.key]:
+            action.key === "framingMode" ? action.value : Number(action.value),
+        },
+      };
+    case "adjustViewportZoom":
+      return {
+        ...state,
+        sceneViewport: {
+          ...state.sceneViewport,
+          zoom: clamp(state.sceneViewport.zoom + action.delta, 0.6, 4),
+        },
+      };
+    case "adjustViewportVerticalZoom":
+      return {
+        ...state,
+        sceneViewport: {
+          ...state.sceneViewport,
+          verticalZoom: clamp(
+            state.sceneViewport.verticalZoom + action.delta,
+            0.45,
+            6,
+          ),
+        },
+      };
+    case "resetViewport":
+      return {
+        ...state,
+        sceneViewport: createDefaultState().sceneViewport,
+      };
     case "setAnnotated":
       return { ...state, annotated: action.value };
     case "setHoveredFeature":
@@ -158,6 +215,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           defaultComparisonModel,
           preset.comparisonModel,
         ),
+        sceneViewport: createDefaultState().sceneViewport,
       };
     }
     default:
@@ -220,6 +278,9 @@ export function serializeStateToSearch(state: AppState): string {
   params.set("preset", state.scenario.presetId);
   params.set("view", state.viewMode);
   params.set("focus", state.focusedModel);
+  params.set("frame", state.sceneViewport.framingMode);
+  params.set("zoom", String(state.sceneViewport.zoom));
+  params.set("vzoom", String(state.sceneViewport.verticalZoom));
   params.set("annotated", state.annotated ? "1" : "0");
   params.set("observer", String(state.scenario.observerHeightM));
   params.set("target", String(state.scenario.targetHeightM));
@@ -270,8 +331,16 @@ export function hydrateStateFromSearch(search: string): AppState {
     comparisonModel,
     viewMode: params.get("view") === "compare" ? "compare" : "cross-section",
     focusedModel: params.get("focus") === "comparison" ? "comparison" : "primary",
+    sceneViewport: {
+      framingMode: params.get("frame") === "full" ? "full" : "auto",
+      zoom: parseNumber(params, "zoom", defaults.sceneViewport.zoom),
+      verticalZoom: parseNumber(
+        params,
+        "vzoom",
+        defaults.sceneViewport.verticalZoom,
+      ),
+    },
     annotated: params.get("annotated") !== "0",
     hoveredFeatureId: null,
   };
 }
-

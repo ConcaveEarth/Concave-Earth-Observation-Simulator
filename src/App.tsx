@@ -4,6 +4,7 @@ import { hydrateStateFromSearch, appReducer, serializeStateToSearch } from "./st
 import { ControlsPanel } from "./ui/components/ControlsPanel";
 import { RightPanel } from "./ui/components/RightPanel";
 import { SceneSvg } from "./ui/components/SceneSvg";
+import { SceneToolbar } from "./ui/components/SceneToolbar";
 import { downloadSvgAsPng } from "./ui/exportSvg";
 
 function getSceneFilename(viewMode: string): string {
@@ -52,6 +53,12 @@ export default function App() {
     deferredState.focusedModel === "primary" ? primaryResult : comparisonResult;
   const activeScene =
     deferredState.focusedModel === "primary" ? primaryScene : comparisonScene;
+  const displayedScenes = scenes;
+  const suggestedVerticalScale =
+    displayedScenes.reduce(
+      (largest, scene) => Math.max(largest, scene.suggestedVerticalScale),
+      1,
+    );
 
   async function handleExport() {
     const svg = sceneHostRef.current?.querySelector("svg");
@@ -105,10 +112,18 @@ export default function App() {
         </header>
 
         <div className="scene-card panel" ref={sceneHostRef}>
+          <SceneToolbar
+            state={state}
+            dispatch={dispatch}
+            suggestedVerticalScale={suggestedVerticalScale}
+          />
           <SceneSvg
             scenes={scenes}
             annotated={state.annotated}
             hoveredFeatureId={state.hoveredFeatureId}
+            framingMode={state.sceneViewport.framingMode}
+            zoom={state.sceneViewport.zoom}
+            verticalZoom={state.sceneViewport.verticalZoom}
             onHoverFeature={(featureId) =>
               dispatch({ type: "setHoveredFeature", value: featureId })
             }
@@ -127,4 +142,3 @@ export default function App() {
     </div>
   );
 }
-

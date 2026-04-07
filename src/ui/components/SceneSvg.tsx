@@ -1,10 +1,14 @@
 import type { CSSProperties } from "react";
 import type { SceneLine, SceneSegment, SceneViewModel, Vec2 } from "../../domain/types";
+import type { SceneFramingMode } from "../../state/appState";
 
 interface SceneSvgProps {
   scenes: SceneViewModel[];
   annotated: boolean;
   hoveredFeatureId: string | null;
+  framingMode: SceneFramingMode;
+  zoom: number;
+  verticalZoom: number;
   onHoverFeature: (featureId: string | null) => void;
 }
 
@@ -22,25 +26,29 @@ function polygonPoints(points: Vec2[]): string {
   return points.map((point) => `${point.x},${point.y}`).join(" ");
 }
 
-function createProjector(scene: SceneViewModel, panel: PanelRect) {
+function createProjector(
+  scene: SceneViewModel,
+  panel: PanelRect,
+  framingMode: SceneFramingMode,
+  zoom: number,
+  verticalZoom: number,
+) {
   const padding = 44;
   const availableWidth = panel.width - padding * 2;
   const availableHeight = panel.height - padding * 2;
-  const spanX = Math.max(scene.bounds.maxX - scene.bounds.minX, 1);
-  const spanY = Math.max(scene.bounds.maxY - scene.bounds.minY, 1);
-  const scale = Math.min(availableWidth / spanX, availableHeight / spanY);
-  const offsetX =
-    panel.x + padding + (availableWidth - spanX * scale) / 2 - scene.bounds.minX * scale;
-  const offsetY =
-    panel.y +
-    padding +
-    (availableHeight - spanY * scale) / 2 +
-    scene.bounds.maxY * scale +
-    availableHeight * 0.08;
+  const bounds = framingMode === "full" ? scene.bounds : scene.focusBounds;
+  const spanX = Math.max(bounds.maxX - bounds.minX, 1);
+  const spanY = Math.max(bounds.maxY - bounds.minY, 1);
+  const xScale = (availableWidth / spanX) * zoom;
+  const yScale = (availableHeight / spanY) * zoom * verticalZoom;
+  const centerX = (bounds.minX + bounds.maxX) / 2;
+  const centerY = bounds.minY + spanY * 0.36;
+  const viewportCenterX = panel.x + padding + availableWidth / 2;
+  const viewportCenterY = panel.y + padding + availableHeight * 0.58;
 
   return (point: Vec2) => ({
-    x: offsetX + point.x * scale,
-    y: offsetY - point.y * scale,
+    x: viewportCenterX + (point.x - centerX) * xScale,
+    y: viewportCenterY - (point.y - centerY) * yScale,
   });
 }
 
@@ -96,16 +104,23 @@ function renderSegment(
   );
 }
 
-function renderGrid(scene: SceneViewModel, panel: PanelRect) {
+function renderGrid(
+  scene: SceneViewModel,
+  panel: PanelRect,
+  framingMode: SceneFramingMode,
+  zoom: number,
+  verticalZoom: number,
+) {
   const lines: JSX.Element[] = [];
-  const project = createProjector(scene, panel);
-  const stepX = (scene.bounds.maxX - scene.bounds.minX) / 6;
-  const stepY = (scene.bounds.maxY - scene.bounds.minY) / 6;
+  const bounds = framingMode === "full" ? scene.bounds : scene.focusBounds;
+  const stepX = (bounds.maxX - bounds.minX) / 6;
+  const stepY = (bounds.maxY - bounds.minY) / 6;
+  const project = createProjector(scene, panel, framingMode, zoom, verticalZoom);
 
   for (let index = 0; index <= 6; index += 1) {
-    const x = scene.bounds.minX + stepX * index;
-    const start = project({ x, y: scene.bounds.minY });
-    const end = project({ x, y: scene.bounds.maxY });
+    const x = bounds.minX + stepX * index;
+    const start = project({ x, y: bounds.minY });
+    const end = project({ x, y: bounds.maxY });
     lines.push(
       <line
         key={`grid-x-${index}`}
@@ -120,9 +135,9 @@ function renderGrid(scene: SceneViewModel, panel: PanelRect) {
   }
 
   for (let index = 0; index <= 6; index += 1) {
-    const y = scene.bounds.minY + stepY * index;
-    const start = project({ x: scene.bounds.minX, y });
-    const end = project({ x: scene.bounds.maxX, y });
+    const y = bounds.minY + stepY * index;
+    const start = project({ x: bounds.minX, y });
+    const end = project({ x: bounds.maxX, y });
     lines.push(
       <line
         key={`grid-y-${index}`}
@@ -143,6 +158,9 @@ export function SceneSvg({
   scenes,
   annotated,
   hoveredFeatureId,
+  framingMode,
+  zoom,
+  verticalZoom,
   onHoverFeature,
 }: SceneSvgProps) {
   const isCompare = scenes.length > 1;
@@ -203,8 +221,15 @@ export function SceneSvg({
 
       {scenes.map((scene, index) => {
         const panel = panelRects[index];
-        const project = createProjector(scene, panel);
+        const project = createProjector(
+          scene,
+          panel,
+          framingMode,
+          zoom,
+          verticalZoom,
+        );
         const panelStyle: CSSProperties = {};
+        const shouldRenderDetailLabels = !isCompare || zoom > 1.15 || verticalZoom > 1.2;
 
         return (
           <g key={scene.title} style={panelStyle}>
@@ -218,7 +243,7 @@ export function SceneSvg({
               stroke="rgba(141, 192, 255, 0.18)"
             />
 
-            {renderGrid(scene, panel)}
+            {renderGrid(scene, panel, framingMode, zoom, verticalZoom)}
 
             <polygon
               points={polygonPoints(scene.surfaceFill.points.map(project))}
@@ -260,18 +285,13 @@ export function SceneSvg({
                   />
                   {annotated ? (
                     <text
-                      x={point.x + 10}
-                      y={point.y - 10}
+                      x={point.x + (marker.labelOffset?.x ?? 10)}
+                      y={point.y + (marker.labelOffset?.y ?? -10)}
                       fill="#e9f4ff"
                       fontSize={markerFontSize}
                       fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
                     >
-                      <tspan
-                        x={point.x + (marker.labelOffset?.x ?? 10)}
-                        y={point.y + (marker.labelOffset?.y ?? -10)}
-                      >
-                        {marker.label}
-                      </tspan>
+                      {marker.label}
                     </text>
                   ) : null}
                 </g>
@@ -298,7 +318,7 @@ export function SceneSvg({
               {scene.subtitle}
             </text>
 
-            {annotated
+            {annotated && shouldRenderDetailLabels
               ? scene.labels.map((label) => {
                   const point = project(label.point);
                   return (

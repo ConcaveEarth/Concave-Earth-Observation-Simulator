@@ -97,6 +97,10 @@ export function RightPanel({
             <strong>Solver:</strong> {activeResult.solverMetadata.sampleCount} target samples,{" "}
             {formatDistance(activeResult.solverMetadata.stepM)} trace step
           </p>
+          <p>
+            <strong>Viewport:</strong> {state.sceneViewport.framingMode === "auto" ? "Auto fit" : "Full span"}
+            {` • zoom ${state.sceneViewport.zoom.toFixed(2)}x • vertical ${state.sceneViewport.verticalZoom.toFixed(2)}x`}
+          </p>
         </div>
       </PanelSection>
 
@@ -131,4 +135,3 @@ export function RightPanel({
     </aside>
   );
 }
-
