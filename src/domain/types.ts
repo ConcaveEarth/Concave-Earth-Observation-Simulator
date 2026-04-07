@@ -157,6 +157,7 @@ export interface SceneMarker {
   color: string;
   labelOffset?: Vec2;
   hideLabel?: boolean;
+  density?: "adaptive" | "full";
 }
 
 export interface SceneLabel {
@@ -164,6 +165,7 @@ export interface SceneLabel {
   featureId: string;
   text: string;
   point: Vec2;
+  density?: "adaptive" | "full";
 }
 
 export interface ScenePolygon {

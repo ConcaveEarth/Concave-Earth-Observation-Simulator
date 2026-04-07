@@ -77,7 +77,10 @@ function getFeatureMetrics(
   switch (hoverId) {
     case "surface":
       return {
-        title: "Surface / Shell",
+        title:
+          result.model.geometryMode === "convex"
+            ? "Surface / Sea Level"
+            : "Surface / Ground Level",
         description:
           result.model.geometryMode === "convex"
             ? "The physical surface curve of the convex model."
@@ -88,13 +91,20 @@ function getFeatureMetrics(
           { label: "Surface distance", value: formatDistance(result.scenario.surfaceDistanceM) },
           { label: "Central angle", value: formatAngle(result.targetAngleRad) },
           { label: "Target base drop from tangent", value: formatHeight(geometricDropM) },
+          {
+            label: "Reference role",
+            value:
+              result.model.geometryMode === "convex"
+                ? "Ground / sea-level curve in the convex plate"
+                : "Ground / sea-level curve in the concave plate",
+          },
         ],
       };
     case "observer-horizontal":
       return {
-        title: "Observer Horizontal",
+        title: "Straight Observer Horizontal",
         description:
-          "A straight local tangent through the observer. This is the geometric horizontal reference line.",
+          "A straight local tangent through the observer. This is the Euclidean horizontal reference line.",
         metrics: [
           {
             label: "Observer height",
@@ -111,13 +121,25 @@ function getFeatureMetrics(
               ? formatDistance(result.geometricHorizon.distanceM)
               : "N/A",
           },
+          {
+            label: "Reference role",
+            value:
+              result.model.geometryMode === "convex"
+                ? "Straight horizontal family in the convex plate"
+                : "Straight comparison construction in the concave plate",
+          },
         ],
       };
     case "observer-altitude-curve":
       return {
-        title: "Observer Altitude Curve",
+        title:
+          result.model.geometryMode === "convex"
+            ? "Curved Altitude Reference"
+            : "Curvilinear Tangent",
         description:
-          "A constant-height reference curve following the active surface/shell geometry at the observer altitude.",
+          result.model.geometryMode === "convex"
+            ? "A constant-height reference curve following the convex surface geometry at the observer altitude."
+            : "A constant-height reference curve following the concave shell geometry at the observer altitude. This is the curvilinear tangent-style reference in the concave view.",
         metrics: [
           { label: "Reference height", value: formatHeight(result.scenario.observerHeightM) },
           { label: "Target offset from tangent", value: formatHeight(Math.abs(observerAltitudeLocal.y)) },
@@ -126,6 +148,43 @@ function getFeatureMetrics(
             value: observerAltitudeLocal.y < 0 ? "Drops below tangent" : "Rises above tangent",
           },
           { label: "Geometry mode", value: result.model.geometryMode },
+          {
+            label: "Reference role",
+            value:
+              result.model.geometryMode === "convex"
+                ? "Curved level / altitude family in the convex plate"
+                : "Curvilinear tangent family in the concave plate",
+          },
+        ],
+      };
+    case "observer-height":
+      return {
+        title: "Observer Height",
+        description:
+          "The vertical height construction from the observer's local surface/shell point to the observation point.",
+        metrics: [
+          { label: "Observer height", value: formatHeight(result.scenario.observerHeightM) },
+          { label: "Base point", value: "Observer surface point" },
+          { label: "Top point", value: "Observation point" },
+          {
+            label: "Reference role",
+            value: "Vertical height construction",
+          },
+        ],
+      };
+    case "target-height":
+      return {
+        title: "Target Height",
+        description:
+          "The vertical height construction from the target base on the surface/shell to the top of the target.",
+        metrics: [
+          { label: "Target height", value: formatHeight(result.scenario.targetHeightM) },
+          { label: "Base point", value: "Target base" },
+          { label: "Top point", value: "Target top" },
+          {
+            label: "Reference role",
+            value: "Vertical target-height construction",
+          },
         ],
       };
     case "terrain-profile":
@@ -148,6 +207,10 @@ function getFeatureMetrics(
                 label: "Use in solver",
                 value: "Illustrative only",
               },
+              {
+                label: "Reference role",
+                value: "Terrain / shoreline / mountain overlay",
+              },
             ]
           : [{ label: "Status", value: "No profile overlay available" }],
       };
@@ -161,6 +224,10 @@ function getFeatureMetrics(
           { label: "Geometric elevation", value: formatAngle(result.actualElevationRad) },
           { label: "Target top local rise", value: formatHeight(Math.abs(targetTopLocal.y)) },
           { label: "Central angle", value: formatAngle(result.targetAngleRad) },
+          {
+            label: "Reference role",
+            value: "Straight geometric construction line",
+          },
         ],
       };
     case "actual-ray":
@@ -173,6 +240,11 @@ function getFeatureMetrics(
               { label: "Launch angle", value: formatAngle(primaryRay.launchAngleRad) },
               { label: "Total bend", value: formatAngle(primaryRay.totalBendRad) },
               {
+                label: "Path type",
+                value:
+                  Math.abs(primaryRay.totalBendRad) < 1e-4 ? "Near-straight" : "Curved",
+              },
+              {
                 label: "Solved arc length",
                 value: primaryRay.targetCrossing
                   ? formatDistance(primaryRay.targetCrossing.arcLengthM)
@@ -180,6 +252,13 @@ function getFeatureMetrics(
               },
               { label: "Min surface clearance", value: formatHeight(primaryRay.minSurfaceClearanceM) },
               { label: "Termination", value: primaryRay.terminationReason },
+              {
+                label: "Reference role",
+                value:
+                  result.model.geometryMode === "convex"
+                    ? "Curved optical line of sight in the convex plate"
+                    : "Curved physical sight path in the concave plate",
+              },
             ]
           : [{ label: "Status", value: "No solved primary ray" }],
       };
@@ -198,11 +277,18 @@ function getFeatureMetrics(
             ),
           },
           { label: "Model", value: result.model.label },
+          {
+            label: "Reference role",
+            value: "Straight apparent direction seen at the observer",
+          },
         ],
       };
     case "horizon-geometric":
       return {
-        title: "Geometric Horizon",
+        title:
+          result.model.geometryMode === "convex"
+            ? "Geometric Horizon Tangent"
+            : "Geometric Horizon Construction",
         description:
           "The tangent-to-surface horizon with no optical correction.",
         metrics: result.geometricHorizon
@@ -210,6 +296,13 @@ function getFeatureMetrics(
               { label: "Distance", value: formatDistance(result.geometricHorizon.distanceM) },
               { label: "Surface angle", value: formatAngle(result.geometricHorizon.surfaceAngleRad) },
               { label: "Apparent elevation", value: formatAngle(result.geometricHorizon.apparentElevationRad) },
+              {
+                label: "Reference role",
+                value:
+                  result.model.geometryMode === "convex"
+                    ? "Rectilinear tangent family in the convex plate"
+                    : "Straight geometric horizon construction",
+              },
             ]
           : [{ label: "Status", value: "Not available for this solve" }],
       };
@@ -228,6 +321,10 @@ function getFeatureMetrics(
                   ? formatDistance(geometricHorizonDeltaM)
                   : "N/A",
               },
+              {
+                label: "Reference role",
+                value: "Grazing curved horizon boundary under the active ray law",
+              },
             ]
           : [{ label: "Status", value: "No optical horizon found" }],
       };
@@ -241,6 +338,7 @@ function getFeatureMetrics(
           { label: "Visible height", value: formatHeight(result.visibleHeightM) },
           { label: "Visibility fraction", value: formatFraction(result.visibilityFraction) },
           { label: "Solved visible samples", value: String(result.solverMetadata.solvedVisibleSamples) },
+          { label: "Reference role", value: "Occluded lower target segment" },
         ],
       };
     default:

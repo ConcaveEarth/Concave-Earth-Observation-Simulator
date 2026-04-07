@@ -44,6 +44,11 @@ interface PanelRect {
 
 const SVG_WIDTH = 1600;
 const SVG_HEIGHT = 900;
+const textHalo = {
+  stroke: "rgba(5, 12, 18, 0.96)",
+  strokeWidth: 4,
+  paintOrder: "stroke",
+} as const;
 
 function polygonPoints(points: Vec2[]): string {
   return points.map((point) => `${point.x},${point.y}`).join(" ");
@@ -647,13 +652,17 @@ export function SceneSvg({
                     stroke="rgba(255,255,255,0.7)"
                     opacity={activeFeatureId !== null && !isActive ? 0.34 : 1}
                   />
-                  {annotated && shouldRenderDetailLabels && !marker.hideLabel ? (
+                  {annotated &&
+                  shouldRenderDetailLabels &&
+                  !marker.hideLabel &&
+                  (expandedLabels || marker.density !== "full") ? (
                     <text
                       x={point.x + (marker.labelOffset?.x ?? 10)}
                       y={point.y + (marker.labelOffset?.y ?? -10)}
                       fill="#e9f4ff"
                       fontSize={markerFontSize}
                       fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
+                      {...textHalo}
                     >
                       {marker.label}
                     </text>
@@ -669,6 +678,7 @@ export function SceneSvg({
               fontSize={titleFontSize}
               fontWeight="600"
               fontFamily="'Trebuchet MS', 'Segoe UI Variable Display', sans-serif"
+              {...textHalo}
             >
               {scene.title}
             </text>
@@ -678,12 +688,14 @@ export function SceneSvg({
               fill="rgba(219, 237, 255, 0.7)"
               fontSize={subtitleFontSize}
               fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
+              {...textHalo}
             >
               {scene.subtitle}
             </text>
 
             {annotated && shouldRenderDetailLabels
               ? scene.labels
+                  .filter((label) => expandedLabels || label.density !== "full")
                   .filter(
                     (label) => showTerrainOverlay || label.featureId !== "terrain-profile",
                   )
@@ -705,6 +717,7 @@ export function SceneSvg({
                       opacity={activeFeatureId !== null && !isLabelActive ? 0.45 : 1}
                       fontSize={labelFontSize}
                       fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
+                      {...textHalo}
                     >
                         {label.text}
                       </text>
