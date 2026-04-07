@@ -7,6 +7,8 @@ interface SceneToolbarProps {
   dispatch: Dispatch<AppAction>;
   suggestedVerticalScale: number;
   isFullscreen: boolean;
+  showLegend: boolean;
+  onToggleLegend: () => void;
   onToggleFullscreen: () => void;
   language: LanguageMode;
 }
@@ -36,6 +38,8 @@ export function SceneToolbar({
   dispatch,
   suggestedVerticalScale,
   isFullscreen,
+  showLegend,
+  onToggleLegend,
   onToggleFullscreen,
   language,
 }: SceneToolbarProps) {
@@ -182,6 +186,11 @@ export function SceneToolbar({
       </div>
 
       <div className="scene-toolbar__group">
+        <ControlButton
+          label={t(language, "legend")}
+          active={showLegend}
+          onClick={onToggleLegend}
+        />
         <ControlButton
           label={isFullscreen ? t(language, "exitFullscreen") : t(language, "fullscreen")}
           onClick={onToggleFullscreen}

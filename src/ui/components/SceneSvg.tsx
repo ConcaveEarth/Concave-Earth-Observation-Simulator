@@ -514,24 +514,24 @@ export function SceneSvg({
   const subtitleFontSize = expandedLabels ? 15 : isCompare ? 13 : 15;
   const labelFontSize = expandedLabels ? 14 : isCompare ? 12 : 14;
   const panelRects: PanelRect[] = !isCompare
-    ? [{ x: 28, y: 28, width: SVG_WIDTH - 56, height: svgHeight - 56 }]
+    ? [{ x: 18, y: 20, width: SVG_WIDTH - 36, height: svgHeight - 40 }]
     : isStacked
       ? [
-          { x: 26, y: 28, width: SVG_WIDTH - 52, height: (svgHeight - 86) / 2 },
+          { x: 18, y: 20, width: SVG_WIDTH - 36, height: (svgHeight - 62) / 2 },
           {
-            x: 26,
-            y: svgHeight / 2 + 15,
-            width: SVG_WIDTH - 52,
-            height: (svgHeight - 86) / 2,
+            x: 18,
+            y: svgHeight / 2 + 11,
+            width: SVG_WIDTH - 36,
+            height: (svgHeight - 62) / 2,
           },
         ]
       : [
-          { x: 26, y: 28, width: (SVG_WIDTH - 78) / 2, height: svgHeight - 56 },
+          { x: 18, y: 20, width: (SVG_WIDTH - 50) / 2, height: svgHeight - 40 },
           {
-            x: SVG_WIDTH / 2 + 13,
-            y: 28,
-            width: (SVG_WIDTH - 78) / 2,
-            height: svgHeight - 56,
+            x: SVG_WIDTH / 2 + 7,
+            y: 20,
+            width: (SVG_WIDTH - 50) / 2,
+            height: svgHeight - 40,
           },
         ];
   const projections = useMemo(

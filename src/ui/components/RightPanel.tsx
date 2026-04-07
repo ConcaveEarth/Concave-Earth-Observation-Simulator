@@ -29,6 +29,7 @@ interface RightPanelProps {
   onCopyLink: () => void;
   message: string | null;
   language: LanguageMode;
+  fullWidthScene: boolean;
 }
 
 interface FeatureMetric {
@@ -558,6 +559,7 @@ export function RightPanel({
   onCopyLink,
   message,
   language,
+  fullWidthScene,
 }: RightPanelProps) {
   const preset = getPresetById(state.scenario.presetId);
   const hoveredAnnotation = activeScene.annotations.find(
@@ -597,7 +599,11 @@ export function RightPanel({
 
   return (
     <aside className="right-panel panel">
-      <PanelSection title={t(language, "currentOutput")} eyebrow={t(language, "numerics")}>
+      <PanelSection
+        title={t(language, "currentOutput")}
+        eyebrow={t(language, "numerics")}
+        className="right-panel__section right-panel__section--numerics"
+      >
         <div className="metrics-grid">
           <SummaryMetric
             label={t(language, "hiddenHeight")}
@@ -633,7 +639,11 @@ export function RightPanel({
         </div>
       </PanelSection>
 
-      <PanelSection title={t(language, "modelTransparency")} eyebrow={t(language, "assumptions")}>
+      <PanelSection
+        title={t(language, "modelTransparency")}
+        eyebrow={t(language, "assumptions")}
+        className="right-panel__section right-panel__section--assumptions"
+      >
         <div className="detail-card">
           <p>
             <strong>Inspecting:</strong> {inspectedSceneKey === "primary" ? `${t(language, "primaryModelTitle")} panel` : `${t(language, "comparisonModelTitle")} panel`}
@@ -701,7 +711,11 @@ export function RightPanel({
       </PanelSection>
 
       {professionalMode ? (
-        <PanelSection title={t(language, "surveyGeometry")} eyebrow={t(language, "fieldMetrics")}>
+        <PanelSection
+          title={t(language, "surveyGeometry")}
+          eyebrow={t(language, "fieldMetrics")}
+          className="right-panel__section right-panel__section--field-metrics"
+        >
           <div className="detail-card">
             <div className="feature-metrics">
               <div className="feature-metrics__row">
@@ -755,8 +769,12 @@ export function RightPanel({
         </PanelSection>
       ) : null}
 
-      {professionalMode ? (
-        <PanelSection title={t(language, "lineLegend")} eyebrow={t(language, "sceneGuide")}>
+      {professionalMode && !fullWidthScene ? (
+        <PanelSection
+          title={t(language, "lineLegend")}
+          eyebrow={t(language, "sceneGuide")}
+          className="right-panel__section right-panel__section--legend"
+        >
           <div className="detail-card">
             <div className="legend-list">
               {activeScene.annotations
@@ -785,7 +803,11 @@ export function RightPanel({
         </PanelSection>
       ) : null}
 
-      <PanelSection title={t(language, "featureInspection")} eyebrow={t(language, "inspection")}>
+      <PanelSection
+        title={t(language, "featureInspection")}
+        eyebrow={t(language, "inspection")}
+        className="right-panel__section right-panel__section--inspection"
+      >
         <div className="detail-card">
           <div className="detail-card__toolbar">
             <div>
@@ -818,7 +840,11 @@ export function RightPanel({
       </PanelSection>
 
       {professionalMode ? (
-        <PanelSection title={t(language, "presetNotes")} eyebrow={t(language, "context")}>
+        <PanelSection
+          title={t(language, "presetNotes")}
+          eyebrow={t(language, "context")}
+          className="right-panel__section right-panel__section--context"
+        >
           <div className="detail-card">
             <h4>{getPresetName(language, preset)}</h4>
             <p>{getPresetDescription(language, preset)}</p>
@@ -833,7 +859,11 @@ export function RightPanel({
         </PanelSection>
       ) : null}
 
-      <PanelSection title={t(language, "shareExport")} eyebrow={t(language, "output")}>
+      <PanelSection
+        title={t(language, "shareExport")}
+        eyebrow={t(language, "output")}
+        className="right-panel__section right-panel__section--output"
+      >
         <div className="action-row">
           <button type="button" className="action-button" onClick={onExport}>
             {t(language, "exportPng")}

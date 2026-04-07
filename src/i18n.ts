@@ -103,6 +103,8 @@ const en: TranslationDictionary = {
     "Hover to inspect, click to pin, drag to pan, wheel to zoom, Shift+wheel vertical",
   fullscreen: "Fullscreen",
   exitFullscreen: "Exit Fullscreen",
+  legend: "Legend",
+  activeLegend: "Active legend",
   scaleSummaryTrue: "True scale • vertical x{vertical}",
   scaleSummarySurvey: "Survey scale • vertical x{vertical}",
   scaleSummaryDiagram: "Diagram base x{base} • vertical x{vertical}",

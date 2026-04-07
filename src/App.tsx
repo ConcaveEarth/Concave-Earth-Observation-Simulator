@@ -3,6 +3,7 @@ import { buildSceneViewModel, solveVisibility } from "./domain";
 import { hydrateStateFromSearch, appReducer, serializeStateToSearch } from "./state/appState";
 import { ControlsPanel } from "./ui/components/ControlsPanel";
 import { RightPanel } from "./ui/components/RightPanel";
+import { SceneLegendOverlay } from "./ui/components/SceneLegendOverlay";
 import { SceneSvg } from "./ui/components/SceneSvg";
 import { SceneToolbar } from "./ui/components/SceneToolbar";
 import { TopNav } from "./ui/components/TopNav";
@@ -24,6 +25,7 @@ export default function App() {
   const [message, setMessage] = useState<string | null>(null);
   const sceneHostRef = useRef<HTMLDivElement | null>(null);
   const [isSceneFullscreen, setIsSceneFullscreen] = useState(false);
+  const [showLegendOverlay, setShowLegendOverlay] = useState(true);
   const [windowWidth, setWindowWidth] = useState(() => window.innerWidth);
 
   useEffect(() => {
@@ -131,6 +133,8 @@ export default function App() {
         ? "stacked"
         : "side-by-side"
       : state.sceneViewport.compareLayout;
+  const shouldShowLegendOverlay =
+    state.workspaceMode === "professional" && state.fullWidthScene && showLegendOverlay;
 
   async function handleExport() {
     const svg = sceneHostRef.current?.querySelector("svg");
@@ -229,6 +233,8 @@ export default function App() {
                 dispatch={dispatch}
                 suggestedVerticalScale={suggestedVerticalScale}
                 isFullscreen={isSceneFullscreen}
+                showLegend={shouldShowLegendOverlay}
+                onToggleLegend={() => setShowLegendOverlay((current) => !current)}
                 onToggleFullscreen={handleToggleFullscreen}
                 language={state.language}
               />
@@ -277,6 +283,13 @@ export default function App() {
                   dispatch({ type: "adjustViewportVerticalZoom", delta })
                 }
               />
+              <SceneLegendOverlay
+                annotations={inspectedScene.annotations}
+                activeFeatureId={activeFeatureId}
+                visible={shouldShowLegendOverlay}
+                showTerrainOverlay={state.showTerrainOverlay}
+                language={state.language}
+              />
             </div>
           </div>
         </main>
@@ -294,6 +307,7 @@ export default function App() {
           onCopyLink={handleCopyLink}
           message={message}
           language={state.language}
+          fullWidthScene={state.fullWidthScene}
         />
       </div>
 

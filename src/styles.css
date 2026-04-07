@@ -331,8 +331,34 @@ select {
 .app-shell--fullwidth-scene .right-panel {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-auto-flow: dense;
   align-content: start;
   overflow-y: auto;
+}
+
+.app-shell--fullwidth-scene .right-panel__section--inspection {
+  order: 1;
+  grid-column: span 2;
+}
+
+.app-shell--fullwidth-scene .right-panel__section--numerics {
+  order: 2;
+}
+
+.app-shell--fullwidth-scene .right-panel__section--assumptions {
+  order: 3;
+}
+
+.app-shell--fullwidth-scene .right-panel__section--field-metrics {
+  order: 4;
+}
+
+.app-shell--fullwidth-scene .right-panel__section--context {
+  order: 5;
+}
+
+.app-shell--fullwidth-scene .right-panel__section--output {
+  order: 6;
 }
 
 .panel__intro,
@@ -693,7 +719,7 @@ select {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 18px;
+  padding: 14px;
   min-height: 0;
   flex: 1 1 auto;
   overflow: hidden;
@@ -737,9 +763,32 @@ select {
 }
 
 .scene-card__viewport {
+  position: relative;
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
+}
+
+.scene-legend-overlay {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: min(290px, calc(100% - 36px));
+  max-height: calc(100% - 36px);
+  padding: 14px 16px;
+  overflow: auto;
+  z-index: 2;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(8, 18, 28, 0.9), rgba(7, 14, 22, 0.82));
+}
+
+.scene-legend-overlay__header {
+  margin-bottom: 12px;
+}
+
+.scene-legend-overlay__header h3 {
+  margin: 0;
+  font-size: 1rem;
 }
 
 .scene-card:fullscreen {
@@ -1007,6 +1056,12 @@ select {
     min-height: 560px;
   }
 
+  .scene-legend-overlay {
+    top: 12px;
+    right: 12px;
+    width: min(250px, calc(100% - 24px));
+  }
+
   .hero-card {
     flex-direction: column;
     align-items: flex-start;
@@ -1085,9 +1140,20 @@ select {
     min-height: 360px;
   }
 
+  .scene-legend-overlay {
+    position: static;
+    width: 100%;
+    max-height: none;
+    margin-top: 12px;
+  }
+
   .metrics-grid,
   .pill-group {
     grid-template-columns: 1fr;
+  }
+
+  .app-shell--fullwidth-scene .right-panel__section--inspection {
+    grid-column: span 1;
   }
 
   .field__value-row {
