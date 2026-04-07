@@ -46,6 +46,7 @@ function getLocalPoint(result: VisibilitySolveResult, point: { x: number; y: num
 
 function getFeatureMetrics(
   result: VisibilitySolveResult,
+  activeScene: SceneViewModel,
   featureId: string | null,
 ): { title: string; description: string; metrics: FeatureMetric[] } {
   const targetBaseLocal = getLocalPoint(result, result.targetBasePoint);
@@ -122,6 +123,29 @@ function getFeatureMetrics(
           },
           { label: "Geometry mode", value: result.model.geometryMode },
         ],
+      };
+    case "terrain-profile":
+      return {
+        title: activeScene.terrainOverlay?.name ?? "Terrain / Profile Overlay",
+        description:
+          activeScene.terrainOverlay?.description ??
+          "A terrain or structure overlay aligned to the current preset distances.",
+        metrics: activeScene.terrainOverlay
+          ? [
+              {
+                label: "Profile span",
+                value: formatDistance(activeScene.terrainOverlay.spanDistanceM),
+              },
+              {
+                label: "Peak / top height",
+                value: formatHeight(activeScene.terrainOverlay.maxHeightM),
+              },
+              {
+                label: "Use in solver",
+                value: "Illustrative only",
+              },
+            ]
+          : [{ label: "Status", value: "No profile overlay available" }],
       };
     case "geometric-sightline":
       return {
@@ -246,7 +270,11 @@ export function RightPanel({
   const hoveredAnnotation = activeScene.annotations.find(
     (annotation) => annotation.id === state.hoveredFeatureId,
   );
-  const featureDetails = getFeatureMetrics(activeResult, state.hoveredFeatureId);
+  const featureDetails = getFeatureMetrics(
+    activeResult,
+    activeScene,
+    state.hoveredFeatureId,
+  );
 
   return (
     <aside className="right-panel panel">
@@ -313,7 +341,12 @@ export function RightPanel({
       <PanelSection title="Line Legend" eyebrow="Scene guide">
         <div className="detail-card">
           <div className="legend-list">
-            {activeScene.annotations.map((annotation) => (
+            {activeScene.annotations
+              .filter(
+                (annotation) =>
+                  state.showTerrainOverlay || annotation.id !== "terrain-profile",
+              )
+              .map((annotation) => (
               <div key={annotation.id} className="legend-item">
                 <span
                   className="legend-swatch"
@@ -345,6 +378,13 @@ export function RightPanel({
         <div className="detail-card">
           <h4>{preset.name}</h4>
           <p>{preset.description}</p>
+          {activeScene.terrainOverlay ? (
+            <p>
+              Profile overlay: {activeScene.terrainOverlay.name}. This layer is
+              aligned to the scenario distances for diagram readability, and it
+              does not yet replace the solver's baseline surface-intersection mesh.
+            </p>
+          ) : null}
         </div>
       </PanelSection>
 

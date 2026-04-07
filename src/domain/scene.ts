@@ -4,6 +4,7 @@ import {
   pointAtSurfaceHeight,
   toObserverFrame,
 } from "./geometry";
+import { getTerrainProfileByPresetId } from "./profiles";
 import {
   clamp,
   formatAngle,
@@ -17,6 +18,7 @@ import type {
   SceneBounds,
   SceneLine,
   SceneSegment,
+  SceneTerrainOverlay,
   SceneViewModel,
   SurfaceAnnotation,
   Vec2,
@@ -41,7 +43,10 @@ function collectBounds(points: Vec2[], paddingFactor = 0.06, minYPad = 180): Sce
   };
 }
 
-function buildAnnotationMap(result: VisibilitySolveResult): SurfaceAnnotation[] {
+function buildAnnotationMap(
+  result: VisibilitySolveResult,
+  terrainOverlay?: SceneTerrainOverlay,
+): SurfaceAnnotation[] {
   return [
     {
       id: "surface",
@@ -66,6 +71,16 @@ function buildAnnotationMap(result: VisibilitySolveResult): SurfaceAnnotation[] 
         "A constant-height reference curve carried along the active geometry at the observer's altitude. It bends with the model rather than remaining rectilinear.",
       color: "#bcd7ff",
     },
+    ...(terrainOverlay
+      ? [
+          {
+            id: "terrain-profile",
+            label: terrainOverlay.name,
+            description: terrainOverlay.description,
+            color: terrainOverlay.line.color,
+          },
+        ]
+      : []),
     {
       id: "geometric-sightline",
       label: "Direct Geometric Sightline",
@@ -128,6 +143,77 @@ function makePolyline(
     width,
     dashed,
     points,
+  };
+}
+
+function buildTerrainOverlay(
+  result: VisibilitySolveResult,
+  rawTransform: (point: Vec2) => Vec2,
+  exaggerate: (point: Vec2) => Vec2,
+): SceneTerrainOverlay | undefined {
+  const terrainProfile = getTerrainProfileByPresetId(result.scenario.presetId);
+
+  if (!terrainProfile) {
+    return undefined;
+  }
+
+  const samples = terrainProfile.samples
+    .filter((sample) => sample.distanceM >= 0)
+    .sort((left, right) => left.distanceM - right.distanceM);
+
+  if (samples.length < 2) {
+    return undefined;
+  }
+
+  const profilePoints = samples.map((sample) =>
+    exaggerate(
+      rawTransform(
+        pointAtSurfaceHeight(
+          result.scenario.radiusM,
+          sample.distanceM / result.scenario.radiusM,
+          result.model.geometryMode,
+          sample.heightM,
+        ),
+      ),
+    ),
+  );
+  const baselinePoints = samples.map((sample) =>
+    exaggerate(
+      rawTransform(
+        pointAtSurfaceHeight(
+          result.scenario.radiusM,
+          sample.distanceM / result.scenario.radiusM,
+          result.model.geometryMode,
+          0,
+        ),
+      ),
+    ),
+  );
+  const maxHeightM = Math.max(...samples.map((sample) => sample.heightM));
+  const spanDistanceM = samples[samples.length - 1].distanceM - samples[0].distanceM;
+
+  return {
+    id: `terrain-${terrainProfile.id}`,
+    featureId: "terrain-profile",
+    name: terrainProfile.name,
+    description: `${terrainProfile.description} This overlay is illustrative and currently does not replace the solver's baseline surface-intersection mesh.`,
+    maxHeightM,
+    spanDistanceM,
+    line: makePolyline(
+      "terrain-profile-line",
+      "terrain-profile",
+      terrainProfile.strokeColor ?? "#f2d1a0",
+      profilePoints,
+      2.3,
+      false,
+      terrainProfile.name,
+    ),
+    fill: {
+      id: "terrain-profile-fill",
+      fill: terrainProfile.fillColor ?? "rgba(201, 163, 110, 0.24)",
+      opacity: 0.84,
+      points: [...profilePoints, ...baselinePoints.slice().reverse()],
+    },
   };
 }
 
@@ -299,6 +385,8 @@ export function buildSceneViewModel(
         }
       : undefined;
 
+  const terrainOverlay = buildTerrainOverlay(result, rawTransform, exaggerate);
+
   const lines: SceneLine[] = [
     makePolyline("surface-line", "surface", "#83c4ff", surfaceSamples, 2.4, false, "Surface"),
     makePolyline(
@@ -346,6 +434,14 @@ export function buildSceneViewModel(
         true,
         "Optical Horizon Ray",
       ),
+    );
+  }
+
+  if (terrainOverlay) {
+    lines.splice(
+      1,
+      0,
+      terrainOverlay.line,
     );
   }
 
@@ -527,6 +623,18 @@ export function buildSceneViewModel(
         y: -verticalExaggeration * 74,
       },
     },
+    ...(terrainOverlay
+      ? [
+          {
+            id: "terrain-profile-label",
+            featureId: "terrain-profile",
+            text: terrainOverlay.name,
+            point: terrainOverlay.line.points.reduce((highest, point) =>
+              point.y > highest.y ? point : highest,
+            ),
+          },
+        ]
+      : []),
   ];
 
   const relevantPoints = [
@@ -549,6 +657,7 @@ export function buildSceneViewModel(
     suggestedVerticalScale: verticalExaggeration,
     surfaceFill,
     atmosphereFill,
+    terrainOverlay,
     surfaceLine: lines[0],
     observerStem: segments[1],
     targetStem: segments[2],
@@ -557,6 +666,6 @@ export function buildSceneViewModel(
     labels,
     lines,
     segments,
-    annotations: buildAnnotationMap(result),
+    annotations: buildAnnotationMap(result, terrainOverlay),
   };
 }

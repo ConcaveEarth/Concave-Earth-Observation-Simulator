@@ -114,6 +114,20 @@ export interface SurfaceAnnotation {
   color: string;
 }
 
+export interface TerrainProfileSample {
+  distanceM: number;
+  heightM: number;
+}
+
+export interface TerrainProfilePreset {
+  id: string;
+  name: string;
+  description: string;
+  strokeColor?: string;
+  fillColor?: string;
+  samples: TerrainProfileSample[];
+}
+
 export interface SceneLine {
   id: string;
   featureId: string;
@@ -159,6 +173,17 @@ export interface ScenePolygon {
   opacity: number;
 }
 
+export interface SceneTerrainOverlay {
+  id: string;
+  featureId: string;
+  name: string;
+  description: string;
+  maxHeightM: number;
+  spanDistanceM: number;
+  line: SceneLine;
+  fill?: ScenePolygon;
+}
+
 export interface SceneBounds {
   minX: number;
   maxX: number;
@@ -175,6 +200,7 @@ export interface SceneViewModel {
   suggestedVerticalScale: number;
   surfaceFill: ScenePolygon;
   atmosphereFill?: ScenePolygon;
+  terrainOverlay?: SceneTerrainOverlay;
   surfaceLine: SceneLine;
   observerStem: SceneSegment;
   targetStem: SceneSegment;

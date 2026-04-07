@@ -11,6 +11,8 @@ describe("URL state round-tripping", () => {
       viewMode: "compare" as const,
       focusedModel: "comparison" as const,
       annotated: false,
+      showScaleGuides: false,
+      showTerrainOverlay: false,
       scenario: {
         ...createDefaultState().scenario,
         observerHeightM: 34,
@@ -24,9 +26,10 @@ describe("URL state round-tripping", () => {
     expect(hydrated.viewMode).toBe("compare");
     expect(hydrated.focusedModel).toBe("comparison");
     expect(hydrated.annotated).toBe(false);
+    expect(hydrated.showScaleGuides).toBe(false);
+    expect(hydrated.showTerrainOverlay).toBe(false);
     expect(hydrated.scenario.observerHeightM).toBe(34);
     expect(hydrated.scenario.targetHeightM).toBe(93);
     expect(hydrated.scenario.surfaceDistanceM).toBe(77_000);
   });
 });
-

@@ -1,10 +1,13 @@
 import type { CSSProperties } from "react";
 import type { SceneLine, SceneSegment, SceneViewModel, Vec2 } from "../../domain/types";
+import { formatDistance } from "../../domain/units";
 import type { SceneFramingMode } from "../../state/appState";
 
 interface SceneSvgProps {
   scenes: SceneViewModel[];
   annotated: boolean;
+  showScaleGuides: boolean;
+  showTerrainOverlay: boolean;
   hoveredFeatureId: string | null;
   hoveredSceneKey: SceneViewModel["sceneKey"] | null;
   framingMode: SceneFramingMode;
@@ -31,16 +34,14 @@ function polygonPoints(points: Vec2[]): string {
 }
 
 function createProjector(
-  scene: SceneViewModel,
   panel: PanelRect,
-  framingMode: SceneFramingMode,
+  bounds: SceneViewModel["bounds"],
   zoom: number,
   verticalZoom: number,
 ) {
   const padding = 44;
   const availableWidth = panel.width - padding * 2;
   const availableHeight = panel.height - padding * 2;
-  const bounds = framingMode === "full" ? scene.bounds : scene.focusBounds;
   const spanX = Math.max(bounds.maxX - bounds.minX, 1);
   const spanY = Math.max(bounds.maxY - bounds.minY, 1);
   const xScale = (availableWidth / spanX) * zoom;
@@ -121,17 +122,15 @@ function renderSegment(
 }
 
 function renderGrid(
-  scene: SceneViewModel,
   panel: PanelRect,
-  framingMode: SceneFramingMode,
+  bounds: SceneViewModel["bounds"],
   zoom: number,
   verticalZoom: number,
 ) {
   const lines: JSX.Element[] = [];
-  const bounds = framingMode === "full" ? scene.bounds : scene.focusBounds;
   const stepX = (bounds.maxX - bounds.minX) / 6;
   const stepY = (bounds.maxY - bounds.minY) / 6;
-  const project = createProjector(scene, panel, framingMode, zoom, verticalZoom);
+  const project = createProjector(panel, bounds, zoom, verticalZoom);
 
   for (let index = 0; index <= 6; index += 1) {
     const x = bounds.minX + stepX * index;
@@ -170,9 +169,162 @@ function renderGrid(
   return lines;
 }
 
+function niceScaleStep(value: number): number {
+  if (value <= 0) {
+    return 1;
+  }
+
+  const exponent = Math.floor(Math.log10(value));
+  const fraction = value / 10 ** exponent;
+  const niceFraction =
+    fraction <= 1 ? 1 : fraction <= 2 ? 2 : fraction <= 5 ? 5 : 10;
+
+  return niceFraction * 10 ** exponent;
+}
+
+function renderScaleGuides(
+  scene: SceneViewModel,
+  bounds: SceneViewModel["bounds"],
+  project: ReturnType<typeof createProjector>,
+) {
+  const elements: JSX.Element[] = [];
+  const spanX = bounds.maxX - bounds.minX;
+  const spanY = bounds.maxY - bounds.minY;
+  const horizontalStep = niceScaleStep(spanX / 4);
+  const verticalActualSpan = spanY / scene.suggestedVerticalScale;
+  const verticalActualStep = niceScaleStep(verticalActualSpan / 3);
+  const verticalStep = verticalActualStep * scene.suggestedVerticalScale;
+  const horizontalStartWorld = {
+    x: bounds.minX + spanX * 0.08,
+    y: bounds.minY + spanY * 0.08,
+  };
+  const horizontalEndWorld = {
+    x: horizontalStartWorld.x + horizontalStep,
+    y: horizontalStartWorld.y,
+  };
+  const verticalBaseWorld = {
+    x: bounds.maxX - spanX * 0.08,
+    y: bounds.minY + spanY * 0.14,
+  };
+  const verticalTopWorld = {
+    x: verticalBaseWorld.x,
+    y: verticalBaseWorld.y + verticalStep,
+  };
+  const horizontalStart = project(horizontalStartWorld);
+  const horizontalEnd = project(horizontalEndWorld);
+  const verticalBase = project(verticalBaseWorld);
+  const verticalTop = project(verticalTopWorld);
+  const rulerStroke = "rgba(226, 236, 248, 0.72)";
+  const tickSize = 8;
+
+  elements.push(
+    <g key={`${scene.title}-horizontal-ruler`}>
+      <line
+        x1={horizontalStart.x}
+        y1={horizontalStart.y}
+        x2={horizontalEnd.x}
+        y2={horizontalEnd.y}
+        stroke={rulerStroke}
+        strokeWidth={1.2}
+      />
+      {Array.from({ length: 5 }, (_, index) => {
+        const x =
+          horizontalStart.x +
+          ((horizontalEnd.x - horizontalStart.x) * index) / 4;
+        return (
+          <g key={`${scene.title}-horizontal-tick-${index}`}>
+            <line
+              x1={x}
+              y1={horizontalStart.y - tickSize}
+              x2={x}
+              y2={horizontalStart.y + tickSize}
+              stroke={rulerStroke}
+              strokeWidth={1}
+            />
+            <text
+              x={x}
+              y={horizontalStart.y - 14}
+              textAnchor="middle"
+              fill="rgba(231, 240, 250, 0.78)"
+              fontSize={11}
+              fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
+            >
+              {formatDistance((horizontalStep * index) / 4)}
+            </text>
+          </g>
+        );
+      })}
+      <text
+        x={(horizontalStart.x + horizontalEnd.x) / 2}
+        y={horizontalStart.y + 28}
+        textAnchor="middle"
+        fill="rgba(231, 240, 250, 0.78)"
+        fontSize={11}
+        fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
+      >
+        Horizontal scale
+      </text>
+    </g>,
+  );
+
+  elements.push(
+    <g key={`${scene.title}-vertical-ruler`}>
+      <line
+        x1={verticalBase.x}
+        y1={verticalBase.y}
+        x2={verticalTop.x}
+        y2={verticalTop.y}
+        stroke={rulerStroke}
+        strokeWidth={1.2}
+      />
+      {Array.from({ length: 5 }, (_, index) => {
+        const y =
+          verticalBase.y -
+          ((verticalBase.y - verticalTop.y) * index) / 4;
+        return (
+          <g key={`${scene.title}-vertical-tick-${index}`}>
+            <line
+              x1={verticalBase.x - tickSize}
+              y1={y}
+              x2={verticalBase.x + tickSize}
+              y2={y}
+              stroke={rulerStroke}
+              strokeWidth={1}
+            />
+            <text
+              x={verticalBase.x - 16}
+              y={y + 4}
+              textAnchor="end"
+              fill="rgba(231, 240, 250, 0.78)"
+              fontSize={11}
+              fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
+            >
+              {formatDistance((verticalActualStep * index) / 4)}
+            </text>
+          </g>
+        );
+      })}
+      <text
+        x={verticalBase.x - 18}
+        y={verticalTop.y - 16}
+        textAnchor="end"
+        fill="rgba(231, 240, 250, 0.78)"
+        fontSize={11}
+        fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
+      >
+        Vertical scale
+      </text>
+    </g>,
+  );
+
+  return elements;
+}
+
 export function SceneSvg({
   scenes,
   annotated,
+  showScaleGuides,
+  showTerrainOverlay,
   hoveredFeatureId,
   hoveredSceneKey,
   framingMode,
@@ -238,10 +390,11 @@ export function SceneSvg({
 
       {scenes.map((scene, index) => {
         const panel = panelRects[index];
+        const visibleBounds =
+          framingMode === "full" ? scene.bounds : scene.focusBounds;
         const project = createProjector(
-          scene,
           panel,
-          framingMode,
+          visibleBounds,
           zoom,
           verticalZoom,
         );
@@ -260,13 +413,21 @@ export function SceneSvg({
               stroke="rgba(141, 192, 255, 0.18)"
             />
 
-            {renderGrid(scene, panel, framingMode, zoom, verticalZoom)}
+            {renderGrid(panel, visibleBounds, zoom, verticalZoom)}
 
             <polygon
               points={polygonPoints(scene.surfaceFill.points.map(project))}
               fill={scene.surfaceFill.fill}
               opacity={scene.surfaceFill.opacity}
             />
+
+            {showTerrainOverlay && scene.terrainOverlay?.fill ? (
+              <polygon
+                points={polygonPoints(scene.terrainOverlay.fill.points.map(project))}
+                fill={scene.terrainOverlay.fill.fill}
+                opacity={scene.terrainOverlay.fill.opacity}
+              />
+            ) : null}
 
             {scene.atmosphereFill ? (
               <polygon
@@ -276,16 +437,24 @@ export function SceneSvg({
               />
             ) : null}
 
-            {scene.lines.map((line) =>
-              renderLine(
-                line,
-                scene.sceneKey,
-                project,
-                hoveredFeatureId,
-                hoveredSceneKey,
-                onHoverFeature,
-              ),
-            )}
+            {showScaleGuides
+              ? renderScaleGuides(scene, visibleBounds, project)
+              : null}
+
+            {scene.lines
+              .filter(
+                (line) => showTerrainOverlay || line.featureId !== "terrain-profile",
+              )
+              .map((line) =>
+                renderLine(
+                  line,
+                  scene.sceneKey,
+                  project,
+                  hoveredFeatureId,
+                  hoveredSceneKey,
+                  onHoverFeature,
+                ),
+              )}
             {scene.segments.map((segment) =>
               renderSegment(
                 segment,
@@ -352,25 +521,29 @@ export function SceneSvg({
             </text>
 
             {annotated && shouldRenderDetailLabels
-              ? scene.labels.map((label) => {
-                  const point = project(label.point);
-                  return (
-                    <text
-                      key={label.id}
-                      x={point.x}
-                      y={point.y}
-                      fill={
-                        hoveredFeatureId === label.featureId
-                          ? "#ffffff"
-                          : "rgba(230, 240, 255, 0.76)"
-                      }
-                      fontSize={labelFontSize}
-                      fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
-                    >
-                      {label.text}
-                    </text>
-                  );
-                })
+              ? scene.labels
+                  .filter(
+                    (label) => showTerrainOverlay || label.featureId !== "terrain-profile",
+                  )
+                  .map((label) => {
+                    const point = project(label.point);
+                    return (
+                      <text
+                        key={label.id}
+                        x={point.x}
+                        y={point.y}
+                        fill={
+                          hoveredFeatureId === label.featureId
+                            ? "#ffffff"
+                            : "rgba(230, 240, 255, 0.76)"
+                        }
+                        fontSize={labelFontSize}
+                        fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
+                      >
+                        {label.text}
+                      </text>
+                    );
+                  })
               : null}
           </g>
         );

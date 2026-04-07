@@ -31,6 +31,8 @@ export interface AppState {
   focusedModel: FocusedModel;
   sceneViewport: SceneViewportState;
   annotated: boolean;
+  showScaleGuides: boolean;
+  showTerrainOverlay: boolean;
   hoveredSceneKey: FocusedModel | null;
   hoveredFeatureId: string | null;
 }
@@ -63,6 +65,8 @@ export type AppAction =
   | { type: "adjustViewportVerticalZoom"; delta: number }
   | { type: "resetViewport" }
   | { type: "setAnnotated"; value: boolean }
+  | { type: "setShowScaleGuides"; value: boolean }
+  | { type: "setShowTerrainOverlay"; value: boolean }
   | { type: "setHoveredFeature"; sceneKey: FocusedModel | null; value: string | null }
   | { type: "applyPreset"; presetId: string };
 
@@ -79,6 +83,8 @@ export function createDefaultState(): AppState {
       verticalZoom: 1,
     },
     annotated: true,
+    showScaleGuides: true,
+    showTerrainOverlay: true,
     hoveredSceneKey: null,
     hoveredFeatureId: null,
   };
@@ -205,6 +211,10 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       };
     case "setAnnotated":
       return { ...state, annotated: action.value };
+    case "setShowScaleGuides":
+      return { ...state, showScaleGuides: action.value };
+    case "setShowTerrainOverlay":
+      return { ...state, showTerrainOverlay: action.value };
     case "setHoveredFeature":
       return {
         ...state,
@@ -290,6 +300,8 @@ export function serializeStateToSearch(state: AppState): string {
   params.set("zoom", String(state.sceneViewport.zoom));
   params.set("vzoom", String(state.sceneViewport.verticalZoom));
   params.set("annotated", state.annotated ? "1" : "0");
+  params.set("scales", state.showScaleGuides ? "1" : "0");
+  params.set("terrain", state.showTerrainOverlay ? "1" : "0");
   params.set("observer", String(state.scenario.observerHeightM));
   params.set("target", String(state.scenario.targetHeightM));
   params.set("distance", String(state.scenario.surfaceDistanceM));
@@ -349,6 +361,8 @@ export function hydrateStateFromSearch(search: string): AppState {
       ),
     },
     annotated: params.get("annotated") !== "0",
+    showScaleGuides: params.get("scales") !== "0",
+    showTerrainOverlay: params.get("terrain") !== "0",
     hoveredSceneKey: null,
     hoveredFeatureId: null,
   };

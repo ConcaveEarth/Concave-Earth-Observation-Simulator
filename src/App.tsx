@@ -123,6 +123,8 @@ export default function App() {
           <SceneSvg
             scenes={scenes}
             annotated={state.annotated}
+            showScaleGuides={state.showScaleGuides}
+            showTerrainOverlay={state.showTerrainOverlay}
             hoveredFeatureId={state.hoveredFeatureId}
             hoveredSceneKey={state.hoveredSceneKey}
             framingMode={state.sceneViewport.framingMode}

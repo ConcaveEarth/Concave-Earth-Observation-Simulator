@@ -372,6 +372,28 @@ export function ControlsPanel({
           <span>Annotated mode</span>
         </label>
 
+        <label className="switch">
+          <input
+            type="checkbox"
+            checked={state.showScaleGuides}
+            onChange={(event) =>
+              dispatch({ type: "setShowScaleGuides", value: event.target.checked })
+            }
+          />
+          <span>Scale guides</span>
+        </label>
+
+        <label className="switch">
+          <input
+            type="checkbox"
+            checked={state.showTerrainOverlay}
+            onChange={(event) =>
+              dispatch({ type: "setShowTerrainOverlay", value: event.target.checked })
+            }
+          />
+          <span>Profile overlay</span>
+        </label>
+
         <p className="field__hint">
           Fine-tune framing from the scene toolbar in the center panel.
         </p>

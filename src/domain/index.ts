@@ -5,4 +5,5 @@ export * from "./curvature";
 export * from "./raytrace";
 export * from "./solver";
 export * from "./presets";
+export * from "./profiles";
 export * from "./scene";
