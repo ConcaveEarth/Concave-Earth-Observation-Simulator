@@ -97,6 +97,54 @@ export const scenarioPresets: ScenarioPreset[] = [
     },
   },
   {
+    id: "lake-pontchartrain",
+    name: "Lake Pontchartrain",
+    description:
+      "Low-altitude observation across Lake Pontchartrain with a long flat-water path and modest target height.",
+    scenario: {
+      ...defaultScenario,
+      observerHeightM: 2,
+      targetHeightM: 18,
+      surfaceDistanceM: 38_500,
+      targetSampleCount: 24,
+      presetId: "lake-pontchartrain",
+    },
+  },
+  {
+    id: "chicago-lake-michigan",
+    name: "Chicago Across Lake Michigan",
+    description:
+      "A skyline-style long-water observation inspired by Chicago visibility discussions across Lake Michigan.",
+    scenario: {
+      ...defaultScenario,
+      observerHeightM: 2,
+      targetHeightM: 442,
+      surfaceDistanceM: 96_000,
+      targetSampleCount: 28,
+      presetId: "chicago-lake-michigan",
+    },
+  },
+  {
+    id: "balloon-100kft",
+    name: "High Balloon 100,000 ft",
+    description:
+      "High-altitude balloon observation from roughly 100,000 ft (30,480 m) to study the horizon from the stratosphere.",
+    scenario: {
+      ...defaultScenario,
+      observerHeightM: 30_480,
+      targetHeightM: 2_500,
+      surfaceDistanceM: 620_000,
+      targetSampleCount: 30,
+      presetId: "balloon-100kft",
+    },
+    primaryModel: {
+      atmosphere: {
+        mode: "simpleCoefficient",
+        coefficient: 0.08,
+      },
+    },
+  },
+  {
     id: "strong-concave-demo",
     name: "Strong Concave Demo",
     description:
@@ -140,4 +188,3 @@ export function applyPresetToModel(
       : baseModel.atmosphere,
   };
 }
-

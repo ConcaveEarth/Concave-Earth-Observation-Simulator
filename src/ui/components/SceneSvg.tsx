@@ -6,10 +6,14 @@ interface SceneSvgProps {
   scenes: SceneViewModel[];
   annotated: boolean;
   hoveredFeatureId: string | null;
+  hoveredSceneKey: SceneViewModel["sceneKey"] | null;
   framingMode: SceneFramingMode;
   zoom: number;
   verticalZoom: number;
-  onHoverFeature: (featureId: string | null) => void;
+  onHoverFeature: (
+    sceneKey: SceneViewModel["sceneKey"] | null,
+    featureId: string | null,
+  ) => void;
 }
 
 interface PanelRect {
@@ -54,11 +58,17 @@ function createProjector(
 
 function renderLine(
   line: SceneLine,
+  sceneKey: SceneViewModel["sceneKey"],
   project: ReturnType<typeof createProjector>,
   hoveredFeatureId: string | null,
-  onHoverFeature: (featureId: string | null) => void,
+  hoveredSceneKey: SceneViewModel["sceneKey"] | null,
+  onHoverFeature: (
+    sceneKey: SceneViewModel["sceneKey"] | null,
+    featureId: string | null,
+  ) => void,
 ) {
-  const isActive = hoveredFeatureId === line.featureId;
+  const isActive =
+    hoveredFeatureId === line.featureId && hoveredSceneKey === sceneKey;
   return (
     <polyline
       key={line.id}
@@ -70,22 +80,28 @@ function renderLine(
       strokeLinecap="round"
       strokeLinejoin="round"
       opacity={hoveredFeatureId !== null && !isActive ? 0.4 : 1}
-      filter={line.featureId === "ray" ? "url(#glow)" : undefined}
-      onMouseEnter={() => onHoverFeature(line.featureId)}
-      onMouseLeave={() => onHoverFeature(null)}
+      filter={line.featureId === "actual-ray" ? "url(#glow)" : undefined}
+      onMouseEnter={() => onHoverFeature(sceneKey, line.featureId)}
+      onMouseLeave={() => onHoverFeature(null, null)}
     />
   );
 }
 
 function renderSegment(
   segment: SceneSegment,
+  sceneKey: SceneViewModel["sceneKey"],
   project: ReturnType<typeof createProjector>,
   hoveredFeatureId: string | null,
-  onHoverFeature: (featureId: string | null) => void,
+  hoveredSceneKey: SceneViewModel["sceneKey"] | null,
+  onHoverFeature: (
+    sceneKey: SceneViewModel["sceneKey"] | null,
+    featureId: string | null,
+  ) => void,
 ) {
   const start = project(segment.from);
   const end = project(segment.to);
-  const isActive = hoveredFeatureId === segment.featureId;
+  const isActive =
+    hoveredFeatureId === segment.featureId && hoveredSceneKey === sceneKey;
   return (
     <line
       key={segment.id}
@@ -98,8 +114,8 @@ function renderSegment(
       strokeDasharray={segment.dashed ? "10 10" : undefined}
       strokeLinecap="round"
       opacity={hoveredFeatureId !== null && !isActive ? 0.35 : 1}
-      onMouseEnter={() => onHoverFeature(segment.featureId)}
-      onMouseLeave={() => onHoverFeature(null)}
+      onMouseEnter={() => onHoverFeature(sceneKey, segment.featureId)}
+      onMouseLeave={() => onHoverFeature(null, null)}
     />
   );
 }
@@ -158,6 +174,7 @@ export function SceneSvg({
   scenes,
   annotated,
   hoveredFeatureId,
+  hoveredSceneKey,
   framingMode,
   zoom,
   verticalZoom,
@@ -260,21 +277,37 @@ export function SceneSvg({
             ) : null}
 
             {scene.lines.map((line) =>
-              renderLine(line, project, hoveredFeatureId, onHoverFeature),
+              renderLine(
+                line,
+                scene.sceneKey,
+                project,
+                hoveredFeatureId,
+                hoveredSceneKey,
+                onHoverFeature,
+              ),
             )}
             {scene.segments.map((segment) =>
-              renderSegment(segment, project, hoveredFeatureId, onHoverFeature),
+              renderSegment(
+                segment,
+                scene.sceneKey,
+                project,
+                hoveredFeatureId,
+                hoveredSceneKey,
+                onHoverFeature,
+              ),
             )}
 
             {scene.markers.map((marker) => {
               const point = project(marker.point);
-              const isActive = hoveredFeatureId === marker.featureId;
+              const isActive =
+                hoveredFeatureId === marker.featureId &&
+                hoveredSceneKey === scene.sceneKey;
 
               return (
                 <g
                   key={marker.id}
-                  onMouseEnter={() => onHoverFeature(marker.featureId)}
-                  onMouseLeave={() => onHoverFeature(null)}
+                  onMouseEnter={() => onHoverFeature(scene.sceneKey, marker.featureId)}
+                  onMouseLeave={() => onHoverFeature(null, null)}
                 >
                   <circle
                     cx={point.x}
@@ -283,7 +316,7 @@ export function SceneSvg({
                     fill={marker.color}
                     stroke="rgba(255,255,255,0.7)"
                   />
-                  {annotated ? (
+                  {annotated && shouldRenderDetailLabels && !marker.hideLabel ? (
                     <text
                       x={point.x + (marker.labelOffset?.x ?? 10)}
                       y={point.y + (marker.labelOffset?.y ?? -10)}

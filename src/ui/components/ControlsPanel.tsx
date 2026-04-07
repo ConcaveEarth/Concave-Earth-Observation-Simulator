@@ -1,6 +1,6 @@
 import { startTransition } from "react";
 import type { Dispatch } from "react";
-import { scenarioPresets } from "../../domain/presets";
+import { getPresetById, scenarioPresets } from "../../domain/presets";
 import type {
   FocusedModel,
   ModelConfig,
@@ -31,6 +31,8 @@ function NumberField({
   min,
   max,
   suffix,
+  resetValue,
+  onReset,
   onChange,
 }: {
   label: string;
@@ -39,11 +41,25 @@ function NumberField({
   min: number;
   max?: number;
   suffix: string;
+  resetValue?: number;
+  onReset?: () => void;
   onChange: (value: number) => void;
 }) {
   return (
     <label className="field">
-      <span>{label}</span>
+      <div className="field__label-row">
+        <span>{label}</span>
+        {onReset ? (
+          <button
+            type="button"
+            className="field__reset"
+            onClick={onReset}
+            disabled={resetValue === value}
+          >
+            Reset
+          </button>
+        ) : null}
+      </div>
       <div className="field__row">
         <input
           type="range"
@@ -203,6 +219,7 @@ export function ControlsPanel({
   onExport,
   onCopyLink,
 }: ControlsPanelProps) {
+  const presetDefaults = getPresetById(state.scenario.presetId).scenario;
   const setScenarioValue = <K extends keyof ScenarioInput>(
     key: K,
     value: ScenarioInput[K],
@@ -223,7 +240,20 @@ export function ControlsPanel({
 
       <PanelSection title="Scenario" eyebrow="Observation inputs">
         <label className="field">
-          <span>Preset</span>
+          <div className="field__label-row">
+            <span>Preset</span>
+            <button
+              type="button"
+              className="field__reset"
+              onClick={() =>
+                startTransition(() =>
+                  dispatch({ type: "applyPreset", presetId: state.scenario.presetId }),
+                )
+              }
+            >
+              Restore all
+            </button>
+          </div>
           <select
             value={state.scenario.presetId}
             onChange={(event) =>
@@ -244,27 +274,33 @@ export function ControlsPanel({
           label="Observer height"
           value={state.scenario.observerHeightM}
           min={1}
-          max={8000}
-          step={1}
+          max={40000}
+          step={10}
           suffix="m"
+          resetValue={presetDefaults.observerHeightM}
+          onReset={() => setScenarioValue("observerHeightM", presetDefaults.observerHeightM)}
           onChange={(value) => setScenarioValue("observerHeightM", value)}
         />
         <NumberField
           label="Target height"
           value={state.scenario.targetHeightM}
           min={1}
-          max={12000}
-          step={1}
+          max={20000}
+          step={10}
           suffix="m"
+          resetValue={presetDefaults.targetHeightM}
+          onReset={() => setScenarioValue("targetHeightM", presetDefaults.targetHeightM)}
           onChange={(value) => setScenarioValue("targetHeightM", value)}
         />
         <NumberField
           label="Surface distance"
           value={state.scenario.surfaceDistanceM}
           min={1000}
-          max={600000}
+          max={1000000}
           step={1000}
           suffix="m"
+          resetValue={presetDefaults.surfaceDistanceM}
+          onReset={() => setScenarioValue("surfaceDistanceM", presetDefaults.surfaceDistanceM)}
           onChange={(value) => setScenarioValue("surfaceDistanceM", value)}
         />
         <NumberField
@@ -274,6 +310,8 @@ export function ControlsPanel({
           max={9000000}
           step={1000}
           suffix="m"
+          resetValue={presetDefaults.radiusM}
+          onReset={() => setScenarioValue("radiusM", presetDefaults.radiusM)}
           onChange={(value) => setScenarioValue("radiusM", value)}
         />
         <NumberField
@@ -283,6 +321,10 @@ export function ControlsPanel({
           max={36}
           step={1}
           suffix="pts"
+          resetValue={presetDefaults.targetSampleCount}
+          onReset={() =>
+            setScenarioValue("targetSampleCount", presetDefaults.targetSampleCount)
+          }
           onChange={(value) => setScenarioValue("targetSampleCount", value)}
         />
       </PanelSection>
@@ -292,23 +334,32 @@ export function ControlsPanel({
           value={state.viewMode}
           options={[
             { label: "Cross-section", value: "cross-section" },
-            { label: "Compare", value: "compare" },
+            { label: "Split Compare", value: "compare" },
           ]}
           onChange={(value) =>
             dispatch({ type: "setViewMode", value: value as ViewMode })
           }
         />
 
-        <ViewPills
-          value={state.focusedModel}
-          options={[
-            { label: "Primary", value: "primary" },
-            { label: "Comparison", value: "comparison" },
-          ]}
-          onChange={(value) =>
-            dispatch({ type: "setFocusedModel", value: value as FocusedModel })
-          }
-        />
+        {state.viewMode === "cross-section" ? (
+          <>
+            <p className="field__hint">Single-panel model</p>
+            <ViewPills
+              value={state.focusedModel}
+              options={[
+                { label: "Primary", value: "primary" },
+                { label: "Comparison", value: "comparison" },
+              ]}
+              onChange={(value) =>
+                dispatch({ type: "setFocusedModel", value: value as FocusedModel })
+              }
+            />
+          </>
+        ) : (
+          <p className="field__hint">
+            Split compare mode always shows both models side by side.
+          </p>
+        )}
 
         <label className="switch">
           <input

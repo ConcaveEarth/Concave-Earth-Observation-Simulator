@@ -31,6 +31,7 @@ export interface AppState {
   focusedModel: FocusedModel;
   sceneViewport: SceneViewportState;
   annotated: boolean;
+  hoveredSceneKey: FocusedModel | null;
   hoveredFeatureId: string | null;
 }
 
@@ -62,7 +63,7 @@ export type AppAction =
   | { type: "adjustViewportVerticalZoom"; delta: number }
   | { type: "resetViewport" }
   | { type: "setAnnotated"; value: boolean }
-  | { type: "setHoveredFeature"; value: string | null }
+  | { type: "setHoveredFeature"; sceneKey: FocusedModel | null; value: string | null }
   | { type: "applyPreset"; presetId: string };
 
 export function createDefaultState(): AppState {
@@ -78,6 +79,7 @@ export function createDefaultState(): AppState {
       verticalZoom: 1,
     },
     annotated: true,
+    hoveredSceneKey: null,
     hoveredFeatureId: null,
   };
 }
@@ -204,7 +206,11 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case "setAnnotated":
       return { ...state, annotated: action.value };
     case "setHoveredFeature":
-      return { ...state, hoveredFeatureId: action.value };
+      return {
+        ...state,
+        hoveredSceneKey: action.sceneKey,
+        hoveredFeatureId: action.value,
+      };
     case "applyPreset": {
       const preset = getPresetById(action.presetId);
       return {
@@ -216,6 +222,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           preset.comparisonModel,
         ),
         sceneViewport: createDefaultState().sceneViewport,
+        hoveredSceneKey: null,
+        hoveredFeatureId: null,
       };
     }
     default:
@@ -341,6 +349,7 @@ export function hydrateStateFromSearch(search: string): AppState {
       ),
     },
     annotated: params.get("annotated") !== "0",
+    hoveredSceneKey: null,
     hoveredFeatureId: null,
   };
 }

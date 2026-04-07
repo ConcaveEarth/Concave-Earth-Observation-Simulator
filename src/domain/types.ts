@@ -167,6 +167,7 @@ export interface SceneBounds {
 }
 
 export interface SceneViewModel {
+  sceneKey: FocusedModel;
   title: string;
   subtitle: string;
   bounds: SceneBounds;

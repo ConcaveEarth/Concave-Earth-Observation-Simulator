@@ -4,8 +4,16 @@ import {
   pointAtSurfaceHeight,
   toObserverFrame,
 } from "./geometry";
-import { clamp, formatAngle, formatDistance, formatFraction, formatHeight, roundTo } from "./units";
+import {
+  clamp,
+  formatAngle,
+  formatDistance,
+  formatFraction,
+  formatHeight,
+  roundTo,
+} from "./units";
 import type {
+  FocusedModel,
   SceneBounds,
   SceneLine,
   SceneSegment,
@@ -15,7 +23,7 @@ import type {
   VisibilitySolveResult,
 } from "./types";
 
-function collectBounds(points: Vec2[], paddingFactor = 0.05, minYPad = 180): SceneBounds {
+function collectBounds(points: Vec2[], paddingFactor = 0.06, minYPad = 180): SceneBounds {
   const xs = points.map((point) => point.x);
   const ys = points.map((point) => point.y);
   const minX = Math.min(...xs);
@@ -23,7 +31,7 @@ function collectBounds(points: Vec2[], paddingFactor = 0.05, minYPad = 180): Sce
   const minY = Math.min(...ys);
   const maxY = Math.max(...ys);
   const xPad = Math.max((maxX - minX) * paddingFactor, 900);
-  const yPad = Math.max((maxY - minY) * (paddingFactor * 2.4), minYPad);
+  const yPad = Math.max((maxY - minY) * (paddingFactor * 2.3), minYPad);
 
   return {
     minX: minX - xPad,
@@ -40,43 +48,64 @@ function buildAnnotationMap(result: VisibilitySolveResult): SurfaceAnnotation[] 
       label: "Surface / Shell",
       description:
         result.model.geometryMode === "convex"
-          ? "The baseline surface curve for the convex-sphere interpretation."
-          : "The inner shell surface used for the concave / endospherical interpretation.",
+          ? "The physical convex surface used by the globe interpretation."
+          : "The physical concave shell used by the endospherical interpretation.",
       color: "#88d0ff",
     },
     {
-      id: "ray",
+      id: "observer-horizontal",
+      label: "Observer Horizontal",
+      description:
+        "The straight local tangent through the observer. This is the geometric horizontal reference at the observation point.",
+      color: "#9ba7ff",
+    },
+    {
+      id: "observer-altitude-curve",
+      label: "Observer Altitude Curve",
+      description:
+        "A constant-height reference curve carried along the active geometry at the observer's altitude. It bends with the model rather than remaining rectilinear.",
+      color: "#bcd7ff",
+    },
+    {
+      id: "geometric-sightline",
+      label: "Direct Geometric Sightline",
+      description:
+        "The straight Euclidean line from observer to target top before any optical bending is applied.",
+      color: "#d7d9de",
+    },
+    {
+      id: "actual-ray",
       label: "Actual Ray Path",
       description:
-        "The traced optical path under the active geometry and curvature assumptions.",
+        "The traced optical path under the active atmosphere and intrinsic curvature assumptions.",
       color: "#ffb85c",
     },
     {
-      id: "apparent",
+      id: "apparent-line",
       label: "Apparent Line Of Sight",
       description:
-        "The straight-line extension of the ray's tangent at the observer, representing perceived direction.",
+        "The observer-facing straight line implied by the ray's tangent at the observation point.",
       color: "#ffd1e1",
     },
     {
       id: "horizon-optical",
       label: "Optical Horizon",
       description:
-        "The furthest traced surface interception found under the current ray-curvature law.",
+        "The traced grazing boundary under the current ray-curvature law.",
       color: "#9df0c2",
     },
     {
       id: "horizon-geometric",
       label: "Geometric Horizon",
       description:
-        "The straight-line tangent construction with no atmospheric or intrinsic optical bending.",
+        "The purely geometric tangent-to-surface horizon with no optical correction.",
       color: "#8f9fff",
     },
     {
-      id: "hidden",
+      id: "hidden-height",
       label: "Hidden Height",
       description:
-        "The portion of the target with no traced path reaching the observer under the active model.",
+        "The obscured lower portion of the target under the active solve.",
       color: "#ff7c8f",
     },
   ];
@@ -110,26 +139,23 @@ function getRawTransform(result: VisibilitySolveResult) {
     toObserverFrame(point, result.observerPoint, forwardAxis, upAxis);
 }
 
-function getVerticalExaggeration(
-  focusDistanceM: number,
-  samples: Vec2[],
-): number {
+function getVerticalExaggeration(focusDistanceM: number, samples: Vec2[]): number {
   const minY = Math.min(...samples.map((point) => point.y));
   const maxY = Math.max(...samples.map((point) => point.y));
   const rawSpan = Math.max(maxY - minY, 40);
-  const targetSpan = focusDistanceM * 0.28;
-  return clamp(targetSpan / rawSpan, 8, 65);
+  const targetSpan = focusDistanceM * 0.3;
+  return clamp(targetSpan / rawSpan, 8, 70);
 }
 
 function createFocusBounds(result: VisibilitySolveResult, points: Vec2[]): SceneBounds {
   const forwardExtent = Math.max(
-    result.scenario.surfaceDistanceM * 1.1,
+    result.scenario.surfaceDistanceM * 1.08,
     ...points.map((point) => point.x),
   );
   const focusForward = clamp(
     forwardExtent,
-    result.scenario.surfaceDistanceM * 0.95,
-    Math.max(result.scenario.surfaceDistanceM * 1.5, 40_000),
+    Math.max(result.scenario.surfaceDistanceM * 0.96, 10_000),
+    Math.max(result.scenario.surfaceDistanceM * 1.42, 44_000),
   );
   const focusBack = clamp(result.scenario.surfaceDistanceM * 0.12, 1_800, 14_000);
   const filtered = points.filter(
@@ -138,14 +164,15 @@ function createFocusBounds(result: VisibilitySolveResult, points: Vec2[]): Scene
 
   return collectBounds(
     filtered.length ? filtered : points,
-    0.08,
-    Math.max(240, result.scenario.targetHeightM * 0.12),
+    0.09,
+    Math.max(220, result.scenario.targetHeightM * 0.1),
   );
 }
 
 export function buildSceneViewModel(
   result: VisibilitySolveResult,
-  title = result.model.label,
+  title: string,
+  sceneKey: FocusedModel,
 ): SceneViewModel {
   const rawTransform = getRawTransform(result);
   const horizonDistanceM = Math.max(
@@ -153,23 +180,44 @@ export function buildSceneViewModel(
     result.opticalHorizon?.distanceM ?? 0,
     result.geometricHorizon?.distanceM ?? 0,
   );
-  const forwardDistanceM = horizonDistanceM * 1.06;
+  const forwardDistanceM = horizonDistanceM * 1.08;
   const backDistanceM = clamp(forwardDistanceM * 0.08, 1_500, 18_000);
   const surfaceMinAngle = -backDistanceM / result.scenario.radiusM;
   const surfaceMaxAngle = forwardDistanceM / result.scenario.radiusM;
 
-  const rawSurfaceSamples = Array.from({ length: 180 }, (_, index) => {
+  const rawSurfaceSamples = Array.from({ length: 200 }, (_, index) => {
     const angle =
       surfaceMinAngle +
-      ((surfaceMaxAngle - surfaceMinAngle) * index) / 179;
+      ((surfaceMaxAngle - surfaceMinAngle) * index) / 199;
     return rawTransform(
       pointAtSurfaceHeight(result.scenario.radiusM, angle, result.model.geometryMode, 0),
+    );
+  });
+
+  const rawObserverAltitudeCurve = Array.from({ length: 200 }, (_, index) => {
+    const angle =
+      surfaceMinAngle +
+      ((surfaceMaxAngle - surfaceMinAngle) * index) / 199;
+    return rawTransform(
+      pointAtSurfaceHeight(
+        result.scenario.radiusM,
+        angle,
+        result.model.geometryMode,
+        result.scenario.observerHeightM,
+      ),
     );
   });
 
   const rawTargetBase = rawTransform(result.targetBasePoint);
   const rawTargetTop = rawTransform(result.targetTopPoint);
   const rawObserverBase = rawTransform(result.observerSurfacePoint);
+  const rawOpticalHorizon = result.opticalHorizon
+    ? rawTransform(result.opticalHorizon.point)
+    : null;
+  const rawGeometricHorizon = result.geometricHorizon
+    ? rawTransform(result.geometricHorizon.point)
+    : null;
+  const rawGeometricSightline = [rawTransform(result.observerPoint), rawTargetTop];
   const targetVisibleStartHeight =
     result.visibleHeightM > 0 ? result.hiddenHeightM : result.scenario.targetHeightM;
   const rawTargetVisibleStart = rawTransform(
@@ -180,42 +228,41 @@ export function buildSceneViewModel(
       targetVisibleStartHeight,
     ),
   );
-  const rawOpticalHorizon = result.opticalHorizon
-    ? rawTransform(result.opticalHorizon.point)
-    : null;
-  const rawGeometricHorizon = result.geometricHorizon
-    ? rawTransform(result.geometricHorizon.point)
-    : null;
   const rawRayPoints = result.primaryRay?.points.map(rawTransform) ?? [];
 
   const verticalExaggeration = getVerticalExaggeration(forwardDistanceM + backDistanceM, [
     ...rawSurfaceSamples,
+    ...rawObserverAltitudeCurve,
     rawTargetBase,
     rawTargetTop,
     rawObserverBase,
     rawTargetVisibleStart,
+    ...rawGeometricSightline,
     ...(rawOpticalHorizon ? [rawOpticalHorizon] : []),
     ...(rawGeometricHorizon ? [rawGeometricHorizon] : []),
     ...rawRayPoints,
   ]);
+
   const exaggerate = (point: Vec2): Vec2 => ({
     x: point.x,
     y: point.y * verticalExaggeration,
   });
 
   const surfaceSamples = rawSurfaceSamples.map(exaggerate);
+  const observerAltitudeCurve = rawObserverAltitudeCurve.map(exaggerate);
   const targetBase = exaggerate(rawTargetBase);
   const targetTop = exaggerate(rawTargetTop);
   const observerBase = exaggerate(rawObserverBase);
   const targetVisibleStart = exaggerate(rawTargetVisibleStart);
   const opticalHorizonPoint = rawOpticalHorizon ? exaggerate(rawOpticalHorizon) : null;
   const geometricHorizonPoint = rawGeometricHorizon ? exaggerate(rawGeometricHorizon) : null;
+  const geometricSightline = rawGeometricSightline.map(exaggerate);
 
-  const fillDepth = Math.max(2_600, verticalExaggeration * 260);
+  const fillDepth = Math.max(2_800, verticalExaggeration * 280);
   const surfaceFill = {
     id: "surface-fill",
     fill: "url(#surfaceFill)",
-    opacity: 0.7,
+    opacity: 0.72,
     points: [
       ...surfaceSamples,
       ...surfaceSamples
@@ -230,20 +277,20 @@ export function buildSceneViewModel(
       ? {
           id: "atmosphere-fill",
           fill: "url(#atmosphereFill)",
-          opacity: 0.45,
+          opacity: 0.42,
           points: [
             ...surfaceSamples,
-            ...Array.from({ length: 180 }, (_, index) => {
+            ...Array.from({ length: 200 }, (_, index) => {
               const angle =
                 surfaceMaxAngle -
-                ((surfaceMaxAngle - surfaceMinAngle) * index) / 179;
+                ((surfaceMaxAngle - surfaceMinAngle) * index) / 199;
               return exaggerate(
                 rawTransform(
                   pointAtSurfaceHeight(
                     result.scenario.radiusM,
                     angle,
                     result.model.geometryMode,
-                    2_500,
+                    Math.max(2_500, result.scenario.observerHeightM + 1_000),
                   ),
                 ),
               );
@@ -254,13 +301,31 @@ export function buildSceneViewModel(
 
   const lines: SceneLine[] = [
     makePolyline("surface-line", "surface", "#83c4ff", surfaceSamples, 2.4, false, "Surface"),
+    makePolyline(
+      "observer-altitude-curve",
+      "observer-altitude-curve",
+      "#bed6ff",
+      observerAltitudeCurve,
+      1.4,
+      true,
+      "Observer Altitude Curve",
+    ),
+    makePolyline(
+      "geometric-sightline",
+      "geometric-sightline",
+      "#d7d9de",
+      geometricSightline,
+      1.3,
+      true,
+      "Direct Geometric Sightline",
+    ),
   ];
 
   if (result.primaryRay) {
     lines.push(
       makePolyline(
         "primary-ray",
-        "ray",
+        "actual-ray",
         "#ffb85c",
         result.primaryRay.points.map((point) => exaggerate(rawTransform(point))),
         2.8,
@@ -270,11 +335,25 @@ export function buildSceneViewModel(
     );
   }
 
+  if (result.opticalHorizon?.trace) {
+    lines.push(
+      makePolyline(
+        "optical-horizon-trace",
+        "horizon-optical",
+        "#7fe8be",
+        result.opticalHorizon.trace.points.map((point) => exaggerate(rawTransform(point))),
+        1.9,
+        true,
+        "Optical Horizon Ray",
+      ),
+    );
+  }
+
   const segments: SceneSegment[] = [
     {
-      id: "observer-tangent",
-      featureId: "apparent",
-      label: "Observer Tangent",
+      id: "observer-horizontal",
+      featureId: "observer-horizontal",
+      label: "Observer Horizontal",
       color: "#9ba7ff",
       width: 1.35,
       dashed: true,
@@ -302,7 +381,7 @@ export function buildSceneViewModel(
   if (result.visibleHeightM < result.scenario.targetHeightM) {
     segments.push({
       id: "hidden-stem",
-      featureId: "hidden",
+      featureId: "hidden-height",
       label: "Hidden Height",
       color: "#ff7c8f",
       width: 4,
@@ -314,7 +393,7 @@ export function buildSceneViewModel(
   if (result.apparentElevationRad != null) {
     segments.push({
       id: "apparent-line",
-      featureId: "apparent",
+      featureId: "apparent-line",
       label: "Apparent Line",
       color: "#ffd1e1",
       width: 1.5,
@@ -327,7 +406,7 @@ export function buildSceneViewModel(
     });
   }
 
-  if (opticalHorizonPoint) {
+  if (opticalHorizonPoint && !result.opticalHorizon?.trace) {
     segments.push({
       id: "optical-horizon-ray",
       featureId: "horizon-optical",
@@ -356,7 +435,7 @@ export function buildSceneViewModel(
   const markers = [
     {
       id: "observer",
-      featureId: "surface",
+      featureId: "observer-horizontal",
       point: { x: 0, y: 0 },
       label: "Observer",
       color: "#d5e7ff",
@@ -364,7 +443,7 @@ export function buildSceneViewModel(
     },
     {
       id: "target",
-      featureId: "surface",
+      featureId: "geometric-sightline",
       point: targetTop,
       label: "Target",
       color: "#ffdfa8",
@@ -390,49 +469,53 @@ export function buildSceneViewModel(
       point: geometricHorizonPoint,
       label: "Geometric Horizon",
       color: "#8392ff",
-      labelOffset: { x: 14, y: 22 },
+      labelOffset: { x: 14, y: 20 },
     });
   }
 
   const labels = [
     {
       id: "distance-label",
-      featureId: "apparent",
+      featureId: "surface",
       text: `Surface distance ${formatDistance(result.scenario.surfaceDistanceM)}`,
       point: {
         x: result.scenario.surfaceDistanceM * 0.42,
-        y: -verticalExaggeration * 22,
-      },
-    },
-    {
-      id: "visibility-label",
-      featureId: result.visible ? "ray" : "hidden",
-      text: `Visibility ${formatFraction(result.visibilityFraction)}`,
-      point: {
-        x: result.scenario.surfaceDistanceM * 0.6,
-        y: verticalExaggeration * 18,
+        y: -verticalExaggeration * 26,
       },
     },
     ...(result.hiddenHeightM > 0
       ? [
           {
             id: "hidden-height",
-            featureId: "hidden",
+            featureId: "hidden-height",
             text: `Hidden ${formatHeight(result.hiddenHeightM)}`,
             point: {
-              x: targetBase.x + 2_400,
+              x: targetBase.x + 2_200,
               y: (targetBase.y + targetVisibleStart.y) / 2,
             },
           },
         ]
       : []),
+    ...(result.primaryRay
+      ? [
+          {
+            id: "ray-bend",
+            featureId: "actual-ray",
+            text: `Ray bend ${formatAngle(result.primaryRay.totalBendRad)}`,
+            point: {
+              x: Math.max(1_500, result.scenario.surfaceDistanceM * 0.16),
+              y: verticalExaggeration * 22,
+            },
+          },
+        ]
+      : []),
     {
-      id: "apparent-angle",
-      featureId: "apparent",
-      text: `Apparent elev. ${formatAngle(result.apparentElevationRad)}`,
+      id: "visibility-label",
+      featureId: "hidden-height",
+      text: `Visibility ${formatFraction(result.visibilityFraction)}`,
       point: {
-        x: Math.max(1_400, result.scenario.surfaceDistanceM * 0.1),
-        y: verticalExaggeration * 18,
+        x: result.scenario.surfaceDistanceM * 0.58,
+        y: verticalExaggeration * 22,
       },
     },
     {
@@ -440,23 +523,25 @@ export function buildSceneViewModel(
       featureId: "surface",
       text: `Vertical exaggeration x${roundTo(verticalExaggeration, 1)}`,
       point: {
-        x: -backDistanceM * 0.2,
-        y: -verticalExaggeration * 70,
+        x: -backDistanceM * 0.18,
+        y: -verticalExaggeration * 74,
       },
     },
   ];
 
   const relevantPoints = [
     ...surfaceSamples,
+    ...observerAltitudeCurve,
+    ...geometricSightline,
     ...segments.flatMap((segment) => [segment.from, segment.to]),
     ...markers.map((marker) => marker.point),
     ...lines.flatMap((line) => line.points),
-    ...labels.map((label) => label.point),
   ];
   const bounds = collectBounds(relevantPoints);
   const focusBounds = createFocusBounds(result, relevantPoints);
 
   return {
+    sceneKey,
     title,
     subtitle: `${result.model.label} | hidden ${formatHeight(result.hiddenHeightM)} | apparent ${formatAngle(result.apparentElevationRad)}`,
     bounds,

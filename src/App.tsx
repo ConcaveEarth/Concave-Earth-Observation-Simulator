@@ -36,11 +36,11 @@ export default function App() {
   );
 
   const primaryScene = useMemo(
-    () => buildSceneViewModel(primaryResult, "Primary Model"),
+    () => buildSceneViewModel(primaryResult, "Primary Model", "primary"),
     [primaryResult],
   );
   const comparisonScene = useMemo(
-    () => buildSceneViewModel(comparisonResult, "Comparison Model"),
+    () => buildSceneViewModel(comparisonResult, "Comparison Model", "comparison"),
     [comparisonResult],
   );
 
@@ -49,10 +49,13 @@ export default function App() {
       ? [primaryScene, comparisonScene]
       : [deferredState.focusedModel === "primary" ? primaryScene : comparisonScene];
 
-  const activeResult =
-    deferredState.focusedModel === "primary" ? primaryResult : comparisonResult;
-  const activeScene =
-    deferredState.focusedModel === "primary" ? primaryScene : comparisonScene;
+  const inspectedSceneKey =
+    state.hoveredSceneKey ??
+    (deferredState.viewMode === "compare" ? "primary" : deferredState.focusedModel);
+  const inspectedResult =
+    inspectedSceneKey === "primary" ? primaryResult : comparisonResult;
+  const inspectedScene =
+    inspectedSceneKey === "primary" ? primaryScene : comparisonScene;
   const displayedScenes = scenes;
   const suggestedVerticalScale =
     displayedScenes.reduce(
@@ -121,11 +124,12 @@ export default function App() {
             scenes={scenes}
             annotated={state.annotated}
             hoveredFeatureId={state.hoveredFeatureId}
+            hoveredSceneKey={state.hoveredSceneKey}
             framingMode={state.sceneViewport.framingMode}
             zoom={state.sceneViewport.zoom}
             verticalZoom={state.sceneViewport.verticalZoom}
-            onHoverFeature={(featureId) =>
-              dispatch({ type: "setHoveredFeature", value: featureId })
+            onHoverFeature={(sceneKey, featureId) =>
+              dispatch({ type: "setHoveredFeature", sceneKey, value: featureId })
             }
           />
         </div>
@@ -133,8 +137,9 @@ export default function App() {
 
       <RightPanel
         state={state}
-        activeResult={activeResult}
-        activeScene={activeScene}
+        activeResult={inspectedResult}
+        activeScene={inspectedScene}
+        inspectedSceneKey={inspectedSceneKey}
         onExport={handleExport}
         onCopyLink={handleCopyLink}
         message={message}
