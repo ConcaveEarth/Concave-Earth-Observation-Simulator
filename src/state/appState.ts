@@ -16,9 +16,11 @@ import type {
 } from "../domain/types";
 
 export type SceneFramingMode = "auto" | "full";
+export type SceneScaleMode = "true-scale" | "diagram";
 
 export interface SceneViewportState {
   framingMode: SceneFramingMode;
+  scaleMode: SceneScaleMode;
   zoom: number;
   verticalZoom: number;
 }
@@ -83,6 +85,7 @@ export function createDefaultState(): AppState {
     focusedModel: "primary",
     sceneViewport: {
       framingMode: "auto",
+      scaleMode: "true-scale",
       zoom: 1,
       verticalZoom: 1,
     },
@@ -110,6 +113,10 @@ function normalizeIntrinsicMode(value: string): IntrinsicCurvatureMode {
     default:
       return "none";
   }
+}
+
+function normalizeScaleMode(value: string): SceneScaleMode {
+  return value === "diagram" ? "diagram" : "true-scale";
 }
 
 function updateModel(
@@ -187,7 +194,11 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         sceneViewport: {
           ...state.sceneViewport,
           [action.key]:
-            action.key === "framingMode" ? action.value : Number(action.value),
+            action.key === "framingMode"
+              ? action.value
+              : action.key === "scaleMode"
+                ? normalizeScaleMode(String(action.value))
+                : Number(action.value),
         },
       };
     case "adjustViewportZoom":
@@ -195,7 +206,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         sceneViewport: {
           ...state.sceneViewport,
-          zoom: clamp(state.sceneViewport.zoom + action.delta, 0.6, 4),
+          zoom: clamp(state.sceneViewport.zoom + action.delta, 0.35, 6),
         },
       };
     case "adjustViewportVerticalZoom":
@@ -205,8 +216,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           ...state.sceneViewport,
           verticalZoom: clamp(
             state.sceneViewport.verticalZoom + action.delta,
-            0.45,
-            6,
+            0.25,
+            12,
           ),
         },
       };
@@ -317,6 +328,7 @@ export function serializeStateToSearch(state: AppState): string {
   params.set("view", state.viewMode);
   params.set("focus", state.focusedModel);
   params.set("frame", state.sceneViewport.framingMode);
+  params.set("scale", state.sceneViewport.scaleMode);
   params.set("zoom", String(state.sceneViewport.zoom));
   params.set("vzoom", String(state.sceneViewport.verticalZoom));
   params.set("annotated", state.annotated ? "1" : "0");
@@ -373,6 +385,7 @@ export function hydrateStateFromSearch(search: string): AppState {
     focusedModel: params.get("focus") === "comparison" ? "comparison" : "primary",
     sceneViewport: {
       framingMode: params.get("frame") === "full" ? "full" : "auto",
+      scaleMode: normalizeScaleMode(params.get("scale") ?? defaults.sceneViewport.scaleMode),
       zoom: parseNumber(params, "zoom", defaults.sceneViewport.zoom),
       verticalZoom: parseNumber(
         params,

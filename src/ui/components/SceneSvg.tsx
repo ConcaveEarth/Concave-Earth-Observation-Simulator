@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import type { SceneLine, SceneSegment, SceneViewModel, Vec2 } from "../../domain/types";
 import { formatDistance } from "../../domain/units";
-import type { SceneFramingMode } from "../../state/appState";
+import type { SceneFramingMode, SceneScaleMode } from "../../state/appState";
 
 interface SceneSvgProps {
   scenes: SceneViewModel[];
@@ -15,6 +15,7 @@ interface SceneSvgProps {
   selectedFeatureId: string | null;
   selectedSceneKey: SceneViewModel["sceneKey"] | null;
   framingMode: SceneFramingMode;
+  scaleMode: SceneScaleMode;
   zoom: number;
   verticalZoom: number;
   onHoverFeature: (
@@ -44,20 +45,34 @@ function polygonPoints(points: Vec2[]): string {
 function createProjector(
   panel: PanelRect,
   bounds: SceneViewModel["bounds"],
+  scaleMode: SceneScaleMode,
+  baseVerticalScale: number,
   zoom: number,
   verticalZoom: number,
 ) {
-  const padding = 44;
-  const availableWidth = panel.width - padding * 2;
-  const availableHeight = panel.height - padding * 2;
+  const paddingX = 36;
+  const paddingTop = 88;
+  const paddingBottom = 36;
+  const availableWidth = panel.width - paddingX * 2;
+  const availableHeight = panel.height - paddingTop - paddingBottom;
   const spanX = Math.max(bounds.maxX - bounds.minX, 1);
-  const spanY = Math.max(bounds.maxY - bounds.minY, 1);
-  const xScale = (availableWidth / spanX) * zoom;
-  const yScale = (availableHeight / spanY) * zoom * verticalZoom;
+  const exaggeratedSpanY = Math.max(bounds.maxY - bounds.minY, 1);
+  const actualSpanY = exaggeratedSpanY / Math.max(baseVerticalScale, 1);
+  const fitWidthScale = availableWidth / spanX;
+  const fitHeightTrueScale = availableHeight / Math.max(actualSpanY, 1);
+  const fitHeightDiagramScale = availableHeight / exaggeratedSpanY;
+  const xScale =
+    scaleMode === "true-scale"
+      ? Math.min(fitWidthScale, fitHeightTrueScale) * zoom
+      : fitWidthScale * zoom;
+  const yScale =
+    scaleMode === "true-scale"
+      ? (xScale / Math.max(baseVerticalScale, 1)) * verticalZoom
+      : fitHeightDiagramScale * zoom * verticalZoom;
   const centerX = (bounds.minX + bounds.maxX) / 2;
-  const centerY = bounds.minY + spanY * 0.36;
-  const viewportCenterX = panel.x + padding + availableWidth / 2;
-  const viewportCenterY = panel.y + padding + availableHeight * 0.58;
+  const centerY = (bounds.minY + bounds.maxY) / 2;
+  const viewportCenterX = panel.x + paddingX + availableWidth / 2;
+  const viewportCenterY = panel.y + paddingTop + availableHeight / 2;
 
   return (point: Vec2) => ({
     x: viewportCenterX + (point.x - centerX) * xScale,
@@ -193,13 +208,22 @@ function renderSegment(
 function renderGrid(
   panel: PanelRect,
   bounds: SceneViewModel["bounds"],
+  scaleMode: SceneScaleMode,
+  baseVerticalScale: number,
   zoom: number,
   verticalZoom: number,
 ) {
   const lines: JSX.Element[] = [];
   const stepX = (bounds.maxX - bounds.minX) / 6;
   const stepY = (bounds.maxY - bounds.minY) / 6;
-  const project = createProjector(panel, bounds, zoom, verticalZoom);
+  const project = createProjector(
+    panel,
+    bounds,
+    scaleMode,
+    baseVerticalScale,
+    zoom,
+    verticalZoom,
+  );
 
   for (let index = 0; index <= 6; index += 1) {
     const x = bounds.minX + stepX * index;
@@ -401,6 +425,7 @@ export function SceneSvg({
   selectedFeatureId,
   selectedSceneKey,
   framingMode,
+  scaleMode,
   zoom,
   verticalZoom,
   onHoverFeature,
@@ -469,6 +494,8 @@ export function SceneSvg({
         const project = createProjector(
           panel,
           visibleBounds,
+          scaleMode,
+          scene.suggestedVerticalScale,
           zoom,
           verticalZoom,
         );
@@ -491,7 +518,14 @@ export function SceneSvg({
               stroke="rgba(141, 192, 255, 0.18)"
             />
 
-            {renderGrid(panel, visibleBounds, zoom, verticalZoom)}
+            {renderGrid(
+              panel,
+              visibleBounds,
+              scaleMode,
+              scene.suggestedVerticalScale,
+              zoom,
+              verticalZoom,
+            )}
 
             <polygon
               points={polygonPoints(scene.surfaceFill.points.map(project))}

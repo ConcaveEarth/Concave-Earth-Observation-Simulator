@@ -5,6 +5,8 @@ interface SceneToolbarProps {
   state: AppState;
   dispatch: Dispatch<AppAction>;
   suggestedVerticalScale: number;
+  isFullscreen: boolean;
+  onToggleFullscreen: () => void;
 }
 
 function ControlButton({
@@ -31,7 +33,14 @@ export function SceneToolbar({
   state,
   dispatch,
   suggestedVerticalScale,
+  isFullscreen,
+  onToggleFullscreen,
 }: SceneToolbarProps) {
+  const scaleSummary =
+    state.sceneViewport.scaleMode === "true-scale"
+      ? `True scale • vertical x${state.sceneViewport.verticalZoom.toFixed(2)}`
+      : `Diagram base x${suggestedVerticalScale.toFixed(1)} • vertical x${state.sceneViewport.verticalZoom.toFixed(2)}`;
+
   return (
     <div className="scene-toolbar">
       <div className="scene-toolbar__group">
@@ -55,6 +64,32 @@ export function SceneToolbar({
               type: "setViewportField",
               key: "framingMode",
               value: "full",
+            })
+          }
+        />
+      </div>
+
+      <div className="scene-toolbar__group">
+        <span className="scene-toolbar__label">Scale</span>
+        <ControlButton
+          label="True Scale"
+          active={state.sceneViewport.scaleMode === "true-scale"}
+          onClick={() =>
+            dispatch({
+              type: "setViewportField",
+              key: "scaleMode",
+              value: "true-scale",
+            })
+          }
+        />
+        <ControlButton
+          label="Diagram"
+          active={state.sceneViewport.scaleMode === "diagram"}
+          onClick={() =>
+            dispatch({
+              type: "setViewportField",
+              key: "scaleMode",
+              value: "diagram",
             })
           }
         />
@@ -99,11 +134,18 @@ export function SceneToolbar({
           Hover to inspect, click to pin
         </span>
         <span className="scene-toolbar__meta">
-          Auto spread base {suggestedVerticalScale.toFixed(1)}x
+          {scaleSummary}
         </span>
         <ControlButton
           label="Reset"
           onClick={() => dispatch({ type: "resetViewport" })}
+        />
+      </div>
+
+      <div className="scene-toolbar__group">
+        <ControlButton
+          label={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+          onClick={onToggleFullscreen}
         />
       </div>
     </div>

@@ -48,7 +48,7 @@ select {
 .app-shell {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(320px, 380px) minmax(0, 1fr) minmax(290px, 360px);
+  grid-template-columns: minmax(290px, 340px) minmax(0, 1fr) minmax(280px, 330px);
   gap: 20px;
   min-height: 0;
   flex: 1 1 auto;
@@ -205,7 +205,6 @@ select {
 .center-panel {
   display: flex;
   flex-direction: column;
-  gap: 18px;
   min-height: 0;
   overflow: hidden;
 }
@@ -471,24 +470,76 @@ select {
 }
 
 .scene-card {
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
   padding: 18px;
   min-height: 0;
   flex: 1 1 auto;
   overflow: hidden;
 }
 
+.scene-card__header {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 4px 0;
+}
+
+.scene-card__intro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px 20px;
+}
+
+.scene-card__eyebrow {
+  margin: 0 0 6px;
+  color: #85bff5;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.scene-card__intro h2 {
+  margin: 0;
+  font-family: "Trebuchet MS", "Segoe UI Variable Display", sans-serif;
+  font-size: 1.45rem;
+  line-height: 1.05;
+}
+
+.scene-card__text {
+  max-width: 720px;
+  margin: 0;
+  color: rgba(228, 240, 255, 0.74);
+  font-size: 0.94rem;
+}
+
+.scene-card__viewport {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.scene-card:fullscreen {
+  width: 100%;
+  height: 100%;
+  padding: 24px;
+  border-radius: 0;
+}
+
+.scene-card:fullscreen .scene-card__viewport,
+.scene-card:fullscreen .scene-svg {
+  min-height: 0;
+}
+
 .scene-toolbar {
-  position: absolute;
-  top: 22px;
-  right: 24px;
-  z-index: 2;
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   align-items: center;
-  justify-content: flex-end;
-  max-width: calc(100% - 44px);
+  justify-content: center;
+  width: 100%;
 }
 
 .scene-toolbar__group {
@@ -543,7 +594,7 @@ select {
 .scene-svg {
   width: 100%;
   height: 100%;
-  min-height: 580px;
+  min-height: min(72vh, 820px);
   display: block;
 }
 
@@ -683,10 +734,10 @@ select {
 
   .center-panel {
     overflow: visible;
+    order: -1;
   }
 
   .scene-card {
-    order: -1;
     min-height: 560px;
   }
 
@@ -732,20 +783,25 @@ select {
     min-height: 420px;
   }
 
+  .scene-card__intro {
+    align-items: flex-start;
+  }
+
+  .scene-card__intro h2 {
+    font-size: 1.2rem;
+  }
+
   .controls-dock__nav {
     position: static;
   }
 
   .scene-toolbar {
-    position: static;
-    margin-bottom: 10px;
     justify-content: flex-start;
-    max-width: none;
   }
 
   .scene-svg {
     height: 58vh;
-    min-height: 420px;
+    min-height: 360px;
   }
 
   .metrics-grid,

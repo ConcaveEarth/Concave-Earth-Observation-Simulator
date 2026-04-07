@@ -14,7 +14,6 @@ import {
   formatDistance,
   formatFraction,
   formatHeight,
-  roundTo,
 } from "./units";
 import type {
   FocusedModel,
@@ -642,15 +641,6 @@ export function buildSceneViewModel(
       point: {
         x: result.scenario.surfaceDistanceM * 0.58,
         y: verticalExaggeration * 22,
-      },
-    },
-    {
-      id: "vertical-exaggeration",
-      featureId: "surface",
-      text: `Vertical exaggeration x${roundTo(verticalExaggeration, 1)}`,
-      point: {
-        x: -backDistanceM * 0.18,
-        y: -verticalExaggeration * 74,
       },
     },
     ...(terrainOverlay

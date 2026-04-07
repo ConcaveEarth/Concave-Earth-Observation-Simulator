@@ -276,6 +276,14 @@ export function RightPanel({
   const hoveredAnnotation = activeScene.annotations.find(
     (annotation) => annotation.id === activeFeatureId,
   );
+  const targetBaseLocal = getLocalPoint(activeResult, activeResult.targetBasePoint);
+  const surfaceChordM = Math.hypot(
+    activeResult.targetBasePoint.x - activeResult.observerSurfacePoint.x,
+    activeResult.targetBasePoint.y - activeResult.observerSurfacePoint.y,
+  );
+  const geometricDropM = Math.max(0, -targetBaseLocal.y);
+  const scaleModeLabel =
+    state.sceneViewport.scaleMode === "true-scale" ? "True scale" : "Diagram spread";
   const featureDetails = getFeatureMetrics(
     activeResult,
     activeScene,
@@ -317,6 +325,49 @@ export function RightPanel({
         </div>
       </PanelSection>
 
+      <PanelSection title="Survey Geometry" eyebrow="Field metrics">
+        <div className="detail-card">
+          <div className="feature-metrics">
+            <div className="feature-metrics__row">
+              <span>Surface arc distance</span>
+              <strong>{formatDistance(activeResult.scenario.surfaceDistanceM)}</strong>
+            </div>
+            <div className="feature-metrics__row">
+              <span>Surface chord</span>
+              <strong>{formatDistance(surfaceChordM)}</strong>
+            </div>
+            <div className="feature-metrics__row">
+              <span>Arc minus chord</span>
+              <strong>{formatDistance(activeResult.scenario.surfaceDistanceM - surfaceChordM)}</strong>
+            </div>
+            <div className="feature-metrics__row">
+              <span>Central angle</span>
+              <strong>{formatAngle(activeResult.targetAngleRad)}</strong>
+            </div>
+            <div className="feature-metrics__row">
+              <span>Target base drop from tangent</span>
+              <strong>{formatHeight(geometricDropM)}</strong>
+            </div>
+            <div className="feature-metrics__row">
+              <span>Geometric horizon dip</span>
+              <strong>
+                {activeResult.geometricHorizon
+                  ? formatAngle(Math.abs(activeResult.geometricHorizon.apparentElevationRad))
+                  : "N/A"}
+              </strong>
+            </div>
+            <div className="feature-metrics__row">
+              <span>Optical horizon dip</span>
+              <strong>
+                {activeResult.opticalHorizon
+                  ? formatAngle(Math.abs(activeResult.opticalHorizon.apparentElevationRad))
+                  : "N/A"}
+              </strong>
+            </div>
+          </div>
+        </div>
+      </PanelSection>
+
       <PanelSection title="Model Transparency" eyebrow="Assumptions">
         <div className="detail-card">
           <p>
@@ -339,7 +390,16 @@ export function RightPanel({
           </p>
           <p>
             <strong>Viewport:</strong> {state.sceneViewport.framingMode === "auto" ? "Auto fit" : "Full span"}
-            {` | zoom ${state.sceneViewport.zoom.toFixed(2)}x | vertical ${state.sceneViewport.verticalZoom.toFixed(2)}x`}
+            {` | zoom ${state.sceneViewport.zoom.toFixed(2)}x`}
+          </p>
+          <p>
+            <strong>Scale mode:</strong> {scaleModeLabel}
+          </p>
+          <p>
+            <strong>Vertical display:</strong>{" "}
+            {state.sceneViewport.scaleMode === "true-scale"
+              ? `${state.sceneViewport.verticalZoom.toFixed(2)}x true-scale factor`
+              : `base x${activeScene.suggestedVerticalScale.toFixed(1)} with control x${state.sceneViewport.verticalZoom.toFixed(2)}`}
           </p>
         </div>
       </PanelSection>

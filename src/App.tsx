@@ -21,11 +21,25 @@ export default function App() {
   const deferredState = useDeferredValue(state);
   const [message, setMessage] = useState<string | null>(null);
   const sceneHostRef = useRef<HTMLDivElement | null>(null);
+  const [isSceneFullscreen, setIsSceneFullscreen] = useState(false);
 
   useEffect(() => {
     const search = serializeStateToSearch(state);
     window.history.replaceState({}, "", `${window.location.pathname}${search}`);
   }, [state]);
+
+  useEffect(() => {
+    function handleFullscreenChange() {
+      setIsSceneFullscreen(document.fullscreenElement === sceneHostRef.current);
+    }
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    handleFullscreenChange();
+
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
 
   const primaryResult = useMemo(
     () => solveVisibility(deferredState.scenario, deferredState.primaryModel),
@@ -111,6 +125,29 @@ export default function App() {
     }
   }
 
+  async function handleToggleFullscreen() {
+    const sceneElement = sceneHostRef.current;
+
+    if (!sceneElement) {
+      setMessage("The scene workspace was not ready for fullscreen mode.");
+      return;
+    }
+
+    try {
+      if (document.fullscreenElement === sceneElement) {
+        await document.exitFullscreen();
+      } else {
+        await sceneElement.requestFullscreen();
+      }
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Fullscreen mode could not be started.",
+      );
+    }
+  }
+
   return (
     <div className="app-frame">
       <div className="background-noise" />
@@ -125,49 +162,56 @@ export default function App() {
         />
 
         <main className="center-panel">
-          <header className="hero-card">
-            <div>
-              <p className="hero-card__eyebrow">Simulation-first / comparison-first</p>
-              <h2>Observation Geometry Lab</h2>
-            </div>
-            <p className="hero-card__text">
-              Shared geometry and ray-path outputs drive both the diagram and the numeric
-              comparison layer, so every panel reflects the same underlying solve.
-            </p>
-          </header>
-
           <div className="scene-card panel" ref={sceneHostRef}>
-            <SceneToolbar
-              state={state}
-              dispatch={dispatch}
-              suggestedVerticalScale={suggestedVerticalScale}
-            />
-            <SceneSvg
-              scenes={scenes}
-              annotated={state.annotated}
-              showScaleGuides={state.showScaleGuides}
-              showTerrainOverlay={state.showTerrainOverlay}
-              activeFeatureId={activeFeatureId}
-              activeSceneKey={activeSceneKey}
-              hoveredFeatureId={state.hoveredFeatureId}
-              hoveredSceneKey={state.hoveredSceneKey}
-              selectedFeatureId={state.selectedFeatureId}
-              selectedSceneKey={state.selectedSceneKey}
-              framingMode={state.sceneViewport.framingMode}
-              zoom={state.sceneViewport.zoom}
-              verticalZoom={state.sceneViewport.verticalZoom}
-              onHoverFeature={(sceneKey, featureId) =>
-                dispatch({ type: "setHoveredFeature", sceneKey, value: featureId })
-              }
-              onSelectFeature={(sceneKey, featureId) => {
-                if (featureId == null || sceneKey == null) {
-                  dispatch({ type: "clearSelectedFeature" });
-                  return;
-                }
+            <div className="scene-card__header">
+              <div className="scene-card__intro">
+                <p className="scene-card__eyebrow">Simulation-first / comparison-first</p>
+                <h2>Observation Geometry Lab</h2>
+                <p className="scene-card__text">
+                  Shared geometry and ray-path outputs drive both panels, so convex and
+                  concave views remain locked to the same scenario while preserving their
+                  own geometric and optical assumptions.
+                </p>
+              </div>
 
-                dispatch({ type: "setSelectedFeature", sceneKey, value: featureId });
-              }}
-            />
+              <SceneToolbar
+                state={state}
+                dispatch={dispatch}
+                suggestedVerticalScale={suggestedVerticalScale}
+                isFullscreen={isSceneFullscreen}
+                onToggleFullscreen={handleToggleFullscreen}
+              />
+            </div>
+
+            <div className="scene-card__viewport">
+              <SceneSvg
+                scenes={scenes}
+                annotated={state.annotated}
+                showScaleGuides={state.showScaleGuides}
+                showTerrainOverlay={state.showTerrainOverlay}
+                activeFeatureId={activeFeatureId}
+                activeSceneKey={activeSceneKey}
+                hoveredFeatureId={state.hoveredFeatureId}
+                hoveredSceneKey={state.hoveredSceneKey}
+                selectedFeatureId={state.selectedFeatureId}
+                selectedSceneKey={state.selectedSceneKey}
+                framingMode={state.sceneViewport.framingMode}
+                scaleMode={state.sceneViewport.scaleMode}
+                zoom={state.sceneViewport.zoom}
+                verticalZoom={state.sceneViewport.verticalZoom}
+                onHoverFeature={(sceneKey, featureId) =>
+                  dispatch({ type: "setHoveredFeature", sceneKey, value: featureId })
+                }
+                onSelectFeature={(sceneKey, featureId) => {
+                  if (featureId == null || sceneKey == null) {
+                    dispatch({ type: "clearSelectedFeature" });
+                    return;
+                  }
+
+                  dispatch({ type: "setSelectedFeature", sceneKey, value: featureId });
+                }}
+              />
+            </div>
           </div>
         </main>
 
