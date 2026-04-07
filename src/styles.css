@@ -487,13 +487,94 @@ select {
 
 .field input[type="range"] {
   width: 100%;
+  margin: 0;
+  appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, rgba(124, 197, 255, 0.68), rgba(255, 182, 102, 0.48));
+  outline: none;
 }
 
-.field__row {
+.field input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 2px solid rgba(233, 243, 255, 0.9);
+  background: linear-gradient(180deg, #fefefe, #a7d8ff);
+  box-shadow:
+    0 0 0 4px rgba(105, 181, 255, 0.12),
+    0 8px 16px rgba(0, 0, 0, 0.24);
+  cursor: pointer;
+}
+
+.field input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 2px solid rgba(233, 243, 255, 0.9);
+  background: linear-gradient(180deg, #fefefe, #a7d8ff);
+  box-shadow:
+    0 0 0 4px rgba(105, 181, 255, 0.12),
+    0 8px 16px rgba(0, 0, 0, 0.24);
+  cursor: pointer;
+}
+
+.field input[type="range"]::-moz-range-track {
+  height: 6px;
+  border: 0;
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, rgba(124, 197, 255, 0.68), rgba(255, 182, 102, 0.48));
+}
+
+.field input[type="range"]:active::-webkit-slider-thumb,
+.field input[type="range"]:focus-visible::-webkit-slider-thumb,
+.field input[type="range"]:active::-moz-range-thumb,
+.field input[type="range"]:focus-visible::-moz-range-thumb {
+  box-shadow:
+    0 0 0 6px rgba(105, 181, 255, 0.16),
+    0 10px 22px rgba(0, 0, 0, 0.28);
+}
+
+.field__slider-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
+}
+
+.field__stepper {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid var(--control-border);
+  background: var(--control-bg);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.field__stepper:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--eyebrow) 40%, transparent);
+  background: var(--control-bg-hover);
+}
+
+.field__stepper:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.field__value-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .field__value {
@@ -518,6 +599,12 @@ select {
   border: 1px solid var(--input-border);
   background: var(--input-bg);
   color: var(--text-primary);
+}
+
+.field__microcopy {
+  color: var(--text-subtle);
+  font-size: 0.76rem;
+  text-align: right;
 }
 
 .pill-group {
@@ -826,6 +913,25 @@ select {
   display: none;
 }
 
+.app-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 8px 18px 2px;
+  color: var(--text-subtle);
+  font-size: 0.82rem;
+}
+
+.app-footer a {
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.app-footer a:hover {
+  text-decoration: underline;
+}
+
 @media (max-width: 1280px) {
   body {
     overflow: auto;
@@ -930,5 +1036,14 @@ select {
   .metrics-grid,
   .pill-group {
     grid-template-columns: 1fr;
+  }
+
+  .field__value-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .field__microcopy {
+    text-align: left;
   }
 }

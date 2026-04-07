@@ -75,6 +75,22 @@ function NumberField({
     getDisplayStepMeters(step, unit as DistanceUnit | HeightUnit | RadiusUnit),
     unit === "m" || unit === "ft" ? 0.1 : 0.01,
   );
+  const displayedSliderStep =
+    unit === "pts" || unit === "k"
+      ? step
+      : Math.max(
+          displayedStep / 10,
+          unit === "m" || unit === "ft" ? 0.1 : 0.01,
+        );
+  const sliderDecimals =
+    displayedSliderStep >= 10 ? 0 : displayedSliderStep >= 1 ? 1 : displayedSliderStep >= 0.1 ? 2 : 3;
+
+  const clampBaseValue = (nextValue: number) =>
+    Math.min(max ?? Number.POSITIVE_INFINITY, Math.max(min, nextValue));
+
+  const updateFromDisplay = (nextDisplayedValue: number) => {
+    onChange(clampBaseValue(baseFromDisplay(nextDisplayedValue, unit)));
+  };
 
   return (
     <label className="field">
@@ -91,15 +107,35 @@ function NumberField({
           </button>
         ) : null}
       </div>
-      <div className="field__row">
+      <div className="field__slider-row">
+        <button
+          type="button"
+          className="field__stepper"
+          onClick={() => updateFromDisplay(displayedValue - displayedSliderStep)}
+          disabled={displayedValue <= displayedMin}
+          aria-label={`Decrease ${label}`}
+        >
+          -
+        </button>
         <input
           type="range"
-          min={min}
-          max={max}
-          step={step}
-          value={value}
-          onChange={(event) => onChange(Number(event.target.value))}
+          min={displayedMin}
+          max={displayedMax}
+          step={displayedSliderStep}
+          value={roundTo(displayedValue, sliderDecimals)}
+          onChange={(event) => updateFromDisplay(Number(event.target.value))}
         />
+        <button
+          type="button"
+          className="field__stepper"
+          onClick={() => updateFromDisplay(displayedValue + displayedSliderStep)}
+          disabled={displayedMax == null ? false : displayedValue >= displayedMax}
+          aria-label={`Increase ${label}`}
+        >
+          +
+        </button>
+      </div>
+      <div className="field__value-row">
         <div className="field__value">
           <input
             type="number"
@@ -107,9 +143,7 @@ function NumberField({
             max={displayedMax}
             step={displayedStep}
             value={roundTo(displayedValue, displayedStep >= 1 ? 2 : 3)}
-            onChange={(event) =>
-              onChange(baseFromDisplay(Number(event.target.value), unit))
-            }
+            onChange={(event) => updateFromDisplay(Number(event.target.value))}
           />
           {unitOptions && onUnitChange ? (
             <select
@@ -127,6 +161,9 @@ function NumberField({
             <span>{getUnitLabel(unit as DistanceUnit | HeightUnit | RadiusUnit)}</span>
           )}
         </div>
+        <span className="field__microcopy">
+          Drag for sweep, use +/- for fine adjustment.
+        </span>
       </div>
     </label>
   );

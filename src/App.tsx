@@ -6,6 +6,7 @@ import { RightPanel } from "./ui/components/RightPanel";
 import { SceneSvg } from "./ui/components/SceneSvg";
 import { SceneToolbar } from "./ui/components/SceneToolbar";
 import { TopNav } from "./ui/components/TopNav";
+import { AppFooter } from "./ui/components/AppFooter";
 import { downloadSvgAsPng } from "./ui/exportSvg";
 
 function getSceneFilename(viewMode: string): string {
@@ -280,6 +281,8 @@ export default function App() {
           message={message}
         />
       </div>
+
+      <AppFooter />
     </div>
   );
 }
