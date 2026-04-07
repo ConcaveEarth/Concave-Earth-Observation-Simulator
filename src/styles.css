@@ -511,6 +511,15 @@ select {
   color: var(--text-primary);
 }
 
+.field__unit-select {
+  min-width: 70px;
+  padding: 9px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--text-primary);
+}
+
 .pill-group {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -612,6 +621,7 @@ select {
 .scene-card__viewport {
   flex: 1 1 auto;
   min-height: 0;
+  overflow: hidden;
 }
 
 .scene-card:fullscreen {
@@ -689,6 +699,12 @@ select {
   height: 100%;
   min-height: min(72vh, 820px);
   display: block;
+  touch-action: none;
+  cursor: grab;
+}
+
+.scene-svg:active {
+  cursor: grabbing;
 }
 
 .metrics-grid {

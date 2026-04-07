@@ -5,7 +5,7 @@ import {
   defaultScenario,
   getPresetById,
 } from "../domain/presets";
-import { clamp } from "../domain/units";
+import { clamp, defaultUnitPreferences } from "../domain/units";
 import type {
   FocusedModel,
   GeometryMode,
@@ -14,6 +14,7 @@ import type {
   ScenarioInput,
   ViewMode,
 } from "../domain/types";
+import type { DistanceUnit, HeightUnit, RadiusUnit, UnitPreferences } from "../domain/units";
 
 export type SceneFramingMode = "auto" | "full";
 export type SceneScaleMode = "survey" | "true-scale" | "diagram";
@@ -28,6 +29,8 @@ export interface SceneViewportState {
   compareLayout: CompareLayoutMode;
   zoom: number;
   verticalZoom: number;
+  panX: number;
+  panY: number;
 }
 
 export interface AppState {
@@ -37,6 +40,7 @@ export interface AppState {
   viewMode: ViewMode;
   focusedModel: FocusedModel;
   sceneViewport: SceneViewportState;
+  unitPreferences: UnitPreferences;
   annotated: boolean;
   labelDensity: LabelDensityMode;
   theme: ThemeMode;
@@ -75,7 +79,13 @@ export type AppAction =
     }
   | { type: "adjustViewportZoom"; delta: number }
   | { type: "adjustViewportVerticalZoom"; delta: number }
+  | { type: "panViewport"; deltaX: number; deltaY: number }
   | { type: "resetViewport" }
+  | {
+      type: "setUnitPreference";
+      key: keyof UnitPreferences;
+      value: HeightUnit | DistanceUnit | RadiusUnit;
+    }
   | { type: "setAnnotated"; value: boolean }
   | { type: "setLabelDensity"; value: LabelDensityMode }
   | { type: "setTheme"; value: ThemeMode }
@@ -100,7 +110,10 @@ export function createDefaultState(): AppState {
       compareLayout: "auto",
       zoom: 1,
       verticalZoom: 1,
+      panX: 0,
+      panY: 0,
     },
+    unitPreferences: defaultUnitPreferences,
     annotated: true,
     labelDensity: "adaptive",
     theme: "night-lab",
@@ -150,6 +163,25 @@ function normalizeCompareLayout(value: string): CompareLayoutMode {
     default:
       return "auto";
   }
+}
+
+function normalizeHeightUnit(value: string): HeightUnit {
+  return value === "ft" ? "ft" : "m";
+}
+
+function normalizeDistanceUnit(value: string): DistanceUnit {
+  switch (value) {
+    case "m":
+    case "ft":
+    case "mi":
+      return value;
+    default:
+      return "km";
+  }
+}
+
+function normalizeRadiusUnit(value: string): RadiusUnit {
+  return value === "mi" ? "mi" : "km";
 }
 
 function normalizeLabelDensity(value: string): LabelDensityMode {
@@ -251,7 +283,9 @@ export function appReducer(state: AppState, action: AppAction): AppState {
                 ? normalizeScaleMode(String(action.value))
                 : action.key === "compareLayout"
                   ? normalizeCompareLayout(String(action.value))
-                : Number(action.value),
+                : action.key === "panX" || action.key === "panY"
+                  ? Number(action.value)
+                  : Number(action.value),
         },
       };
     case "adjustViewportZoom":
@@ -274,10 +308,32 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           ),
         },
       };
+    case "panViewport":
+      return {
+        ...state,
+        sceneViewport: {
+          ...state.sceneViewport,
+          panX: state.sceneViewport.panX + action.deltaX,
+          panY: state.sceneViewport.panY + action.deltaY,
+        },
+      };
     case "resetViewport":
       return {
         ...state,
         sceneViewport: createDefaultState().sceneViewport,
+      };
+    case "setUnitPreference":
+      return {
+        ...state,
+        unitPreferences: {
+          ...state.unitPreferences,
+          [action.key]:
+            action.key === "height"
+              ? normalizeHeightUnit(String(action.value))
+              : action.key === "radius"
+                ? normalizeRadiusUnit(String(action.value))
+                : normalizeDistanceUnit(String(action.value)),
+        },
       };
     case "setAnnotated":
       return { ...state, annotated: action.value };
@@ -391,6 +447,11 @@ export function serializeStateToSearch(state: AppState): string {
   params.set("compareLayout", state.sceneViewport.compareLayout);
   params.set("zoom", String(state.sceneViewport.zoom));
   params.set("vzoom", String(state.sceneViewport.verticalZoom));
+  params.set("panX", String(state.sceneViewport.panX));
+  params.set("panY", String(state.sceneViewport.panY));
+  params.set("heightUnit", state.unitPreferences.height);
+  params.set("distanceUnit", state.unitPreferences.distance);
+  params.set("radiusUnit", state.unitPreferences.radius);
   params.set("annotated", state.annotated ? "1" : "0");
   params.set("labels", state.labelDensity);
   params.set("theme", state.theme);
@@ -457,6 +518,19 @@ export function hydrateStateFromSearch(search: string): AppState {
         params,
         "vzoom",
         defaults.sceneViewport.verticalZoom,
+      ),
+      panX: parseNumber(params, "panX", defaults.sceneViewport.panX),
+      panY: parseNumber(params, "panY", defaults.sceneViewport.panY),
+    },
+    unitPreferences: {
+      height: normalizeHeightUnit(
+        params.get("heightUnit") ?? defaults.unitPreferences.height,
+      ),
+      distance: normalizeDistanceUnit(
+        params.get("distanceUnit") ?? defaults.unitPreferences.distance,
+      ),
+      radius: normalizeRadiusUnit(
+        params.get("radiusUnit") ?? defaults.unitPreferences.radius,
       ),
     },
     annotated: params.get("annotated") !== "0",

@@ -1,5 +1,6 @@
 import { buildSceneViewModel, solveVisibility } from "../domain";
 import { defaultComparisonModel, defaultPrimaryModel } from "../domain/presets";
+import { defaultUnitPreferences } from "../domain/units";
 
 describe("scene view model", () => {
   it("creates a generic profile overlay when no preset-specific profile exists", () => {
@@ -16,7 +17,12 @@ describe("scene view model", () => {
       defaultPrimaryModel,
     );
 
-    const scene = buildSceneViewModel(result, "Primary Model", "primary");
+    const scene = buildSceneViewModel(
+      result,
+      "Primary Model",
+      "primary",
+      defaultUnitPreferences,
+    );
 
     expect(scene.terrainOverlay).toBeDefined();
     expect(scene.terrainOverlay?.line.featureId).toBe("terrain-profile");
@@ -37,7 +43,12 @@ describe("scene view model", () => {
       defaultPrimaryModel,
     );
 
-    const scene = buildSceneViewModel(result, "Primary Model", "primary");
+    const scene = buildSceneViewModel(
+      result,
+      "Primary Model",
+      "primary",
+      defaultUnitPreferences,
+    );
     const labeledFeatures = new Set(scene.labels.map((label) => label.featureId));
 
     expect(labeledFeatures.has("surface")).toBe(true);
@@ -69,7 +80,12 @@ describe("scene view model", () => {
       defaultComparisonModel,
     );
 
-    const scene = buildSceneViewModel(result, "Comparison Model", "comparison");
+    const scene = buildSceneViewModel(
+      result,
+      "Comparison Model",
+      "comparison",
+      defaultUnitPreferences,
+    );
 
     expect(
       scene.annotations.find((annotation) => annotation.id === "observer-altitude-curve")

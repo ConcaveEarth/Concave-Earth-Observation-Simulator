@@ -15,6 +15,7 @@ import {
   formatFraction,
   formatHeight,
 } from "./units";
+import type { UnitPreferences } from "./units";
 import type {
   FocusedModel,
   SceneBounds,
@@ -96,10 +97,21 @@ function getFeatureDefinitions(
   result: VisibilitySolveResult,
   terrainOverlay?: SceneTerrainOverlay,
 ): Record<string, FeatureDefinition> {
+  const apparentLabel = result.visible
+    ? "Apparent Line Of Sight"
+    : "Apparent Horizon Direction";
+  const actualRayLabel =
+    result.primaryRay?.targetCrossing != null
+      ? "Actual Ray Path"
+      : result.opticalHorizon?.trace
+        ? "Optical Horizon Reference Ray"
+        : "Actual Ray Path";
   const curvedRayRole =
-    result.model.geometryMode === "convex"
-      ? "The physical observation ray. Under the convex model this is the refracted sight path when atmosphere is enabled."
-      : "The physical observation ray. Under the concave model this is the endospherical sight path, bending toward the shell center under the active curvature law.";
+    result.primaryRay?.targetCrossing != null
+      ? result.model.geometryMode === "convex"
+        ? "The physical observation ray. Under the convex model this is the refracted sight path when atmosphere is enabled."
+        : "The physical observation ray. Under the concave model this is the endospherical sight path, bending toward the shell center under the active curvature law."
+      : "No target-reaching ray is currently solved, so this line is the grazing horizon reference ray under the active curvature law.";
   const curvedReferenceRole =
     result.model.geometryMode === "convex"
       ? "A curved constant-altitude reference carried along the convex surface at the observer height. It stays tied to the geometry instead of remaining rectilinear."
@@ -147,13 +159,15 @@ function getFeatureDefinitions(
         "The straight Euclidean line from observer to target top before any optical bending is applied.",
     },
     "actual-ray": {
-      label: "Actual Ray Path",
+      label: actualRayLabel,
       description: curvedRayRole,
     },
     "apparent-line": {
-      label: "Apparent Line Of Sight",
+      label: apparentLabel,
       description:
-        "The straight apparent direction at the observer implied by the incoming tangent of the solved ray.",
+        result.visible
+          ? "The straight apparent direction at the observer implied by the incoming tangent of the solved ray."
+          : "The straight apparent direction associated with the solved grazing horizon ray when no target-reaching ray is available.",
     },
     "horizon-optical": {
       label: "Optical Horizon",
@@ -455,6 +469,7 @@ export function buildSceneViewModel(
   result: VisibilitySolveResult,
   title: string,
   sceneKey: FocusedModel,
+  unitPreferences: UnitPreferences,
 ): SceneViewModel {
   const rawTransform = getRawTransform(result);
   const horizonDistanceM = Math.max(
@@ -953,7 +968,10 @@ export function buildSceneViewModel(
     labels,
     "distance-label",
     "surface",
-    `Surface distance ${formatDistance(result.scenario.surfaceDistanceM)}`,
+    `Surface distance ${formatDistance(
+      result.scenario.surfaceDistanceM,
+      unitPreferences.distance,
+    )}`,
     { x: result.scenario.surfaceDistanceM * 0.42, y: -verticalExaggeration * 26 },
     [
       { x: 0, y: 0 },
@@ -968,7 +986,10 @@ export function buildSceneViewModel(
     labels,
     "observer-height-label",
     "observer-height",
-    `Observer height ${formatHeight(result.scenario.observerHeightM)}`,
+    `Observer height ${formatHeight(
+      result.scenario.observerHeightM,
+      unitPreferences.height,
+    )}`,
     pointAlongSegment(observerBase, { x: 0, y: 0 }, 0.56),
     [
       { x: shortOffsetX * 0.1, y: labelRise * 0.24 },
@@ -982,7 +1003,10 @@ export function buildSceneViewModel(
     labels,
     "target-height-label",
     "target-height",
-    `Target height ${formatHeight(result.scenario.targetHeightM)}`,
+    `Target height ${formatHeight(
+      result.scenario.targetHeightM,
+      unitPreferences.height,
+    )}`,
     pointAlongSegment(targetBase, targetTop, 0.72),
     [
       { x: shortOffsetX * 0.1, y: labelRise * 0.22 },
@@ -997,7 +1021,7 @@ export function buildSceneViewModel(
       labels,
       "hidden-height",
       "hidden-height",
-      `Hidden ${formatHeight(result.hiddenHeightM)}`,
+      `Hidden ${formatHeight(result.hiddenHeightM, unitPreferences.height)}`,
       pointAlongSegment(targetBase, targetVisibleStart, 0.5),
       [
         { x: shortOffsetX * 0.16, y: 0 },
@@ -1059,7 +1083,10 @@ export function buildSceneViewModel(
   return {
     sceneKey,
     title,
-    subtitle: `${result.model.label} | hidden ${formatHeight(result.hiddenHeightM)} | apparent ${formatAngle(result.apparentElevationRad)}`,
+    subtitle: `${result.model.label} | hidden ${formatHeight(
+      result.hiddenHeightM,
+      unitPreferences.height,
+    )} | apparent ${formatAngle(result.apparentElevationRad)}`,
     bounds,
     focusBounds,
     suggestedVerticalScale: verticalExaggeration,

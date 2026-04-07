@@ -23,6 +23,13 @@ describe("URL state round-tripping", () => {
         compareLayout: "stacked" as const,
         zoom: 1.4,
         verticalZoom: 2.2,
+        panX: 1400,
+        panY: -220,
+      },
+      unitPreferences: {
+        height: "ft" as const,
+        distance: "mi" as const,
+        radius: "mi" as const,
       },
       scenario: {
         ...createDefaultState().scenario,
@@ -47,6 +54,11 @@ describe("URL state round-tripping", () => {
     expect(hydrated.sceneViewport.compareLayout).toBe("stacked");
     expect(hydrated.sceneViewport.zoom).toBe(1.4);
     expect(hydrated.sceneViewport.verticalZoom).toBe(2.2);
+    expect(hydrated.sceneViewport.panX).toBe(1400);
+    expect(hydrated.sceneViewport.panY).toBe(-220);
+    expect(hydrated.unitPreferences.height).toBe("ft");
+    expect(hydrated.unitPreferences.distance).toBe("mi");
+    expect(hydrated.unitPreferences.radius).toBe("mi");
     expect(hydrated.scenario.observerHeightM).toBe(34);
     expect(hydrated.scenario.targetHeightM).toBe(93);
     expect(hydrated.scenario.surfaceDistanceM).toBe(77_000);

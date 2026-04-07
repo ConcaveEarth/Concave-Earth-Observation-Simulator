@@ -50,24 +50,28 @@ export function SceneToolbar({
         <ControlButton
           label="Auto Fit"
           active={state.sceneViewport.framingMode === "auto"}
-          onClick={() =>
+          onClick={() => {
             dispatch({
               type: "setViewportField",
               key: "framingMode",
               value: "auto",
-            })
-          }
+            });
+            dispatch({ type: "setViewportField", key: "panX", value: 0 });
+            dispatch({ type: "setViewportField", key: "panY", value: 0 });
+          }}
         />
         <ControlButton
           label="Full Span"
           active={state.sceneViewport.framingMode === "full"}
-          onClick={() =>
+          onClick={() => {
             dispatch({
               type: "setViewportField",
               key: "framingMode",
               value: "full",
-            })
-          }
+            });
+            dispatch({ type: "setViewportField", key: "panX", value: 0 });
+            dispatch({ type: "setViewportField", key: "panY", value: 0 });
+          }}
         />
       </div>
 
@@ -144,7 +148,7 @@ export function SceneToolbar({
 
       <div className="scene-toolbar__group scene-toolbar__group--meta">
         <span className="scene-toolbar__meta scene-toolbar__meta--hint">
-          Hover to inspect, click to pin
+          Hover to inspect, click to pin, drag to pan, wheel to zoom, Shift+wheel vertical
         </span>
         <span className="scene-toolbar__meta">
           {scaleSummary}

@@ -1,6 +1,16 @@
 import { startTransition } from "react";
 import type { Dispatch } from "react";
 import { getPresetById, scenarioPresets } from "../../domain/presets";
+import {
+  distanceUnitToMeters,
+  getDisplayStepMeters,
+  getUnitLabel,
+  heightUnitToMeters,
+  metersToDistanceUnit,
+  metersToHeightUnit,
+  roundTo,
+} from "../../domain/units";
+import type { DistanceUnit, HeightUnit, RadiusUnit } from "../../domain/units";
 import type {
   FocusedModel,
   ModelConfig,
@@ -31,21 +41,41 @@ function NumberField({
   step,
   min,
   max,
-  suffix,
+  unit,
+  unitOptions,
+  onUnitChange,
   resetValue,
   onReset,
   onChange,
+  toDisplayValue,
+  toBaseValue,
 }: {
   label: string;
   value: number;
   step: number;
   min: number;
   max?: number;
-  suffix: string;
+  unit: string;
+  unitOptions?: Array<{ label: string; value: string }>;
+  onUnitChange?: (value: string) => void;
   resetValue?: number;
   onReset?: () => void;
   onChange: (value: number) => void;
+  toDisplayValue?: (value: number, unit: string) => number;
+  toBaseValue?: (value: number, unit: string) => number;
 }) {
+  const displayFromBase =
+    toDisplayValue ?? ((baseValue: number) => baseValue);
+  const baseFromDisplay =
+    toBaseValue ?? ((displayValue: number) => displayValue);
+  const displayedValue = displayFromBase(value, unit);
+  const displayedMin = displayFromBase(min, unit);
+  const displayedMax = max == null ? undefined : displayFromBase(max, unit);
+  const displayedStep = Math.max(
+    getDisplayStepMeters(step, unit as DistanceUnit | HeightUnit | RadiusUnit),
+    unit === "m" || unit === "ft" ? 0.1 : 0.01,
+  );
+
   return (
     <label className="field">
       <div className="field__label-row">
@@ -73,13 +103,29 @@ function NumberField({
         <div className="field__value">
           <input
             type="number"
-            min={min}
-            max={max}
-            step={step}
-            value={value}
-            onChange={(event) => onChange(Number(event.target.value))}
+            min={displayedMin}
+            max={displayedMax}
+            step={displayedStep}
+            value={roundTo(displayedValue, displayedStep >= 1 ? 2 : 3)}
+            onChange={(event) =>
+              onChange(baseFromDisplay(Number(event.target.value), unit))
+            }
           />
-          <span>{suffix}</span>
+          {unitOptions && onUnitChange ? (
+            <select
+              className="field__unit-select"
+              value={unit}
+              onChange={(event) => onUnitChange(event.target.value)}
+            >
+              {unitOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span>{getUnitLabel(unit as DistanceUnit | HeightUnit | RadiusUnit)}</span>
+          )}
         </div>
       </div>
     </label>
@@ -209,7 +255,7 @@ function ModelEditor({
           min={0}
           max={0.5}
           step={0.01}
-          suffix="k"
+          unit="k"
           onChange={(value) =>
             dispatch({
               type: "setAtmosphereField",
@@ -230,6 +276,20 @@ export function ControlsPanel({
   onExport,
   onCopyLink,
 }: ControlsPanelProps) {
+  const heightUnitOptions = [
+    { label: "m", value: "m" },
+    { label: "ft", value: "ft" },
+  ] as const;
+  const distanceUnitOptions = [
+    { label: "m", value: "m" },
+    { label: "km", value: "km" },
+    { label: "ft", value: "ft" },
+    { label: "mi", value: "mi" },
+  ] as const;
+  const radiusUnitOptions = [
+    { label: "km", value: "km" },
+    { label: "mi", value: "mi" },
+  ] as const;
   const controlSections = [
     { label: "Scenario", target: "control-scenario" },
     { label: "View", target: "control-view" },
@@ -317,9 +377,23 @@ export function ControlsPanel({
           min={1}
           max={40000}
           step={10}
-          suffix="m"
+          unit={state.unitPreferences.height}
+          unitOptions={[...heightUnitOptions]}
+          onUnitChange={(value) =>
+            dispatch({
+              type: "setUnitPreference",
+              key: "height",
+              value: value as HeightUnit,
+            })
+          }
           resetValue={presetDefaults.observerHeightM}
           onReset={() => setScenarioValue("observerHeightM", presetDefaults.observerHeightM)}
+          toDisplayValue={(baseValue, unit) =>
+            metersToHeightUnit(baseValue, unit as HeightUnit)
+          }
+          toBaseValue={(displayValue, unit) =>
+            heightUnitToMeters(displayValue, unit as HeightUnit)
+          }
           onChange={(value) => setScenarioValue("observerHeightM", value)}
         />
         <NumberField
@@ -328,9 +402,23 @@ export function ControlsPanel({
           min={1}
           max={20000}
           step={10}
-          suffix="m"
+          unit={state.unitPreferences.height}
+          unitOptions={[...heightUnitOptions]}
+          onUnitChange={(value) =>
+            dispatch({
+              type: "setUnitPreference",
+              key: "height",
+              value: value as HeightUnit,
+            })
+          }
           resetValue={presetDefaults.targetHeightM}
           onReset={() => setScenarioValue("targetHeightM", presetDefaults.targetHeightM)}
+          toDisplayValue={(baseValue, unit) =>
+            metersToHeightUnit(baseValue, unit as HeightUnit)
+          }
+          toBaseValue={(displayValue, unit) =>
+            heightUnitToMeters(displayValue, unit as HeightUnit)
+          }
           onChange={(value) => setScenarioValue("targetHeightM", value)}
         />
         <NumberField
@@ -339,9 +427,23 @@ export function ControlsPanel({
           min={1000}
           max={1000000}
           step={1000}
-          suffix="m"
+          unit={state.unitPreferences.distance}
+          unitOptions={[...distanceUnitOptions]}
+          onUnitChange={(value) =>
+            dispatch({
+              type: "setUnitPreference",
+              key: "distance",
+              value: value as DistanceUnit,
+            })
+          }
           resetValue={presetDefaults.surfaceDistanceM}
           onReset={() => setScenarioValue("surfaceDistanceM", presetDefaults.surfaceDistanceM)}
+          toDisplayValue={(baseValue, unit) =>
+            metersToDistanceUnit(baseValue, unit as DistanceUnit)
+          }
+          toBaseValue={(displayValue, unit) =>
+            distanceUnitToMeters(displayValue, unit as DistanceUnit)
+          }
           onChange={(value) => setScenarioValue("surfaceDistanceM", value)}
         />
         <NumberField
@@ -350,9 +452,23 @@ export function ControlsPanel({
           min={3000000}
           max={9000000}
           step={1000}
-          suffix="m"
+          unit={state.unitPreferences.radius}
+          unitOptions={[...radiusUnitOptions]}
+          onUnitChange={(value) =>
+            dispatch({
+              type: "setUnitPreference",
+              key: "radius",
+              value: value as RadiusUnit,
+            })
+          }
           resetValue={presetDefaults.radiusM}
           onReset={() => setScenarioValue("radiusM", presetDefaults.radiusM)}
+          toDisplayValue={(baseValue, unit) =>
+            metersToDistanceUnit(baseValue, unit as RadiusUnit)
+          }
+          toBaseValue={(displayValue, unit) =>
+            distanceUnitToMeters(displayValue, unit as RadiusUnit)
+          }
           onChange={(value) => setScenarioValue("radiusM", value)}
         />
         <NumberField
@@ -361,7 +477,7 @@ export function ControlsPanel({
           min={8}
           max={36}
           step={1}
-          suffix="pts"
+          unit="pts"
           resetValue={presetDefaults.targetSampleCount}
           onReset={() =>
             setScenarioValue("targetSampleCount", presetDefaults.targetSampleCount)

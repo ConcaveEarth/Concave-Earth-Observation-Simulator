@@ -61,12 +61,24 @@ export default function App() {
   );
 
   const primaryScene = useMemo(
-    () => buildSceneViewModel(primaryResult, "Primary Model", "primary"),
-    [primaryResult],
+    () =>
+      buildSceneViewModel(
+        primaryResult,
+        "Primary Model",
+        "primary",
+        deferredState.unitPreferences,
+      ),
+    [primaryResult, deferredState.unitPreferences],
   );
   const comparisonScene = useMemo(
-    () => buildSceneViewModel(comparisonResult, "Comparison Model", "comparison"),
-    [comparisonResult],
+    () =>
+      buildSceneViewModel(
+        comparisonResult,
+        "Comparison Model",
+        "comparison",
+        deferredState.unitPreferences,
+      ),
+    [comparisonResult, deferredState.unitPreferences],
   );
 
   const scenes =
@@ -226,6 +238,9 @@ export default function App() {
                 compareLayout={resolvedCompareLayout}
                 zoom={state.sceneViewport.zoom}
                 verticalZoom={state.sceneViewport.verticalZoom}
+                panX={state.sceneViewport.panX}
+                panY={state.sceneViewport.panY}
+                unitPreferences={state.unitPreferences}
                 onHoverFeature={(sceneKey, featureId) =>
                   dispatch({ type: "setHoveredFeature", sceneKey, value: featureId })
                 }
@@ -237,6 +252,15 @@ export default function App() {
 
                   dispatch({ type: "setSelectedFeature", sceneKey, value: featureId });
                 }}
+                onPanBy={(deltaX, deltaY) =>
+                  dispatch({ type: "panViewport", deltaX, deltaY })
+                }
+                onAdjustZoom={(delta) =>
+                  dispatch({ type: "adjustViewportZoom", delta })
+                }
+                onAdjustVerticalZoom={(delta) =>
+                  dispatch({ type: "adjustViewportVerticalZoom", delta })
+                }
               />
             </div>
           </div>

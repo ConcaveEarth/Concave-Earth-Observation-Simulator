@@ -1,6 +1,12 @@
 import { pointAtSurfaceHeight, toObserverFrame } from "../../domain/geometry";
 import { getPresetById } from "../../domain/presets";
-import { formatAngle, formatDistance, formatFraction, formatHeight, roundTo } from "../../domain/units";
+import {
+  formatAngle,
+  formatDistance,
+  formatFraction,
+  formatHeight,
+  formatRadius,
+} from "../../domain/units";
 import type { FocusedModel, SceneViewModel, VisibilitySolveResult } from "../../domain/types";
 import type { AppState, WorkspaceMode } from "../../state/appState";
 import { PanelSection } from "./PanelSection";
@@ -51,8 +57,10 @@ function getLocalPoint(result: VisibilitySolveResult, point: { x: number; y: num
 function getFeatureMetrics(
   result: VisibilitySolveResult,
   activeScene: SceneViewModel,
+  state: AppState,
   featureId: string | null,
 ): { title: string; description: string; metrics: FeatureMetric[] } {
+  const units = state.unitPreferences;
   const targetBaseLocal = getLocalPoint(result, result.targetBasePoint);
   const targetTopLocal = getLocalPoint(result, result.targetTopPoint);
   const observerAltitudePoint = pointAtSurfaceHeight(
@@ -87,10 +95,16 @@ function getFeatureMetrics(
             : "The physical inner shell curve of the concave model.",
         metrics: [
           { label: "Geometry", value: result.model.geometryMode },
-          { label: "Radius", value: formatDistance(result.scenario.radiusM) },
-          { label: "Surface distance", value: formatDistance(result.scenario.surfaceDistanceM) },
+          { label: "Radius", value: formatRadius(result.scenario.radiusM, units.radius) },
+          {
+            label: "Surface distance",
+            value: formatDistance(result.scenario.surfaceDistanceM, units.distance),
+          },
           { label: "Central angle", value: formatAngle(result.targetAngleRad) },
-          { label: "Target base drop from tangent", value: formatHeight(geometricDropM) },
+          {
+            label: "Target base drop from tangent",
+            value: formatHeight(geometricDropM, units.height),
+          },
           {
             label: "Reference role",
             value:
@@ -108,17 +122,17 @@ function getFeatureMetrics(
         metrics: [
           {
             label: "Observer height",
-            value: formatHeight(result.scenario.observerHeightM),
+            value: formatHeight(result.scenario.observerHeightM, units.height),
           },
           { label: "Reference angle", value: "0 deg tangent" },
           {
             label: "Target base below tangent",
-            value: formatHeight(geometricDropM),
+            value: formatHeight(geometricDropM, units.height),
           },
           {
             label: "Geometric horizon",
             value: result.geometricHorizon
-              ? formatDistance(result.geometricHorizon.distanceM)
+              ? formatDistance(result.geometricHorizon.distanceM, units.distance)
               : "N/A",
           },
           {
@@ -141,8 +155,14 @@ function getFeatureMetrics(
             ? "A constant-height reference curve following the convex surface geometry at the observer altitude."
             : "A constant-height reference curve following the concave shell geometry at the observer altitude. This is the curvilinear tangent-style reference in the concave view.",
         metrics: [
-          { label: "Reference height", value: formatHeight(result.scenario.observerHeightM) },
-          { label: "Target offset from tangent", value: formatHeight(Math.abs(observerAltitudeLocal.y)) },
+          {
+            label: "Reference height",
+            value: formatHeight(result.scenario.observerHeightM, units.height),
+          },
+          {
+            label: "Target offset from tangent",
+            value: formatHeight(Math.abs(observerAltitudeLocal.y), units.height),
+          },
           {
             label: "Curve direction",
             value: observerAltitudeLocal.y < 0 ? "Drops below tangent" : "Rises above tangent",
@@ -163,7 +183,7 @@ function getFeatureMetrics(
         description:
           "The vertical height construction from the observer's local surface/shell point to the observation point.",
         metrics: [
-          { label: "Observer height", value: formatHeight(result.scenario.observerHeightM) },
+          { label: "Observer height", value: formatHeight(result.scenario.observerHeightM, units.height) },
           { label: "Base point", value: "Observer surface point" },
           { label: "Top point", value: "Observation point" },
           {
@@ -178,7 +198,7 @@ function getFeatureMetrics(
         description:
           "The vertical height construction from the target base on the surface/shell to the top of the target.",
         metrics: [
-          { label: "Target height", value: formatHeight(result.scenario.targetHeightM) },
+          { label: "Target height", value: formatHeight(result.scenario.targetHeightM, units.height) },
           { label: "Base point", value: "Target base" },
           { label: "Top point", value: "Target top" },
           {
@@ -197,11 +217,11 @@ function getFeatureMetrics(
           ? [
               {
                 label: "Profile span",
-                value: formatDistance(activeScene.terrainOverlay.spanDistanceM),
+                value: formatDistance(activeScene.terrainOverlay.spanDistanceM, units.distance),
               },
               {
                 label: "Peak / top height",
-                value: formatHeight(activeScene.terrainOverlay.maxHeightM),
+                value: formatHeight(activeScene.terrainOverlay.maxHeightM, units.height),
               },
               {
                 label: "Use in solver",
@@ -220,9 +240,12 @@ function getFeatureMetrics(
         description:
           "The straight Euclidean line from observer to target top before optical bending.",
         metrics: [
-          { label: "Chord length", value: formatDistance(chordLengthM) },
+          { label: "Chord length", value: formatDistance(chordLengthM, units.distance) },
           { label: "Geometric elevation", value: formatAngle(result.actualElevationRad) },
-          { label: "Target top local rise", value: formatHeight(Math.abs(targetTopLocal.y)) },
+          {
+            label: "Target top local rise",
+            value: formatHeight(Math.abs(targetTopLocal.y), units.height),
+          },
           { label: "Central angle", value: formatAngle(result.targetAngleRad) },
           {
             label: "Reference role",
@@ -232,9 +255,14 @@ function getFeatureMetrics(
       };
     case "actual-ray":
       return {
-        title: "Actual Ray Path",
+        title:
+          result.primaryRay?.targetCrossing != null
+            ? "Actual Ray Path"
+            : "Optical Horizon Reference Ray",
         description:
-          "The solved ray under the active atmosphere and intrinsic curvature assumptions.",
+          result.primaryRay?.targetCrossing != null
+            ? "The solved ray under the active atmosphere and intrinsic curvature assumptions."
+            : "No target-reaching ray is currently solved, so this is the grazing horizon reference ray under the active curvature law.",
         metrics: primaryRay
           ? [
               { label: "Launch angle", value: formatAngle(primaryRay.launchAngleRad) },
@@ -247,10 +275,13 @@ function getFeatureMetrics(
               {
                 label: "Solved arc length",
                 value: primaryRay.targetCrossing
-                  ? formatDistance(primaryRay.targetCrossing.arcLengthM)
+                  ? formatDistance(primaryRay.targetCrossing.arcLengthM, units.distance)
                   : "N/A",
               },
-              { label: "Min surface clearance", value: formatHeight(primaryRay.minSurfaceClearanceM) },
+              {
+                label: "Min surface clearance",
+                value: formatHeight(primaryRay.minSurfaceClearanceM, units.height),
+              },
               { label: "Termination", value: primaryRay.terminationReason },
               {
                 label: "Reference role",
@@ -264,9 +295,11 @@ function getFeatureMetrics(
       };
     case "apparent-line":
       return {
-        title: "Apparent Line Of Sight",
+        title: result.visible ? "Apparent Line Of Sight" : "Apparent Horizon Direction",
         description:
-          "The straight apparent direction at the observer implied by the solved ray.",
+          result.visible
+            ? "The straight apparent direction at the observer implied by the solved ray."
+            : "The straight apparent direction associated with the solved grazing horizon ray when no target-reaching ray is available.",
         metrics: [
           { label: "Apparent elevation", value: formatAngle(result.apparentElevationRad) },
           { label: "Geometric elevation", value: formatAngle(result.actualElevationRad) },
@@ -293,7 +326,13 @@ function getFeatureMetrics(
           "The tangent-to-surface horizon with no optical correction.",
         metrics: result.geometricHorizon
           ? [
-              { label: "Distance", value: formatDistance(result.geometricHorizon.distanceM) },
+              {
+                label: "Distance",
+                value: formatDistance(
+                  result.geometricHorizon.distanceM,
+                  units.distance,
+                ),
+              },
               { label: "Surface angle", value: formatAngle(result.geometricHorizon.surfaceAngleRad) },
               { label: "Apparent elevation", value: formatAngle(result.geometricHorizon.apparentElevationRad) },
               {
@@ -313,12 +352,15 @@ function getFeatureMetrics(
           "The traced grazing boundary under the active ray-curvature law.",
         metrics: result.opticalHorizon
           ? [
-              { label: "Distance", value: formatDistance(result.opticalHorizon.distanceM) },
+              {
+                label: "Distance",
+                value: formatDistance(result.opticalHorizon.distanceM, units.distance),
+              },
               { label: "Apparent elevation", value: formatAngle(result.opticalHorizon.apparentElevationRad) },
               {
                 label: "Vs geometric horizon",
                 value: result.geometricHorizon
-                  ? formatDistance(geometricHorizonDeltaM)
+                  ? formatDistance(geometricHorizonDeltaM, units.distance)
                   : "N/A",
               },
               {
@@ -334,8 +376,8 @@ function getFeatureMetrics(
         description:
           "The obscured lower portion of the target under the active solve.",
         metrics: [
-          { label: "Hidden height", value: formatHeight(result.hiddenHeightM) },
-          { label: "Visible height", value: formatHeight(result.visibleHeightM) },
+          { label: "Hidden height", value: formatHeight(result.hiddenHeightM, units.height) },
+          { label: "Visible height", value: formatHeight(result.visibleHeightM, units.height) },
           { label: "Visibility fraction", value: formatFraction(result.visibilityFraction) },
           { label: "Solved visible samples", value: String(result.solverMetadata.solvedVisibleSamples) },
           { label: "Reference role", value: "Occluded lower target segment" },
@@ -348,11 +390,14 @@ function getFeatureMetrics(
           "Hover a line, curve, or construction in the scene to inspect its angular and geodetic values here.",
         metrics: [
           { label: "Scene", value: result.model.label },
-          { label: "Surface distance", value: formatDistance(result.scenario.surfaceDistanceM) },
+          {
+            label: "Surface distance",
+            value: formatDistance(result.scenario.surfaceDistanceM, units.distance),
+          },
           { label: "Central angle", value: formatAngle(result.targetAngleRad) },
           {
             label: "Solver trace step",
-            value: `${roundTo(result.solverMetadata.stepM, 0)} m`,
+            value: formatDistance(result.solverMetadata.stepM, units.distance),
           },
         ],
       };
@@ -392,6 +437,7 @@ export function RightPanel({
   const featureDetails = getFeatureMetrics(
     activeResult,
     activeScene,
+    state,
     activeFeatureId,
   );
 
@@ -401,11 +447,11 @@ export function RightPanel({
         <div className="metrics-grid">
           <SummaryMetric
             label="Hidden height"
-            value={formatHeight(activeResult.hiddenHeightM)}
+            value={formatHeight(activeResult.hiddenHeightM, state.unitPreferences.height)}
           />
           <SummaryMetric
             label="Visible height"
-            value={formatHeight(activeResult.visibleHeightM)}
+            value={formatHeight(activeResult.visibleHeightM, state.unitPreferences.height)}
           />
           <SummaryMetric
             label="Visibility fraction"
@@ -423,7 +469,10 @@ export function RightPanel({
             label="Optical horizon"
             value={
               activeResult.opticalHorizon
-                ? formatDistance(activeResult.opticalHorizon.distanceM)
+                ? formatDistance(
+                    activeResult.opticalHorizon.distanceM,
+                    state.unitPreferences.distance,
+                  )
                 : "N/A"
             }
           />
@@ -448,7 +497,7 @@ export function RightPanel({
               : ""}
           </p>
           <p>
-            <strong>Radius:</strong> {formatDistance(activeResult.scenario.radiusM)}
+            <strong>Radius:</strong> {formatRadius(activeResult.scenario.radiusM, state.unitPreferences.radius)}
           </p>
           <p>
             <strong>Viewport:</strong> {state.sceneViewport.framingMode === "auto" ? "Auto fit" : "Full span"}
@@ -456,6 +505,10 @@ export function RightPanel({
           </p>
           <p>
             <strong>Scale mode:</strong> {scaleModeLabel}
+          </p>
+          <p>
+            <strong>Units:</strong> height {state.unitPreferences.height} | distance{" "}
+            {state.unitPreferences.distance} | radius {state.unitPreferences.radius}
           </p>
           <p>
             <strong>Vertical display:</strong>{" "}
@@ -474,15 +527,25 @@ export function RightPanel({
             <div className="feature-metrics">
               <div className="feature-metrics__row">
                 <span>Surface arc distance</span>
-                <strong>{formatDistance(activeResult.scenario.surfaceDistanceM)}</strong>
+                <strong>
+                  {formatDistance(
+                    activeResult.scenario.surfaceDistanceM,
+                    state.unitPreferences.distance,
+                  )}
+                </strong>
               </div>
               <div className="feature-metrics__row">
                 <span>Surface chord</span>
-                <strong>{formatDistance(surfaceChordM)}</strong>
+                <strong>{formatDistance(surfaceChordM, state.unitPreferences.distance)}</strong>
               </div>
               <div className="feature-metrics__row">
                 <span>Arc minus chord</span>
-                <strong>{formatDistance(activeResult.scenario.surfaceDistanceM - surfaceChordM)}</strong>
+                <strong>
+                  {formatDistance(
+                    activeResult.scenario.surfaceDistanceM - surfaceChordM,
+                    state.unitPreferences.distance,
+                  )}
+                </strong>
               </div>
               <div className="feature-metrics__row">
                 <span>Central angle</span>
@@ -490,7 +553,7 @@ export function RightPanel({
               </div>
               <div className="feature-metrics__row">
                 <span>Target base drop from tangent</span>
-                <strong>{formatHeight(geometricDropM)}</strong>
+                <strong>{formatHeight(geometricDropM, state.unitPreferences.height)}</strong>
               </div>
               <div className="feature-metrics__row">
                 <span>Geometric horizon dip</span>
