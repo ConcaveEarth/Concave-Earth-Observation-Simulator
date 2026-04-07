@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { ThemeMode, WorkspaceMode } from "../../state/appState";
 
 interface NavLink {
   label: string;
@@ -65,7 +66,19 @@ function NavAnchor({
   );
 }
 
-export function TopNav() {
+interface TopNavProps {
+  theme: ThemeMode;
+  workspaceMode: WorkspaceMode;
+  onThemeChange: (value: ThemeMode) => void;
+  onWorkspaceModeChange: (value: WorkspaceMode) => void;
+}
+
+export function TopNav({
+  theme,
+  workspaceMode,
+  onThemeChange,
+  onWorkspaceModeChange,
+}: TopNavProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -132,6 +145,33 @@ export function TopNav() {
           ) : null}
         </div>
       </nav>
+
+      <div className="top-nav__utilities">
+        <label className="top-nav__control">
+          <span>Theme</span>
+          <select
+            value={theme}
+            onChange={(event) => onThemeChange(event.target.value as ThemeMode)}
+          >
+            <option value="night-lab">Night Lab</option>
+            <option value="blueprint">Blueprint</option>
+            <option value="paper-light">Paper Light</option>
+          </select>
+        </label>
+
+        <label className="top-nav__control">
+          <span>Workspace</span>
+          <select
+            value={workspaceMode}
+            onChange={(event) =>
+              onWorkspaceModeChange(event.target.value as WorkspaceMode)
+            }
+          >
+            <option value="professional">Professional</option>
+            <option value="simple">Simple</option>
+          </select>
+        </label>
+      </div>
     </header>
   );
 }

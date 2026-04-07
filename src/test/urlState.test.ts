@@ -11,12 +11,16 @@ describe("URL state round-tripping", () => {
       viewMode: "compare" as const,
       focusedModel: "comparison" as const,
       annotated: false,
+      labelDensity: "full" as const,
+      theme: "blueprint" as const,
+      workspaceMode: "simple" as const,
       showScaleGuides: false,
       showTerrainOverlay: false,
       sceneViewport: {
         ...createDefaultState().sceneViewport,
         framingMode: "full" as const,
         scaleMode: "diagram" as const,
+        compareLayout: "stacked" as const,
         zoom: 1.4,
         verticalZoom: 2.2,
       },
@@ -33,10 +37,14 @@ describe("URL state round-tripping", () => {
     expect(hydrated.viewMode).toBe("compare");
     expect(hydrated.focusedModel).toBe("comparison");
     expect(hydrated.annotated).toBe(false);
+    expect(hydrated.labelDensity).toBe("full");
+    expect(hydrated.theme).toBe("blueprint");
+    expect(hydrated.workspaceMode).toBe("simple");
     expect(hydrated.showScaleGuides).toBe(false);
     expect(hydrated.showTerrainOverlay).toBe(false);
     expect(hydrated.sceneViewport.framingMode).toBe("full");
     expect(hydrated.sceneViewport.scaleMode).toBe("diagram");
+    expect(hydrated.sceneViewport.compareLayout).toBe("stacked");
     expect(hydrated.sceneViewport.zoom).toBe(1.4);
     expect(hydrated.sceneViewport.verticalZoom).toBe(2.2);
     expect(hydrated.scenario.observerHeightM).toBe(34);

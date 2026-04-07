@@ -17,10 +17,15 @@ import type {
 
 export type SceneFramingMode = "auto" | "full";
 export type SceneScaleMode = "survey" | "true-scale" | "diagram";
+export type CompareLayoutMode = "auto" | "side-by-side" | "stacked";
+export type LabelDensityMode = "adaptive" | "full";
+export type ThemeMode = "night-lab" | "paper-light" | "blueprint";
+export type WorkspaceMode = "professional" | "simple";
 
 export interface SceneViewportState {
   framingMode: SceneFramingMode;
   scaleMode: SceneScaleMode;
+  compareLayout: CompareLayoutMode;
   zoom: number;
   verticalZoom: number;
 }
@@ -33,6 +38,9 @@ export interface AppState {
   focusedModel: FocusedModel;
   sceneViewport: SceneViewportState;
   annotated: boolean;
+  labelDensity: LabelDensityMode;
+  theme: ThemeMode;
+  workspaceMode: WorkspaceMode;
   showScaleGuides: boolean;
   showTerrainOverlay: boolean;
   selectedSceneKey: FocusedModel | null;
@@ -69,6 +77,9 @@ export type AppAction =
   | { type: "adjustViewportVerticalZoom"; delta: number }
   | { type: "resetViewport" }
   | { type: "setAnnotated"; value: boolean }
+  | { type: "setLabelDensity"; value: LabelDensityMode }
+  | { type: "setTheme"; value: ThemeMode }
+  | { type: "setWorkspaceMode"; value: WorkspaceMode }
   | { type: "setShowScaleGuides"; value: boolean }
   | { type: "setShowTerrainOverlay"; value: boolean }
   | { type: "setSelectedFeature"; sceneKey: FocusedModel | null; value: string | null }
@@ -85,11 +96,15 @@ export function createDefaultState(): AppState {
     focusedModel: "primary",
     sceneViewport: {
       framingMode: "auto",
-      scaleMode: "survey",
+      scaleMode: "diagram",
+      compareLayout: "auto",
       zoom: 1,
       verticalZoom: 1,
     },
     annotated: true,
+    labelDensity: "adaptive",
+    theme: "night-lab",
+    workspaceMode: "professional",
     showScaleGuides: true,
     showTerrainOverlay: true,
     selectedSceneKey: null,
@@ -125,6 +140,34 @@ function normalizeScaleMode(value: string): SceneScaleMode {
   }
 
   return "survey";
+}
+
+function normalizeCompareLayout(value: string): CompareLayoutMode {
+  switch (value) {
+    case "side-by-side":
+    case "stacked":
+      return value;
+    default:
+      return "auto";
+  }
+}
+
+function normalizeLabelDensity(value: string): LabelDensityMode {
+  return value === "full" ? "full" : "adaptive";
+}
+
+function normalizeThemeMode(value: string): ThemeMode {
+  switch (value) {
+    case "paper-light":
+    case "blueprint":
+      return value;
+    default:
+      return "night-lab";
+  }
+}
+
+function normalizeWorkspaceMode(value: string): WorkspaceMode {
+  return value === "simple" ? "simple" : "professional";
 }
 
 function updateModel(
@@ -206,6 +249,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
               ? action.value
               : action.key === "scaleMode"
                 ? normalizeScaleMode(String(action.value))
+                : action.key === "compareLayout"
+                  ? normalizeCompareLayout(String(action.value))
                 : Number(action.value),
         },
       };
@@ -236,6 +281,12 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       };
     case "setAnnotated":
       return { ...state, annotated: action.value };
+    case "setLabelDensity":
+      return { ...state, labelDensity: normalizeLabelDensity(action.value) };
+    case "setTheme":
+      return { ...state, theme: normalizeThemeMode(action.value) };
+    case "setWorkspaceMode":
+      return { ...state, workspaceMode: normalizeWorkspaceMode(action.value) };
     case "setShowScaleGuides":
       return { ...state, showScaleGuides: action.value };
     case "setShowTerrainOverlay":
@@ -337,9 +388,13 @@ export function serializeStateToSearch(state: AppState): string {
   params.set("focus", state.focusedModel);
   params.set("frame", state.sceneViewport.framingMode);
   params.set("scale", state.sceneViewport.scaleMode);
+  params.set("compareLayout", state.sceneViewport.compareLayout);
   params.set("zoom", String(state.sceneViewport.zoom));
   params.set("vzoom", String(state.sceneViewport.verticalZoom));
   params.set("annotated", state.annotated ? "1" : "0");
+  params.set("labels", state.labelDensity);
+  params.set("theme", state.theme);
+  params.set("workspace", state.workspaceMode);
   params.set("scales", state.showScaleGuides ? "1" : "0");
   params.set("terrain", state.showTerrainOverlay ? "1" : "0");
   params.set("observer", String(state.scenario.observerHeightM));
@@ -394,6 +449,9 @@ export function hydrateStateFromSearch(search: string): AppState {
     sceneViewport: {
       framingMode: params.get("frame") === "full" ? "full" : "auto",
       scaleMode: normalizeScaleMode(params.get("scale") ?? defaults.sceneViewport.scaleMode),
+      compareLayout: normalizeCompareLayout(
+        params.get("compareLayout") ?? defaults.sceneViewport.compareLayout,
+      ),
       zoom: parseNumber(params, "zoom", defaults.sceneViewport.zoom),
       verticalZoom: parseNumber(
         params,
@@ -402,6 +460,13 @@ export function hydrateStateFromSearch(search: string): AppState {
       ),
     },
     annotated: params.get("annotated") !== "0",
+    labelDensity: normalizeLabelDensity(
+      params.get("labels") ?? defaults.labelDensity,
+    ),
+    theme: normalizeThemeMode(params.get("theme") ?? defaults.theme),
+    workspaceMode: normalizeWorkspaceMode(
+      params.get("workspace") ?? defaults.workspaceMode,
+    ),
     showScaleGuides: params.get("scales") !== "0",
     showTerrainOverlay: params.get("terrain") !== "0",
     selectedSceneKey: null,

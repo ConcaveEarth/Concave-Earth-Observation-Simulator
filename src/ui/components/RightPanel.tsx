@@ -2,7 +2,7 @@ import { pointAtSurfaceHeight, toObserverFrame } from "../../domain/geometry";
 import { getPresetById } from "../../domain/presets";
 import { formatAngle, formatDistance, formatFraction, formatHeight, roundTo } from "../../domain/units";
 import type { FocusedModel, SceneViewModel, VisibilitySolveResult } from "../../domain/types";
-import type { AppState } from "../../state/appState";
+import type { AppState, WorkspaceMode } from "../../state/appState";
 import { PanelSection } from "./PanelSection";
 
 interface RightPanelProps {
@@ -12,6 +12,7 @@ interface RightPanelProps {
   inspectedSceneKey: FocusedModel;
   activeFeatureId: string | null;
   isFeaturePinned: boolean;
+  workspaceMode: WorkspaceMode;
   onClearSelection: () => void;
   onExport: () => void;
   onCopyLink: () => void;
@@ -267,6 +268,7 @@ export function RightPanel({
   inspectedSceneKey,
   activeFeatureId,
   isFeaturePinned,
+  workspaceMode,
   onClearSelection,
   onExport,
   onCopyLink,
@@ -288,6 +290,7 @@ export function RightPanel({
       : state.sceneViewport.scaleMode === "survey"
         ? "Survey scale"
         : "Diagram spread";
+  const professionalMode = workspaceMode === "professional";
   const featureDetails = getFeatureMetrics(
     activeResult,
     activeScene,
@@ -329,49 +332,6 @@ export function RightPanel({
         </div>
       </PanelSection>
 
-      <PanelSection title="Survey Geometry" eyebrow="Field metrics">
-        <div className="detail-card">
-          <div className="feature-metrics">
-            <div className="feature-metrics__row">
-              <span>Surface arc distance</span>
-              <strong>{formatDistance(activeResult.scenario.surfaceDistanceM)}</strong>
-            </div>
-            <div className="feature-metrics__row">
-              <span>Surface chord</span>
-              <strong>{formatDistance(surfaceChordM)}</strong>
-            </div>
-            <div className="feature-metrics__row">
-              <span>Arc minus chord</span>
-              <strong>{formatDistance(activeResult.scenario.surfaceDistanceM - surfaceChordM)}</strong>
-            </div>
-            <div className="feature-metrics__row">
-              <span>Central angle</span>
-              <strong>{formatAngle(activeResult.targetAngleRad)}</strong>
-            </div>
-            <div className="feature-metrics__row">
-              <span>Target base drop from tangent</span>
-              <strong>{formatHeight(geometricDropM)}</strong>
-            </div>
-            <div className="feature-metrics__row">
-              <span>Geometric horizon dip</span>
-              <strong>
-                {activeResult.geometricHorizon
-                  ? formatAngle(Math.abs(activeResult.geometricHorizon.apparentElevationRad))
-                  : "N/A"}
-              </strong>
-            </div>
-            <div className="feature-metrics__row">
-              <span>Optical horizon dip</span>
-              <strong>
-                {activeResult.opticalHorizon
-                  ? formatAngle(Math.abs(activeResult.opticalHorizon.apparentElevationRad))
-                  : "N/A"}
-              </strong>
-            </div>
-          </div>
-        </div>
-      </PanelSection>
-
       <PanelSection title="Model Transparency" eyebrow="Assumptions">
         <div className="detail-card">
           <p>
@@ -410,33 +370,80 @@ export function RightPanel({
         </div>
       </PanelSection>
 
-      <PanelSection title="Line Legend" eyebrow="Scene guide">
-        <div className="detail-card">
-          <div className="legend-list">
-            {activeScene.annotations
-              .filter(
-                (annotation) =>
-                  state.showTerrainOverlay || annotation.id !== "terrain-profile",
-              )
-              .map((annotation) => (
-                <div
-                  key={annotation.id}
-                  className={
-                    annotation.id === activeFeatureId
-                      ? "legend-item legend-item--active"
-                      : "legend-item"
-                  }
-                >
-                  <span
-                    className="legend-swatch"
-                    style={{ backgroundColor: annotation.color }}
-                  />
-                  <span>{annotation.label}</span>
-                </div>
-              ))}
+      {professionalMode ? (
+        <PanelSection title="Survey Geometry" eyebrow="Field metrics">
+          <div className="detail-card">
+            <div className="feature-metrics">
+              <div className="feature-metrics__row">
+                <span>Surface arc distance</span>
+                <strong>{formatDistance(activeResult.scenario.surfaceDistanceM)}</strong>
+              </div>
+              <div className="feature-metrics__row">
+                <span>Surface chord</span>
+                <strong>{formatDistance(surfaceChordM)}</strong>
+              </div>
+              <div className="feature-metrics__row">
+                <span>Arc minus chord</span>
+                <strong>{formatDistance(activeResult.scenario.surfaceDistanceM - surfaceChordM)}</strong>
+              </div>
+              <div className="feature-metrics__row">
+                <span>Central angle</span>
+                <strong>{formatAngle(activeResult.targetAngleRad)}</strong>
+              </div>
+              <div className="feature-metrics__row">
+                <span>Target base drop from tangent</span>
+                <strong>{formatHeight(geometricDropM)}</strong>
+              </div>
+              <div className="feature-metrics__row">
+                <span>Geometric horizon dip</span>
+                <strong>
+                  {activeResult.geometricHorizon
+                    ? formatAngle(Math.abs(activeResult.geometricHorizon.apparentElevationRad))
+                    : "N/A"}
+                </strong>
+              </div>
+              <div className="feature-metrics__row">
+                <span>Optical horizon dip</span>
+                <strong>
+                  {activeResult.opticalHorizon
+                    ? formatAngle(Math.abs(activeResult.opticalHorizon.apparentElevationRad))
+                    : "N/A"}
+                </strong>
+              </div>
+            </div>
           </div>
-        </div>
-      </PanelSection>
+        </PanelSection>
+      ) : null}
+
+      {professionalMode ? (
+        <PanelSection title="Line Legend" eyebrow="Scene guide">
+          <div className="detail-card">
+            <div className="legend-list">
+              {activeScene.annotations
+                .filter(
+                  (annotation) =>
+                    state.showTerrainOverlay || annotation.id !== "terrain-profile",
+                )
+                .map((annotation) => (
+                  <div
+                    key={annotation.id}
+                    className={
+                      annotation.id === activeFeatureId
+                        ? "legend-item legend-item--active"
+                        : "legend-item"
+                    }
+                  >
+                    <span
+                      className="legend-swatch"
+                      style={{ backgroundColor: annotation.color }}
+                    />
+                    <span>{annotation.label}</span>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </PanelSection>
+      ) : null}
 
       <PanelSection title="Feature Inspection" eyebrow="Inspection">
         <div className="detail-card">
@@ -472,19 +479,21 @@ export function RightPanel({
         </div>
       </PanelSection>
 
-      <PanelSection title="Preset Notes" eyebrow="Context">
-        <div className="detail-card">
-          <h4>{preset.name}</h4>
-          <p>{preset.description}</p>
-          {activeScene.terrainOverlay ? (
-            <p>
-              Profile overlay: {activeScene.terrainOverlay.name}. This layer is
-              aligned to the scenario distances for diagram readability, and it
-              does not yet replace the solver's baseline surface-intersection mesh.
-            </p>
-          ) : null}
-        </div>
-      </PanelSection>
+      {professionalMode ? (
+        <PanelSection title="Preset Notes" eyebrow="Context">
+          <div className="detail-card">
+            <h4>{preset.name}</h4>
+            <p>{preset.description}</p>
+            {activeScene.terrainOverlay ? (
+              <p>
+                Profile overlay: {activeScene.terrainOverlay.name}. This layer is
+                aligned to the scenario distances for diagram readability, and it
+                does not yet replace the solver's baseline surface-intersection mesh.
+              </p>
+            ) : null}
+          </div>
+        </PanelSection>
+      ) : null}
 
       <PanelSection title="Share / Export" eyebrow="Output">
         <div className="action-row">

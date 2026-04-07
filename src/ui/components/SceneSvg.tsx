@@ -1,11 +1,17 @@
 import type { CSSProperties } from "react";
 import type { SceneLine, SceneSegment, SceneViewModel, Vec2 } from "../../domain/types";
 import { formatDistance } from "../../domain/units";
-import type { SceneFramingMode, SceneScaleMode } from "../../state/appState";
+import type {
+  CompareLayoutMode,
+  LabelDensityMode,
+  SceneFramingMode,
+  SceneScaleMode,
+} from "../../state/appState";
 
 interface SceneSvgProps {
   scenes: SceneViewModel[];
   annotated: boolean;
+  labelDensity: LabelDensityMode;
   showScaleGuides: boolean;
   showTerrainOverlay: boolean;
   activeFeatureId: string | null;
@@ -16,6 +22,7 @@ interface SceneSvgProps {
   selectedSceneKey: SceneViewModel["sceneKey"] | null;
   framingMode: SceneFramingMode;
   scaleMode: SceneScaleMode;
+  compareLayout: Exclude<CompareLayoutMode, "auto">;
   zoom: number;
   verticalZoom: number;
   onHoverFeature: (
@@ -426,6 +433,7 @@ function renderScaleGuides(
 export function SceneSvg({
   scenes,
   annotated,
+  labelDensity,
   showScaleGuides,
   showTerrainOverlay,
   activeFeatureId,
@@ -436,33 +444,46 @@ export function SceneSvg({
   selectedSceneKey,
   framingMode,
   scaleMode,
+  compareLayout,
   zoom,
   verticalZoom,
   onHoverFeature,
   onSelectFeature,
 }: SceneSvgProps) {
   const isCompare = scenes.length > 1;
-  const markerFontSize = isCompare ? 13 : 16;
-  const titleFontSize = isCompare ? 20 : 22;
-  const subtitleFontSize = isCompare ? 13 : 15;
-  const labelFontSize = isCompare ? 12 : 14;
-  const panelRects: PanelRect[] =
-    scenes.length === 1
-      ? [{ x: 28, y: 28, width: SVG_WIDTH - 56, height: SVG_HEIGHT - 56 }]
+  const expandedLabels = labelDensity === "full";
+  const isStacked = isCompare && compareLayout === "stacked";
+  const svgHeight = isStacked ? 1320 : SVG_HEIGHT;
+  const markerFontSize = expandedLabels ? 16 : isCompare ? 13 : 16;
+  const titleFontSize = expandedLabels ? 22 : isCompare ? 20 : 22;
+  const subtitleFontSize = expandedLabels ? 15 : isCompare ? 13 : 15;
+  const labelFontSize = expandedLabels ? 14 : isCompare ? 12 : 14;
+  const panelRects: PanelRect[] = !isCompare
+    ? [{ x: 28, y: 28, width: SVG_WIDTH - 56, height: svgHeight - 56 }]
+    : isStacked
+      ? [
+          { x: 26, y: 28, width: SVG_WIDTH - 52, height: (svgHeight - 86) / 2 },
+          {
+            x: 26,
+            y: svgHeight / 2 + 15,
+            width: SVG_WIDTH - 52,
+            height: (svgHeight - 86) / 2,
+          },
+        ]
       : [
-          { x: 26, y: 28, width: (SVG_WIDTH - 78) / 2, height: SVG_HEIGHT - 56 },
+          { x: 26, y: 28, width: (SVG_WIDTH - 78) / 2, height: svgHeight - 56 },
           {
             x: SVG_WIDTH / 2 + 13,
             y: 28,
             width: (SVG_WIDTH - 78) / 2,
-            height: SVG_HEIGHT - 56,
+            height: svgHeight - 56,
           },
         ];
 
   return (
     <svg
       className="scene-svg"
-      viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
+      viewBox={`0 0 ${SVG_WIDTH} ${svgHeight}`}
       role="img"
       aria-label="Observation geometry visualization"
     >
@@ -493,7 +514,7 @@ export function SceneSvg({
         </filter>
       </defs>
 
-      <rect width={SVG_WIDTH} height={SVG_HEIGHT} fill="url(#backdrop)" rx={30} />
+      <rect width={SVG_WIDTH} height={svgHeight} fill="url(#backdrop)" rx={30} />
       <circle cx="220" cy="160" r="220" fill="rgba(53, 164, 255, 0.08)" />
       <circle cx="1360" cy="90" r="180" fill="rgba(255, 163, 82, 0.06)" />
 

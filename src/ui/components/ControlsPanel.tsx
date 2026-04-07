@@ -397,9 +397,28 @@ export function ControlsPanel({
             />
           </>
         ) : (
-          <p className="field__hint">
-            Split compare mode always shows both models side by side.
-          </p>
+          <>
+            <p className="field__hint">
+              Split compare can auto-fit side-by-side or stacked layouts depending on the workspace.
+            </p>
+            <label className="field">
+              <span>Compare layout</span>
+              <select
+                value={state.sceneViewport.compareLayout}
+                onChange={(event) =>
+                  dispatch({
+                    type: "setViewportField",
+                    key: "compareLayout",
+                    value: event.target.value,
+                  })
+                }
+              >
+                <option value="auto">Auto</option>
+                <option value="side-by-side">Side by side</option>
+                <option value="stacked">Stacked</option>
+              </select>
+            </label>
+          </>
         )}
 
         <label className="switch">
@@ -411,6 +430,22 @@ export function ControlsPanel({
             }
           />
           <span>Annotated mode</span>
+        </label>
+
+        <label className="field">
+          <span>Label density</span>
+          <select
+            value={state.labelDensity}
+            onChange={(event) =>
+              dispatch({
+                type: "setLabelDensity",
+                value: event.target.value as AppState["labelDensity"],
+              })
+            }
+          >
+            <option value="adaptive">Adaptive</option>
+            <option value="full">Full</option>
+          </select>
         </label>
 
         <label className="switch">
@@ -436,7 +471,7 @@ export function ControlsPanel({
         </label>
 
         <p className="field__hint">
-          Fine-tune framing from the scene toolbar in the center panel.
+          Fine-tune framing, scale, and fullscreen from the scene toolbar in the center panel.
         </p>
       </PanelSection>
 

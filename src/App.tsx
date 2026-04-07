@@ -22,6 +22,7 @@ export default function App() {
   const [message, setMessage] = useState<string | null>(null);
   const sceneHostRef = useRef<HTMLDivElement | null>(null);
   const [isSceneFullscreen, setIsSceneFullscreen] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(() => window.innerWidth);
 
   useEffect(() => {
     const search = serializeStateToSearch(state);
@@ -39,6 +40,15 @@ export default function App() {
     return () => {
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
+  }, []);
+
+  useEffect(() => {
+    function handleResize() {
+      setWindowWidth(window.innerWidth);
+    }
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   const primaryResult = useMemo(
@@ -95,6 +105,12 @@ export default function App() {
       (largest, scene) => Math.max(largest, scene.suggestedVerticalScale),
       1,
     );
+  const resolvedCompareLayout =
+    state.sceneViewport.compareLayout === "auto"
+      ? windowWidth < 1180 || windowWidth >= 1850
+        ? "stacked"
+        : "side-by-side"
+      : state.sceneViewport.compareLayout;
 
   async function handleExport() {
     const svg = sceneHostRef.current?.querySelector("svg");
@@ -149,9 +165,18 @@ export default function App() {
   }
 
   return (
-    <div className="app-frame">
+    <div
+      className={`app-frame theme-${state.theme} workspace-${state.workspaceMode}`}
+    >
       <div className="background-noise" />
-      <TopNav />
+      <TopNav
+        theme={state.theme}
+        workspaceMode={state.workspaceMode}
+        onThemeChange={(value) => dispatch({ type: "setTheme", value })}
+        onWorkspaceModeChange={(value) =>
+          dispatch({ type: "setWorkspaceMode", value })
+        }
+      />
 
       <div className="app-shell">
         <ControlsPanel
@@ -187,6 +212,7 @@ export default function App() {
               <SceneSvg
                 scenes={scenes}
                 annotated={state.annotated}
+                labelDensity={state.labelDensity}
                 showScaleGuides={state.showScaleGuides}
                 showTerrainOverlay={state.showTerrainOverlay}
                 activeFeatureId={activeFeatureId}
@@ -197,6 +223,7 @@ export default function App() {
                 selectedSceneKey={state.selectedSceneKey}
                 framingMode={state.sceneViewport.framingMode}
                 scaleMode={state.sceneViewport.scaleMode}
+                compareLayout={resolvedCompareLayout}
                 zoom={state.sceneViewport.zoom}
                 verticalZoom={state.sceneViewport.verticalZoom}
                 onHoverFeature={(sceneKey, featureId) =>
@@ -223,6 +250,7 @@ export default function App() {
           activeFeatureId={activeFeatureId}
           isFeaturePinned={Boolean(isFeaturePinned)}
           onClearSelection={() => dispatch({ type: "clearSelectedFeature" })}
+          workspaceMode={state.workspaceMode}
           onExport={handleExport}
           onCopyLink={handleCopyLink}
           message={message}
