@@ -67,7 +67,7 @@ const en: TranslationDictionary = {
   simpleCoefficient: "Simple coefficient",
   atmosphericCoefficient: "Atmospheric coefficient",
   atmosphereHint:
-    "Downward atmospheric bending uses the same sign in both models. In concave mode it counteracts the intrinsic upward curvature.",
+    "Positive k bends light downward in both models. Negative k bends it upward. In concave mode the atmospheric term modifies the intrinsic upward curvature.",
   exportPng: "Export PNG",
   copyShareUrl: "Copy Share URL",
   home: "Home",

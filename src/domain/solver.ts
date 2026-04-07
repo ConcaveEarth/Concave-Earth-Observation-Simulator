@@ -5,6 +5,7 @@ import {
   pointAtSurfaceHeight,
   toObserverFrame,
 } from "./geometry";
+import { clampAtmosphereCoefficient } from "./curvature";
 import {
   getDefaultMaxArcLengthM,
   getDefaultStepM,
@@ -87,9 +88,9 @@ function solveConvexOpticalHorizon(
 
   const coefficient =
     model.atmosphere.mode === "simpleCoefficient"
-      ? Math.max(0, model.atmosphere.coefficient)
+      ? clampAtmosphereCoefficient(model.atmosphere.coefficient)
       : 0;
-  const relativeCurvatureFactor = Math.max(1e-6, 1 - coefficient);
+  const relativeCurvatureFactor = Math.max(0.01, 1 - coefficient);
   const effectiveRadius = scenario.radiusM / relativeCurvatureFactor;
   const effectiveHorizonAngle = Math.acos(
     effectiveRadius / (effectiveRadius + scenario.observerHeightM),

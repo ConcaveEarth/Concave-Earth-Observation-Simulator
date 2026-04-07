@@ -5,7 +5,16 @@ import {
   normalize,
   scale,
 } from "./geometry";
+import { clamp } from "./units";
 import type { ModelConfig, ScenarioInput, Vec2 } from "./types";
+
+export const ATMOSPHERE_COEFFICIENT_DEFAULT = 0.15;
+export const ATMOSPHERE_COEFFICIENT_MIN = -0.99;
+export const ATMOSPHERE_COEFFICIENT_MAX = 0.99;
+
+export function clampAtmosphereCoefficient(value: number): number {
+  return clamp(value, ATMOSPHERE_COEFFICIENT_MIN, ATMOSPHERE_COEFFICIENT_MAX);
+}
 
 function signedTurnRate(
   headingRad: number,
@@ -50,7 +59,7 @@ export function getAtmosphereCurvatureMagnitude(
     return 0;
   }
 
-  return (1 / scenario.radiusM) * Math.max(0, model.atmosphere.coefficient);
+  return (1 / scenario.radiusM) * clampAtmosphereCoefficient(model.atmosphere.coefficient);
 }
 
 export function getTurnRatePerMeter(
@@ -76,4 +85,3 @@ export function getTurnRatePerMeter(
 
   return intrinsic + atmosphere;
 }
-

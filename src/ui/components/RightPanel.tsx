@@ -80,7 +80,7 @@ function formatCurvatureRatio(
   radiusM: number,
   direction: "upward" | "downward",
 ) {
-  const ratio = magnitudePerM * radiusM;
+  const ratio = Math.abs(magnitudePerM * radiusM);
   return `${ratio.toFixed(2)} / R ${direction}`;
 }
 
@@ -578,10 +578,14 @@ export function RightPanel({
     activeResult.model,
     activeResult.scenario,
   );
+  const atmosphereDirection =
+    atmosphereCurvatureMagnitude >= 0 ? "downward" : "upward";
   const netCurvatureMagnitude =
     activeResult.model.geometryMode === "concave"
       ? intrinsicCurvatureMagnitude - atmosphereCurvatureMagnitude
       : atmosphereCurvatureMagnitude;
+  const netCurvatureDirection =
+    netCurvatureMagnitude >= 0 ? "upward" : "downward";
   const geometricDropM = Math.max(0, -targetBaseLocal.y);
   const scaleModeLabel =
     state.sceneViewport.scaleMode === "true-scale"
@@ -673,16 +677,16 @@ export function RightPanel({
                 )} + ${formatCurvatureRatio(
                   atmosphereCurvatureMagnitude,
                   activeResult.scenario.radiusM,
-                  "downward",
+                  atmosphereDirection,
                 )} = ${formatCurvatureRatio(
-                  Math.abs(netCurvatureMagnitude),
+                  netCurvatureMagnitude,
                   activeResult.scenario.radiusM,
-                  netCurvatureMagnitude >= 0 ? "upward" : "downward",
+                  netCurvatureDirection,
                 )}`
               : formatCurvatureRatio(
                   atmosphereCurvatureMagnitude,
                   activeResult.scenario.radiusM,
-                  "downward",
+                  atmosphereDirection,
                 )}
           </p>
           <p>

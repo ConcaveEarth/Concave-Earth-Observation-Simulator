@@ -5,6 +5,7 @@ import {
   defaultScenario,
   getPresetById,
 } from "../domain/presets";
+import { clampAtmosphereCoefficient } from "../domain/curvature";
 import type { LanguageMode } from "../i18n";
 import { clamp, defaultUnitPreferences } from "../domain/units";
 import type {
@@ -257,7 +258,9 @@ function updateAtmosphere(
     atmosphere: {
       ...model.atmosphere,
       [action.key]:
-        action.key === "mode" ? action.value : Number(action.value),
+        action.key === "mode"
+          ? action.value
+          : clampAtmosphereCoefficient(Number(action.value)),
     },
   };
 }
@@ -451,10 +454,12 @@ function hydrateModel(
     atmosphere: {
       mode:
         atmosphereMode === "none" ? "none" : fallback.atmosphere.mode,
-      coefficient: parseNumber(
-        params,
-        `${prefix}AtmosphereK`,
-        fallback.atmosphere.coefficient,
+      coefficient: clampAtmosphereCoefficient(
+        parseNumber(
+          params,
+          `${prefix}AtmosphereK`,
+          fallback.atmosphere.coefficient,
+        ),
       ),
     },
   };

@@ -188,6 +188,37 @@ export default function App() {
     }
   }
 
+  function handleSceneHoverFeature(
+    sceneKey: "primary" | "comparison" | null,
+    featureId: string | null,
+  ) {
+    dispatch({ type: "setHoveredFeature", sceneKey, value: featureId });
+  }
+
+  function handleSceneSelectFeature(
+    sceneKey: "primary" | "comparison" | null,
+    featureId: string | null,
+  ) {
+    if (featureId == null || sceneKey == null) {
+      dispatch({ type: "clearSelectedFeature" });
+      return;
+    }
+
+    dispatch({ type: "setSelectedFeature", sceneKey, value: featureId });
+  }
+
+  function handleLegendToggleFeature(
+    sceneKey: "primary" | "comparison",
+    featureId: string,
+  ) {
+    if (state.selectedSceneKey === sceneKey && state.selectedFeatureId === featureId) {
+      dispatch({ type: "clearSelectedFeature" });
+      return;
+    }
+
+    dispatch({ type: "setSelectedFeature", sceneKey, value: featureId });
+  }
+
   return (
     <div
       className={`app-frame theme-${state.theme} workspace-${state.workspaceMode}`}
@@ -262,17 +293,8 @@ export default function App() {
                 panY={state.sceneViewport.panY}
                 unitPreferences={state.unitPreferences}
                 language={state.language}
-                onHoverFeature={(sceneKey, featureId) =>
-                  dispatch({ type: "setHoveredFeature", sceneKey, value: featureId })
-                }
-                onSelectFeature={(sceneKey, featureId) => {
-                  if (featureId == null || sceneKey == null) {
-                    dispatch({ type: "clearSelectedFeature" });
-                    return;
-                  }
-
-                  dispatch({ type: "setSelectedFeature", sceneKey, value: featureId });
-                }}
+                onHoverFeature={handleSceneHoverFeature}
+                onSelectFeature={handleSceneSelectFeature}
                 onPanBy={(deltaX, deltaY) =>
                   dispatch({ type: "panViewport", deltaX, deltaY })
                 }
@@ -285,10 +307,15 @@ export default function App() {
               />
               <SceneLegendOverlay
                 annotations={inspectedScene.annotations}
+                sceneKey={inspectedScene.sceneKey}
                 activeFeatureId={activeFeatureId}
+                selectedFeatureId={state.selectedFeatureId}
+                selectedSceneKey={state.selectedSceneKey}
                 visible={shouldShowLegendOverlay}
                 showTerrainOverlay={state.showTerrainOverlay}
                 language={state.language}
+                onHoverFeature={handleSceneHoverFeature}
+                onToggleFeature={handleLegendToggleFeature}
               />
             </div>
           </div>

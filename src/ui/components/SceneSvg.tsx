@@ -52,8 +52,10 @@ interface PanelRect {
   height: number;
 }
 
-const SVG_WIDTH = 1600;
+const SINGLE_SVG_WIDTH = 1820;
+const COMPARE_SVG_WIDTH = 2360;
 const SVG_HEIGHT = 900;
+const STACKED_SVG_WIDTH = 1820;
 const textHalo = {
   stroke: "rgba(5, 12, 18, 0.96)",
   strokeWidth: 4,
@@ -508,30 +510,35 @@ export function SceneSvg({
   const isCompare = scenes.length > 1;
   const expandedLabels = labelDensity === "full";
   const isStacked = isCompare && compareLayout === "stacked";
+  const svgWidth = isCompare
+    ? isStacked
+      ? STACKED_SVG_WIDTH
+      : COMPARE_SVG_WIDTH
+    : SINGLE_SVG_WIDTH;
   const svgHeight = isStacked ? 1320 : SVG_HEIGHT;
   const markerFontSize = expandedLabels ? 16 : isCompare ? 13 : 16;
   const titleFontSize = expandedLabels ? 22 : isCompare ? 20 : 22;
   const subtitleFontSize = expandedLabels ? 15 : isCompare ? 13 : 15;
   const labelFontSize = expandedLabels ? 14 : isCompare ? 12 : 14;
   const panelRects: PanelRect[] = !isCompare
-    ? [{ x: 18, y: 20, width: SVG_WIDTH - 36, height: svgHeight - 40 }]
+    ? [{ x: 10, y: 18, width: svgWidth - 20, height: svgHeight - 36 }]
     : isStacked
       ? [
-          { x: 18, y: 20, width: SVG_WIDTH - 36, height: (svgHeight - 62) / 2 },
+          { x: 10, y: 18, width: svgWidth - 20, height: (svgHeight - 54) / 2 },
           {
-            x: 18,
-            y: svgHeight / 2 + 11,
-            width: SVG_WIDTH - 36,
-            height: (svgHeight - 62) / 2,
+            x: 10,
+            y: svgHeight / 2 + 9,
+            width: svgWidth - 20,
+            height: (svgHeight - 54) / 2,
           },
         ]
       : [
-          { x: 18, y: 20, width: (SVG_WIDTH - 50) / 2, height: svgHeight - 40 },
+          { x: 10, y: 18, width: (svgWidth - 32) / 2, height: svgHeight - 36 },
           {
-            x: SVG_WIDTH / 2 + 7,
-            y: 20,
-            width: (SVG_WIDTH - 50) / 2,
-            height: svgHeight - 40,
+            x: svgWidth / 2 + 6,
+            y: 18,
+            width: (svgWidth - 32) / 2,
+            height: svgHeight - 36,
           },
         ];
   const projections = useMemo(
@@ -573,7 +580,7 @@ export function SceneSvg({
     }
 
     return {
-      x: ((event.clientX - rect.left) / rect.width) * SVG_WIDTH,
+      x: ((event.clientX - rect.left) / rect.width) * svgWidth,
       y: ((event.clientY - rect.top) / rect.height) * svgHeight,
     };
   }
@@ -682,7 +689,7 @@ export function SceneSvg({
     <svg
       ref={svgRef}
       className="scene-svg"
-      viewBox={`0 0 ${SVG_WIDTH} ${svgHeight}`}
+      viewBox={`0 0 ${svgWidth} ${svgHeight}`}
       role="img"
       aria-label="Observation geometry visualization"
       onPointerDown={handlePointerDown}
@@ -732,9 +739,14 @@ export function SceneSvg({
         ))}
       </defs>
 
-      <rect width={SVG_WIDTH} height={svgHeight} fill="url(#backdrop)" rx={30} />
+      <rect width={svgWidth} height={svgHeight} fill="url(#backdrop)" rx={30} />
       <circle cx="220" cy="160" r="220" fill="rgba(53, 164, 255, 0.08)" />
-      <circle cx="1360" cy="90" r="180" fill="rgba(255, 163, 82, 0.06)" />
+      <circle
+        cx={svgWidth - 240}
+        cy="90"
+        r="180"
+        fill="rgba(255, 163, 82, 0.06)"
+      />
 
       {projections.map(({ scene, projection, visibleBounds }) => {
         const panel = projection.panel;

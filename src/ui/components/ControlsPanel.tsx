@@ -1,5 +1,9 @@
 import { startTransition, useEffect, useMemo, useState } from "react";
 import type { Dispatch } from "react";
+import {
+  ATMOSPHERE_COEFFICIENT_MAX,
+  ATMOSPHERE_COEFFICIENT_MIN,
+} from "../../domain/curvature";
 import { getPresetById, scenarioPresets } from "../../domain/presets";
 import {
   distanceUnitToMeters,
@@ -329,8 +333,8 @@ function ModelEditor({
           <NumberField
             label={t(language, "atmosphericCoefficient")}
             value={model.atmosphere.coefficient}
-            min={0}
-            max={3}
+            min={ATMOSPHERE_COEFFICIENT_MIN}
+            max={ATMOSPHERE_COEFFICIENT_MAX}
             step={0.01}
             unit="k"
             language={language}

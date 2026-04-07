@@ -83,7 +83,7 @@ describe("visibility solver", () => {
     };
     const concaveStrongAtmosphere: ModelConfig = {
       ...defaultComparisonModel,
-      atmosphere: { mode: "simpleCoefficient", coefficient: 2 },
+      atmosphere: { mode: "simpleCoefficient", coefficient: 0.99 },
       intrinsicCurvatureMode: "2/R",
     };
     const point = pointAtSurfaceHeight(
@@ -107,5 +107,31 @@ describe("visibility solver", () => {
     );
 
     expect(Math.abs(strongAtmosphereTurn)).toBeLessThan(Math.abs(noAtmosphereTurn));
+  });
+
+  it("lets negative convex atmosphere shorten the optical horizon", () => {
+    const scenario = {
+      ...defaultScenario,
+      observerHeightM: 12,
+      targetHeightM: 18,
+      surfaceDistanceM: 42_000,
+    };
+    const downwardModel: ModelConfig = {
+      ...defaultPrimaryModel,
+      atmosphere: { mode: "simpleCoefficient", coefficient: 0.15 },
+    };
+    const upwardModel: ModelConfig = {
+      ...defaultPrimaryModel,
+      atmosphere: { mode: "simpleCoefficient", coefficient: -0.15 },
+    };
+
+    const downwardResult = solveVisibility(scenario, downwardModel);
+    const upwardResult = solveVisibility(scenario, upwardModel);
+
+    expect(downwardResult.opticalHorizon).not.toBeNull();
+    expect(upwardResult.opticalHorizon).not.toBeNull();
+    expect(downwardResult.opticalHorizon!.distanceM).toBeGreaterThan(
+      upwardResult.opticalHorizon!.distanceM,
+    );
   });
 });

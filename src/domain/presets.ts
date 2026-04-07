@@ -1,3 +1,4 @@
+import { ATMOSPHERE_COEFFICIENT_DEFAULT } from "./curvature";
 import type { ModelConfig, ScenarioInput } from "./types";
 
 export interface ScenarioPreset {
@@ -27,7 +28,7 @@ export const defaultPrimaryModel: ModelConfig = {
   intrinsicCurvaturePerM: 0,
   atmosphere: {
     mode: "simpleCoefficient",
-    coefficient: 0.13,
+    coefficient: ATMOSPHERE_COEFFICIENT_DEFAULT,
   },
 };
 
@@ -39,7 +40,7 @@ export const defaultComparisonModel: ModelConfig = {
   intrinsicCurvaturePerM: 0,
   atmosphere: {
     mode: "simpleCoefficient",
-    coefficient: 0.08,
+    coefficient: ATMOSPHERE_COEFFICIENT_DEFAULT,
   },
 };
 
