@@ -1,3 +1,7 @@
+import {
+  getAtmosphereCurvatureMagnitude,
+  getIntrinsicCurvatureMagnitude,
+} from "../../domain/curvature";
 import { pointAtSurfaceHeight, toObserverFrame } from "../../domain/geometry";
 import { getPresetById } from "../../domain/presets";
 import {
@@ -54,6 +58,29 @@ function getLocalPoint(result: VisibilitySolveResult, point: { x: number; y: num
   );
 }
 
+function getReferenceVisibleSample(result: VisibilitySolveResult) {
+  const visibleSamples = result.targetSamples.filter(
+    (sample) => sample.visible && sample.trace?.targetCrossing,
+  );
+
+  if (!visibleSamples.length) {
+    return null;
+  }
+
+  return result.hiddenHeightM > 0
+    ? visibleSamples[0]
+    : visibleSamples[visibleSamples.length - 1];
+}
+
+function formatCurvatureRatio(
+  magnitudePerM: number,
+  radiusM: number,
+  direction: "upward" | "downward",
+) {
+  const ratio = magnitudePerM * radiusM;
+  return `${ratio.toFixed(2)} / R ${direction}`;
+}
+
 function getFeatureMetrics(
   result: VisibilitySolveResult,
   activeScene: SceneViewModel,
@@ -80,6 +107,36 @@ function getFeatureMetrics(
       ? result.opticalHorizon.distanceM - result.geometricHorizon.distanceM
       : 0;
   const primaryRay = result.primaryRay;
+  const referenceVisibleSample = getReferenceVisibleSample(result);
+  const referenceTargetPoint = referenceVisibleSample
+    ? pointAtSurfaceHeight(
+        result.scenario.radiusM,
+        result.targetAngleRad,
+        result.model.geometryMode,
+        referenceVisibleSample.sampleHeightM,
+      )
+    : null;
+  const referenceTargetLocal = referenceTargetPoint
+    ? getLocalPoint(result, referenceTargetPoint)
+    : null;
+  const referenceChordLengthM = referenceTargetPoint
+    ? Math.hypot(
+        referenceTargetPoint.x - result.observerPoint.x,
+        referenceTargetPoint.y - result.observerPoint.y,
+      )
+    : 0;
+  const intrinsicCurvatureMagnitude = getIntrinsicCurvatureMagnitude(
+    result.model,
+    result.scenario,
+  );
+  const atmosphereCurvatureMagnitude = getAtmosphereCurvatureMagnitude(
+    result.model,
+    result.scenario,
+  );
+  const netCurvatureMagnitude =
+    result.model.geometryMode === "concave"
+      ? intrinsicCurvatureMagnitude - atmosphereCurvatureMagnitude
+      : atmosphereCurvatureMagnitude;
   const hoverId = featureId ?? "scene";
 
   switch (hoverId) {
@@ -253,6 +310,39 @@ function getFeatureMetrics(
           },
         ],
       };
+    case "source-geometric-path":
+      return {
+        title: "Object-To-Observer Geometric Path",
+        description:
+          "The straight Euclidean line from the referenced source point on the object to the observer. On the convex model this can pass through the surface even when a curved optical path still reaches the observer.",
+        metrics: referenceVisibleSample && referenceTargetLocal
+          ? [
+              {
+                label: "Referenced source height",
+                value: formatHeight(referenceVisibleSample.sampleHeightM, units.height),
+              },
+              {
+                label: "Geometric elevation",
+                value: formatAngle(referenceVisibleSample.actualElevationRad),
+              },
+              {
+                label: "Chord length",
+                value: formatDistance(referenceChordLengthM, units.distance),
+              },
+              {
+                label: "Surface obstruction",
+                value:
+                  result.hiddenHeightM > 0
+                    ? "Used against the visibility boundary / partially obstructed object"
+                    : "Direct line to the fully visible target point",
+              },
+              {
+                label: "Reference role",
+                value: "Straight source-to-observer construction",
+              },
+            ]
+          : [{ label: "Status", value: "No referenced source point is currently solved" }],
+      };
     case "actual-ray":
       return {
         title:
@@ -292,6 +382,55 @@ function getFeatureMetrics(
               },
             ]
           : [{ label: "Status", value: "No solved primary ray" }],
+      };
+    case "source-light-path":
+      return {
+        title: "Object-To-Observer Light Path",
+        description:
+          result.model.geometryMode === "convex"
+            ? "The curved physical light path from the referenced source point to the observer under the active atmospheric bending."
+            : "The curved physical light path from the referenced source point to the observer under the intrinsic concave bending law plus atmospheric modification.",
+        metrics: referenceVisibleSample?.trace
+          ? [
+              {
+                label: "Referenced source height",
+                value: formatHeight(referenceVisibleSample.sampleHeightM, units.height),
+              },
+              {
+                label: "Apparent elevation",
+                value: formatAngle(referenceVisibleSample.apparentElevationRad),
+              },
+              {
+                label: "Solved arc length",
+                value: formatDistance(
+                  referenceVisibleSample.trace.targetCrossing?.arcLengthM ??
+                    referenceVisibleSample.trace.points[
+                      referenceVisibleSample.trace.points.length - 1
+                    ]?.s ??
+                    0,
+                  units.distance,
+                ),
+              },
+              {
+                label: "Total bend",
+                value: formatAngle(referenceVisibleSample.trace.totalBendRad),
+              },
+              {
+                label: "Min surface clearance",
+                value: formatHeight(
+                  referenceVisibleSample.trace.minSurfaceClearanceM,
+                  units.height,
+                ),
+              },
+              {
+                label: "Reference role",
+                value:
+                  result.model.geometryMode === "convex"
+                    ? "Curved source-to-observer optical path"
+                    : "Curved source-to-observer endospherical path",
+              },
+            ]
+          : [{ label: "Status", value: "No referenced source light path is currently solved" }],
       };
     case "apparent-line":
       return {
@@ -426,6 +565,18 @@ export function RightPanel({
     activeResult.targetBasePoint.x - activeResult.observerSurfacePoint.x,
     activeResult.targetBasePoint.y - activeResult.observerSurfacePoint.y,
   );
+  const intrinsicCurvatureMagnitude = getIntrinsicCurvatureMagnitude(
+    activeResult.model,
+    activeResult.scenario,
+  );
+  const atmosphereCurvatureMagnitude = getAtmosphereCurvatureMagnitude(
+    activeResult.model,
+    activeResult.scenario,
+  );
+  const netCurvatureMagnitude =
+    activeResult.model.geometryMode === "concave"
+      ? intrinsicCurvatureMagnitude - atmosphereCurvatureMagnitude
+      : atmosphereCurvatureMagnitude;
   const geometricDropM = Math.max(0, -targetBaseLocal.y);
   const scaleModeLabel =
     state.sceneViewport.scaleMode === "true-scale"
@@ -495,6 +646,28 @@ export function RightPanel({
             {activeResult.model.atmosphere.mode === "simpleCoefficient"
               ? ` (k = ${activeResult.model.atmosphere.coefficient.toFixed(2)})`
               : ""}
+          </p>
+          <p>
+            <strong>Curvature law:</strong>{" "}
+            {activeResult.model.geometryMode === "concave"
+              ? `${formatCurvatureRatio(
+                  intrinsicCurvatureMagnitude,
+                  activeResult.scenario.radiusM,
+                  "upward",
+                )} + ${formatCurvatureRatio(
+                  atmosphereCurvatureMagnitude,
+                  activeResult.scenario.radiusM,
+                  "downward",
+                )} = ${formatCurvatureRatio(
+                  Math.abs(netCurvatureMagnitude),
+                  activeResult.scenario.radiusM,
+                  netCurvatureMagnitude >= 0 ? "upward" : "downward",
+                )}`
+              : formatCurvatureRatio(
+                  atmosphereCurvatureMagnitude,
+                  activeResult.scenario.radiusM,
+                  "downward",
+                )}
           </p>
           <p>
             <strong>Radius:</strong> {formatRadius(activeResult.scenario.radiusM, state.unitPreferences.radius)}

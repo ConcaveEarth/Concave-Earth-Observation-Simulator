@@ -34,7 +34,9 @@ const featurePalette = {
   observerAltitudeCurve: "#7fd3d8",
   terrainProfile: "#dfb66d",
   geometricSightline: "#d8ddd7",
+  sourceGeometricPath: "#f5de8a",
   actualRay: "#ffb347",
+  sourceLightPath: "#ffb347",
   apparentLine: "#ff89c7",
   opticalHorizon: "#68efb2",
   geometricHorizon: "#7a8cff",
@@ -158,9 +160,21 @@ function getFeatureDefinitions(
       description:
         "The straight Euclidean line from observer to target top before any optical bending is applied.",
     },
+    "source-geometric-path": {
+      label: "Object-To-Observer Geometric Path",
+      description:
+        "The straight Euclidean path from the currently referenced source point on the object to the observer. Under the convex model this line can be geometrically obstructed by the surface even when a curved optical path still reaches the observer.",
+    },
     "actual-ray": {
       label: actualRayLabel,
       description: curvedRayRole,
+    },
+    "source-light-path": {
+      label: "Object-To-Observer Light Path",
+      description:
+        result.model.geometryMode === "convex"
+          ? "The curved physical light path from the referenced source point on the object to the observer under the active atmospheric bending."
+          : "The curved physical light path from the referenced source point on the object to the observer under the intrinsic concave bending law plus any atmospheric modification.",
     },
     "apparent-line": {
       label: apparentLabel,
@@ -262,10 +276,22 @@ function buildAnnotationMap(
       color: featurePalette.geometricSightline,
     },
     {
+      id: "source-geometric-path",
+      label: definitions["source-geometric-path"].label,
+      description: definitions["source-geometric-path"].description,
+      color: featurePalette.sourceGeometricPath,
+    },
+    {
       id: "actual-ray",
       label: definitions["actual-ray"].label,
       description: definitions["actual-ray"].description,
       color: featurePalette.actualRay,
+    },
+    {
+      id: "source-light-path",
+      label: definitions["source-light-path"].label,
+      description: definitions["source-light-path"].description,
+      color: featurePalette.sourceLightPath,
     },
     {
       id: "apparent-line",
@@ -515,6 +541,26 @@ export function buildSceneViewModel(
     ? rawTransform(result.geometricHorizon.point)
     : null;
   const rawGeometricSightline = [rawTransform(result.observerPoint), rawTargetTop];
+  const visibleSamples = result.targetSamples.filter(
+    (sample) => sample.visible && sample.trace?.targetCrossing,
+  );
+  const referenceVisibleSample = visibleSamples.length
+    ? result.hiddenHeightM > 0
+      ? visibleSamples[0]
+      : visibleSamples[visibleSamples.length - 1]
+    : null;
+  const rawReferenceTargetPoint = referenceVisibleSample
+    ? rawTransform(
+        pointAtSurfaceHeight(
+          result.scenario.radiusM,
+          result.targetAngleRad,
+          result.model.geometryMode,
+          referenceVisibleSample.sampleHeightM,
+        ),
+      )
+    : null;
+  const rawReferenceLightPath =
+    referenceVisibleSample?.trace?.points.map(rawTransform) ?? [];
   const targetVisibleStartHeight =
     result.visibleHeightM > 0 ? result.hiddenHeightM : result.scenario.targetHeightM;
   const rawTargetVisibleStart = rawTransform(
@@ -534,10 +580,12 @@ export function buildSceneViewModel(
     rawTargetTop,
     rawObserverBase,
     rawTargetVisibleStart,
+    ...(rawReferenceTargetPoint ? [rawReferenceTargetPoint] : []),
     ...rawGeometricSightline,
     ...(rawOpticalHorizon ? [rawOpticalHorizon] : []),
     ...(rawGeometricHorizon ? [rawGeometricHorizon] : []),
     ...rawRayPoints,
+    ...rawReferenceLightPath,
   ]);
 
   const exaggerate = (point: Vec2): Vec2 => ({
@@ -551,6 +599,10 @@ export function buildSceneViewModel(
   const targetTop = exaggerate(rawTargetTop);
   const observerBase = exaggerate(rawObserverBase);
   const targetVisibleStart = exaggerate(rawTargetVisibleStart);
+  const referenceTargetPoint = rawReferenceTargetPoint
+    ? exaggerate(rawReferenceTargetPoint)
+    : null;
+  const referenceLightPath = rawReferenceLightPath.map(exaggerate);
   const opticalHorizonPoint = rawOpticalHorizon ? exaggerate(rawOpticalHorizon) : null;
   const geometricHorizonPoint = rawGeometricHorizon ? exaggerate(rawGeometricHorizon) : null;
   const geometricSightline = rawGeometricSightline.map(exaggerate);
@@ -629,14 +681,42 @@ export function buildSceneViewModel(
     ),
   ];
 
-  if (result.primaryRay) {
+  if (referenceTargetPoint) {
+    lines.push(
+      makePolyline(
+        "source-geometric-path",
+        "source-geometric-path",
+        featurePalette.sourceGeometricPath,
+        [referenceTargetPoint, { x: 0, y: 0 }],
+        1.8,
+        true,
+        featureDefinitions["source-geometric-path"].label,
+      ),
+    );
+  }
+
+  if (referenceLightPath.length > 1) {
+    lines.push(
+      makePolyline(
+        "source-light-path",
+        "source-light-path",
+        featurePalette.sourceLightPath,
+        referenceLightPath.slice().reverse(),
+        3.05,
+        false,
+        featureDefinitions["source-light-path"].label,
+      ),
+    );
+  }
+
+  if (result.primaryRay && !result.primaryRay.targetCrossing) {
     lines.push(
       makePolyline(
         "primary-ray",
         "actual-ray",
         featurePalette.actualRay,
         result.primaryRay.points.map((point) => exaggerate(rawTransform(point))),
-        3.05,
+        2.4,
         false,
         featureDefinitions["actual-ray"].label,
       ),
@@ -750,7 +830,7 @@ export function buildSceneViewModel(
     });
   }
 
-  const markers = [
+  const markers: SceneViewModel["markers"] = [
     {
       id: "observer",
       featureId: "observer-horizontal",
@@ -768,6 +848,18 @@ export function buildSceneViewModel(
       labelOffset: { x: 12, y: -14 },
     },
   ];
+
+  if (referenceTargetPoint) {
+    markers.push({
+      id: "source-point",
+      featureId: "source-light-path",
+      point: referenceTargetPoint,
+      label: result.hiddenHeightM > 0 ? "Sighted point" : "Source point",
+      color: featurePalette.sourceLightPath,
+      labelOffset: { x: 12, y: 18 },
+      density: "full",
+    });
+  }
 
   if (opticalHorizonPoint) {
     markers.push({
@@ -862,32 +954,75 @@ export function buildSceneViewModel(
     labelMinDy,
   );
 
-  if (result.primaryRay) {
-    const primaryRayPoints = result.primaryRay.points.map((point) =>
-      exaggerate(rawTransform(point)),
-    );
-
+  if (referenceTargetPoint) {
     placeLabel(
       labels,
-      "actual-ray-label",
-      "actual-ray",
-      featureDefinitions["actual-ray"].label,
-      pointOnPolyline(primaryRayPoints, result.model.geometryMode === "convex" ? 0.42 : 0.52),
+      "source-geometric-path-label",
+      "source-geometric-path",
+      featureDefinitions["source-geometric-path"].label,
+      pointAlongSegment(referenceTargetPoint, { x: 0, y: 0 }, 0.56),
       [
-        { x: shortOffsetX * 0.12, y: labelRise * 0.72 },
-        { x: mediumOffsetX * 0.1, y: labelRise * 0.92 },
-        { x: -mediumOffsetX * 0.14, y: labelDrop * 0.86 },
+        { x: shortOffsetX * 0.18, y: labelDrop * 0.82 },
+        { x: mediumOffsetX * 0.16, y: labelDrop * 0.96 },
+        { x: -mediumOffsetX * 0.12, y: labelRise * 0.68 },
       ],
       labelMinDx,
       labelMinDy,
     );
+  }
+
+  if (referenceLightPath.length > 1) {
+    placeLabel(
+      labels,
+      "source-light-path-label",
+      "source-light-path",
+      featureDefinitions["source-light-path"].label,
+      pointOnPolyline(referenceLightPath, result.model.geometryMode === "convex" ? 0.42 : 0.58),
+      [
+        { x: shortOffsetX * 0.12, y: labelRise * 0.74 },
+        { x: mediumOffsetX * 0.12, y: labelRise * 0.9 },
+        { x: -mediumOffsetX * 0.14, y: labelDrop * 0.78 },
+      ],
+      labelMinDx,
+      labelMinDy,
+    );
+  }
+
+  if (result.primaryRay) {
+    const primaryRayPoints = result.primaryRay.points.map((point) =>
+      exaggerate(rawTransform(point)),
+    );
+    const curvedPathForLabel =
+      result.primaryRay.targetCrossing && referenceLightPath.length > 1
+        ? referenceLightPath
+        : primaryRayPoints;
+
+    if (!result.primaryRay.targetCrossing) {
+      placeLabel(
+        labels,
+        "actual-ray-label",
+        "actual-ray",
+        featureDefinitions["actual-ray"].label,
+        pointOnPolyline(primaryRayPoints, result.model.geometryMode === "convex" ? 0.42 : 0.52),
+        [
+          { x: shortOffsetX * 0.12, y: labelRise * 0.72 },
+          { x: mediumOffsetX * 0.1, y: labelRise * 0.92 },
+          { x: -mediumOffsetX * 0.14, y: labelDrop * 0.86 },
+        ],
+        labelMinDx,
+        labelMinDy,
+      );
+    }
 
     placeLabel(
       labels,
       "ray-bend",
-      "actual-ray",
+      result.primaryRay.targetCrossing ? "source-light-path" : "actual-ray",
       `Ray bend ${formatAngle(result.primaryRay.totalBendRad)}`,
-      pointOnPolyline(primaryRayPoints, result.model.geometryMode === "convex" ? 0.26 : 0.3),
+      pointOnPolyline(
+        curvedPathForLabel,
+        result.model.geometryMode === "convex" ? 0.26 : 0.3,
+      ),
       [
         { x: shortOffsetX * 0.08, y: labelRise * 0.46 },
         { x: mediumOffsetX * 0.12, y: labelRise * 0.46 },

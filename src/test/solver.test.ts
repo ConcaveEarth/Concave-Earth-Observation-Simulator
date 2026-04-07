@@ -1,3 +1,6 @@
+import { getTurnRatePerMeter } from "../domain/curvature";
+import { angleOf, localTangentAtAngle, pointAtSurfaceHeight } from "../domain/geometry";
+import type { ModelConfig } from "../domain/types";
 import {
   defaultComparisonModel,
   defaultPrimaryModel,
@@ -64,5 +67,45 @@ describe("visibility solver", () => {
     expect(
       Math.abs(result236.opticalHorizon!.distanceM - result235.opticalHorizon!.distanceM),
     ).toBeLessThan(300);
+  });
+
+  it("lets atmospheric refraction counter concave intrinsic bending", () => {
+    const scenario = {
+      ...defaultScenario,
+      observerHeightM: 2,
+      targetHeightM: 35,
+      surfaceDistanceM: 58_000,
+    };
+    const concaveNoAtmosphere: ModelConfig = {
+      ...defaultComparisonModel,
+      atmosphere: { mode: "none", coefficient: 0 },
+      intrinsicCurvatureMode: "2/R",
+    };
+    const concaveStrongAtmosphere: ModelConfig = {
+      ...defaultComparisonModel,
+      atmosphere: { mode: "simpleCoefficient", coefficient: 2 },
+      intrinsicCurvatureMode: "2/R",
+    };
+    const point = pointAtSurfaceHeight(
+      scenario.radiusM,
+      0,
+      "concave",
+      scenario.observerHeightM,
+    );
+    const heading = angleOf(localTangentAtAngle(0));
+    const noAtmosphereTurn = getTurnRatePerMeter(
+      point,
+      heading,
+      scenario,
+      concaveNoAtmosphere,
+    );
+    const strongAtmosphereTurn = getTurnRatePerMeter(
+      point,
+      heading,
+      scenario,
+      concaveStrongAtmosphere,
+    );
+
+    expect(Math.abs(strongAtmosphereTurn)).toBeLessThan(Math.abs(noAtmosphereTurn));
   });
 });

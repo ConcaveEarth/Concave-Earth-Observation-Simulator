@@ -286,22 +286,28 @@ function ModelEditor({
       </label>
 
       {model.atmosphere.mode === "simpleCoefficient" ? (
-        <NumberField
-          label="Atmospheric coefficient"
-          value={model.atmosphere.coefficient}
-          min={0}
-          max={0.5}
-          step={0.01}
-          unit="k"
-          onChange={(value) =>
-            dispatch({
-              type: "setAtmosphereField",
-              target,
-              key: "coefficient",
-              value,
-            })
-          }
-        />
+        <>
+          <NumberField
+            label="Atmospheric coefficient"
+            value={model.atmosphere.coefficient}
+            min={0}
+            max={3}
+            step={0.01}
+            unit="k"
+            onChange={(value) =>
+              dispatch({
+                type: "setAtmosphereField",
+                target,
+                key: "coefficient",
+                value,
+              })
+            }
+          />
+          <p className="field__hint">
+            Downward atmospheric bending uses the same sign in both models. In
+            concave mode it counteracts the intrinsic upward curvature.
+          </p>
+        </>
       ) : null}
     </PanelSection>
   );

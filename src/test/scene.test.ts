@@ -61,6 +61,13 @@ describe("scene view model", () => {
     expect(labeledFeatures.has("observer-height")).toBe(true);
     expect(labeledFeatures.has("target-height")).toBe(true);
 
+    if (scene.lines.some((line) => line.featureId === "source-light-path")) {
+      expect(scene.lines.some((line) => line.featureId === "source-geometric-path")).toBe(
+        true,
+      );
+      expect(labeledFeatures.has("source-light-path")).toBe(true);
+    }
+
     if (scene.lines.some((line) => line.featureId === "actual-ray")) {
       expect(labeledFeatures.has("actual-ray")).toBe(true);
     }
