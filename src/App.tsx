@@ -8,6 +8,7 @@ import { SceneToolbar } from "./ui/components/SceneToolbar";
 import { TopNav } from "./ui/components/TopNav";
 import { AppFooter } from "./ui/components/AppFooter";
 import { downloadSvgAsPng } from "./ui/exportSvg";
+import { t } from "./i18n";
 
 function getSceneFilename(viewMode: string): string {
   return `observation-geometry-lab-${viewMode}.png`;
@@ -29,6 +30,10 @@ export default function App() {
     const search = serializeStateToSearch(state);
     window.history.replaceState({}, "", `${window.location.pathname}${search}`);
   }, [state]);
+
+  useEffect(() => {
+    document.documentElement.lang = state.language;
+  }, [state.language]);
 
   useEffect(() => {
     function handleFullscreenChange() {
@@ -65,21 +70,23 @@ export default function App() {
     () =>
       buildSceneViewModel(
         primaryResult,
-        "Primary Model",
+        t(deferredState.language, "primaryModelTitle"),
         "primary",
         deferredState.unitPreferences,
+        deferredState.language,
       ),
-    [primaryResult, deferredState.unitPreferences],
+    [primaryResult, deferredState.language, deferredState.unitPreferences],
   );
   const comparisonScene = useMemo(
     () =>
       buildSceneViewModel(
         comparisonResult,
-        "Comparison Model",
+        t(deferredState.language, "comparisonModelTitle"),
         "comparison",
         deferredState.unitPreferences,
+        deferredState.language,
       ),
-    [comparisonResult, deferredState.unitPreferences],
+    [comparisonResult, deferredState.language, deferredState.unitPreferences],
   );
 
   const scenes =
@@ -120,7 +127,7 @@ export default function App() {
     );
   const resolvedCompareLayout =
     state.sceneViewport.compareLayout === "auto"
-      ? windowWidth < 1180 || windowWidth >= 1850
+      ? windowWidth < 1180 || (!state.fullWidthScene && windowWidth >= 1850)
         ? "stacked"
         : "side-by-side"
       : state.sceneViewport.compareLayout;
@@ -184,31 +191,36 @@ export default function App() {
       <div className="background-noise" />
       <TopNav
         theme={state.theme}
+        language={state.language}
         workspaceMode={state.workspaceMode}
         onThemeChange={(value) => dispatch({ type: "setTheme", value })}
+        onLanguageChange={(value) => dispatch({ type: "setLanguage", value })}
         onWorkspaceModeChange={(value) =>
           dispatch({ type: "setWorkspaceMode", value })
         }
       />
 
-      <div className="app-shell">
+      <div
+        className={
+          state.fullWidthScene ? "app-shell app-shell--fullwidth-scene" : "app-shell"
+        }
+      >
         <ControlsPanel
           state={state}
           dispatch={dispatch}
           onExport={handleExport}
           onCopyLink={handleCopyLink}
+          language={state.language}
         />
 
         <main className="center-panel">
           <div className="scene-card panel" ref={sceneHostRef}>
             <div className="scene-card__header">
               <div className="scene-card__intro">
-                <p className="scene-card__eyebrow">Simulation-first / comparison-first</p>
-                <h2>Observation Geometry Lab</h2>
+                <p className="scene-card__eyebrow">{t(state.language, "simulationFirst")}</p>
+                <h2>{t(state.language, "appEyebrow")}</h2>
                 <p className="scene-card__text">
-                  Shared geometry and ray-path outputs drive both panels, so convex and
-                  concave views remain locked to the same scenario while preserving their
-                  own geometric and optical assumptions.
+                  {t(state.language, "sharedSceneText")}
                 </p>
               </div>
 
@@ -218,6 +230,7 @@ export default function App() {
                 suggestedVerticalScale={suggestedVerticalScale}
                 isFullscreen={isSceneFullscreen}
                 onToggleFullscreen={handleToggleFullscreen}
+                language={state.language}
               />
             </div>
 
@@ -242,6 +255,7 @@ export default function App() {
                 panX={state.sceneViewport.panX}
                 panY={state.sceneViewport.panY}
                 unitPreferences={state.unitPreferences}
+                language={state.language}
                 onHoverFeature={(sceneKey, featureId) =>
                   dispatch({ type: "setHoveredFeature", sceneKey, value: featureId })
                 }
@@ -279,10 +293,11 @@ export default function App() {
           onExport={handleExport}
           onCopyLink={handleCopyLink}
           message={message}
+          language={state.language}
         />
       </div>
 
-      <AppFooter />
+      <AppFooter language={state.language} />
     </div>
   );
 }

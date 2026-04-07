@@ -166,6 +166,54 @@ export const scenarioPresets: ScenarioPreset[] = [
       },
     },
   },
+  {
+    id: "six-foot-horizon",
+    name: "6 ft Sea-Level Horizon",
+    description:
+      "A 6 ft observer at sea level looking directly toward the geometric horizon.",
+    scenario: {
+      ...defaultScenario,
+      observerHeightM: 1.8288,
+      targetHeightM: 0,
+      surfaceDistanceM: 4_830,
+      targetSampleCount: 8,
+      presetId: "six-foot-horizon",
+    },
+  },
+  {
+    id: "great-orme-blackpool",
+    name: "Great Orme To Blackpool Tower",
+    description:
+      "A classic long-range case using the Great Orme summit and Blackpool Tower heights across roughly 75.3 km.",
+    scenario: {
+      ...defaultScenario,
+      observerHeightM: 207,
+      targetHeightM: 158,
+      surfaceDistanceM: 75_344,
+      targetSampleCount: 24,
+      presetId: "great-orme-blackpool",
+    },
+  },
+  {
+    id: "canigou-marseille",
+    name: "Canigou From Marseille Heights",
+    description:
+      "A long-range mountain case inspired by observations of Canigou from the Marseille heights at roughly 263 km.",
+    scenario: {
+      ...defaultScenario,
+      observerHeightM: 150,
+      targetHeightM: 2_785,
+      surfaceDistanceM: 263_000,
+      targetSampleCount: 30,
+      presetId: "canigou-marseille",
+    },
+    primaryModel: {
+      atmosphere: {
+        mode: "simpleCoefficient",
+        coefficient: 0.1,
+      },
+    },
+  },
 ];
 
 export function getPresetById(id: string): ScenarioPreset {

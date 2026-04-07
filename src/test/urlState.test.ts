@@ -13,7 +13,9 @@ describe("URL state round-tripping", () => {
       annotated: false,
       labelDensity: "full" as const,
       theme: "blueprint" as const,
+      language: "it" as const,
       workspaceMode: "simple" as const,
+      fullWidthScene: false,
       showScaleGuides: false,
       showTerrainOverlay: false,
       sceneViewport: {
@@ -46,7 +48,9 @@ describe("URL state round-tripping", () => {
     expect(hydrated.annotated).toBe(false);
     expect(hydrated.labelDensity).toBe("full");
     expect(hydrated.theme).toBe("blueprint");
+    expect(hydrated.language).toBe("it");
     expect(hydrated.workspaceMode).toBe("simple");
+    expect(hydrated.fullWidthScene).toBe(false);
     expect(hydrated.showScaleGuides).toBe(false);
     expect(hydrated.showTerrainOverlay).toBe(false);
     expect(hydrated.sceneViewport.framingMode).toBe("full");

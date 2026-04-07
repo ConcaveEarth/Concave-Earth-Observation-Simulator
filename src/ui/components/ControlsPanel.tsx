@@ -1,4 +1,4 @@
-import { startTransition } from "react";
+import { startTransition, useEffect, useMemo, useState } from "react";
 import type { Dispatch } from "react";
 import { getPresetById, scenarioPresets } from "../../domain/presets";
 import {
@@ -11,6 +11,7 @@ import {
   roundTo,
 } from "../../domain/units";
 import type { DistanceUnit, HeightUnit, RadiusUnit } from "../../domain/units";
+import { getPresetName, t, type LanguageMode } from "../../i18n";
 import type {
   FocusedModel,
   ModelConfig,
@@ -25,6 +26,7 @@ interface ControlsPanelProps {
   dispatch: Dispatch<AppAction>;
   onExport: () => void;
   onCopyLink: () => void;
+  language: LanguageMode;
 }
 
 interface ModelEditorProps {
@@ -33,6 +35,15 @@ interface ModelEditorProps {
   model: ModelConfig;
   dispatch: Dispatch<AppAction>;
   sectionId?: string;
+  language: LanguageMode;
+}
+
+function formatInputValue(value: number, decimals: number): string {
+  if (!Number.isFinite(value)) {
+    return "";
+  }
+
+  return String(roundTo(value, decimals));
 }
 
 function NumberField({
@@ -49,6 +60,7 @@ function NumberField({
   onChange,
   toDisplayValue,
   toBaseValue,
+  language,
 }: {
   label: string;
   value: number;
@@ -63,11 +75,10 @@ function NumberField({
   onChange: (value: number) => void;
   toDisplayValue?: (value: number, unit: string) => number;
   toBaseValue?: (value: number, unit: string) => number;
+  language: LanguageMode;
 }) {
-  const displayFromBase =
-    toDisplayValue ?? ((baseValue: number) => baseValue);
-  const baseFromDisplay =
-    toBaseValue ?? ((displayValue: number) => displayValue);
+  const displayFromBase = toDisplayValue ?? ((baseValue: number) => baseValue);
+  const baseFromDisplay = toBaseValue ?? ((displayValue: number) => displayValue);
   const displayedValue = displayFromBase(value, unit);
   const displayedMin = displayFromBase(min, unit);
   const displayedMax = max == null ? undefined : displayFromBase(max, unit);
@@ -83,12 +94,33 @@ function NumberField({
           unit === "m" || unit === "ft" ? 0.1 : 0.01,
         );
   const sliderDecimals =
-    displayedSliderStep >= 10 ? 0 : displayedSliderStep >= 1 ? 1 : displayedSliderStep >= 0.1 ? 2 : 3;
+    displayedSliderStep >= 10
+      ? 0
+      : displayedSliderStep >= 1
+        ? 1
+        : displayedSliderStep >= 0.1
+          ? 2
+          : 3;
+  const inputDecimals =
+    unit === "pts" ? 0 : displayedStep >= 10 ? 0 : displayedStep >= 1 ? 2 : 3;
+  const formattedDisplayedValue = useMemo(
+    () => formatInputValue(displayedValue, inputDecimals),
+    [displayedValue, inputDecimals],
+  );
+  const [draftValue, setDraftValue] = useState(formattedDisplayedValue);
+
+  useEffect(() => {
+    setDraftValue(formattedDisplayedValue);
+  }, [formattedDisplayedValue]);
 
   const clampBaseValue = (nextValue: number) =>
     Math.min(max ?? Number.POSITIVE_INFINITY, Math.max(min, nextValue));
 
   const updateFromDisplay = (nextDisplayedValue: number) => {
+    if (!Number.isFinite(nextDisplayedValue)) {
+      return;
+    }
+
     onChange(clampBaseValue(baseFromDisplay(nextDisplayedValue, unit)));
   };
 
@@ -103,7 +135,7 @@ function NumberField({
             onClick={onReset}
             disabled={resetValue === value}
           >
-            Reset
+            {t(language, "reset")}
           </button>
         ) : null}
       </div>
@@ -138,12 +170,20 @@ function NumberField({
       <div className="field__value-row">
         <div className="field__value">
           <input
-            type="number"
-            min={displayedMin}
-            max={displayedMax}
-            step={displayedStep}
-            value={roundTo(displayedValue, displayedStep >= 1 ? 2 : 3)}
-            onChange={(event) => updateFromDisplay(Number(event.target.value))}
+            type="text"
+            inputMode="decimal"
+            value={draftValue}
+            onChange={(event) => {
+              const nextDraft = event.target.value;
+              setDraftValue(nextDraft);
+              const parsed = Number(nextDraft.replace(",", "."));
+
+              if (Number.isFinite(parsed)) {
+                updateFromDisplay(parsed);
+              }
+            }}
+            onBlur={() => setDraftValue(formattedDisplayedValue)}
+            aria-label={`${label} value`}
           />
           {unitOptions && onUnitChange ? (
             <select
@@ -161,9 +201,7 @@ function NumberField({
             <span>{getUnitLabel(unit as DistanceUnit | HeightUnit | RadiusUnit)}</span>
           )}
         </div>
-        <span className="field__microcopy">
-          Drag for sweep, use +/- for fine adjustment.
-        </span>
+        <span className="field__microcopy">{t(language, "dragMicrocopy")}</span>
       </div>
     </label>
   );
@@ -200,17 +238,18 @@ function ModelEditor({
   model,
   dispatch,
   sectionId,
+  language,
 }: ModelEditorProps) {
   const isConcave = model.geometryMode === "concave";
 
   return (
     <PanelSection
       title={title}
-      eyebrow="Geometry / Optics / Atmosphere"
+      eyebrow={t(language, "geometryOpticsAtmosphere")}
       sectionId={sectionId}
     >
       <label className="field">
-        <span>Geometry</span>
+        <span>{t(language, "geometry")}</span>
         <select
           value={model.geometryMode}
           onChange={(event) =>
@@ -222,13 +261,13 @@ function ModelEditor({
             })
           }
         >
-          <option value="convex">Convex Sphere</option>
-          <option value="concave">Concave Shell</option>
+          <option value="convex">{t(language, "convexSphere")}</option>
+          <option value="concave">{t(language, "concaveShell")}</option>
         </select>
       </label>
 
       <label className="field">
-        <span>Intrinsic curvature</span>
+        <span>{t(language, "intrinsicCurvature")}</span>
         <select
           value={model.intrinsicCurvatureMode}
           disabled={!isConcave}
@@ -241,16 +280,16 @@ function ModelEditor({
             })
           }
         >
-          <option value="none">None</option>
+          <option value="none">{t(language, "none")}</option>
           <option value="1/R">1 / R</option>
           <option value="2/R">2 / R</option>
-          <option value="constant">Custom constant</option>
+          <option value="constant">{t(language, "customConstant")}</option>
         </select>
       </label>
 
       {isConcave && model.intrinsicCurvatureMode === "constant" ? (
         <label className="field">
-          <span>Custom intrinsic curvature</span>
+          <span>{t(language, "customConstant")}</span>
           <input
             type="number"
             step="0.00000001"
@@ -268,7 +307,7 @@ function ModelEditor({
       ) : null}
 
       <label className="field">
-        <span>Atmosphere</span>
+        <span>{t(language, "atmosphere")}</span>
         <select
           value={model.atmosphere.mode}
           onChange={(event) =>
@@ -280,20 +319,21 @@ function ModelEditor({
             })
           }
         >
-          <option value="none">None</option>
-          <option value="simpleCoefficient">Simple coefficient</option>
+          <option value="none">{t(language, "none")}</option>
+          <option value="simpleCoefficient">{t(language, "simpleCoefficient")}</option>
         </select>
       </label>
 
       {model.atmosphere.mode === "simpleCoefficient" ? (
         <>
           <NumberField
-            label="Atmospheric coefficient"
+            label={t(language, "atmosphericCoefficient")}
             value={model.atmosphere.coefficient}
             min={0}
             max={3}
             step={0.01}
             unit="k"
+            language={language}
             onChange={(value) =>
               dispatch({
                 type: "setAtmosphereField",
@@ -303,10 +343,7 @@ function ModelEditor({
               })
             }
           />
-          <p className="field__hint">
-            Downward atmospheric bending uses the same sign in both models. In
-            concave mode it counteracts the intrinsic upward curvature.
-          </p>
+          <p className="field__hint">{t(language, "atmosphereHint")}</p>
         </>
       ) : null}
     </PanelSection>
@@ -318,6 +355,7 @@ export function ControlsPanel({
   dispatch,
   onExport,
   onCopyLink,
+  language,
 }: ControlsPanelProps) {
   const heightUnitOptions = [
     { label: "m", value: "m" },
@@ -334,11 +372,11 @@ export function ControlsPanel({
     { label: "mi", value: "mi" },
   ] as const;
   const controlSections = [
-    { label: "Scenario", target: "control-scenario" },
-    { label: "View", target: "control-view" },
-    { label: "Primary", target: "control-primary-model" },
-    { label: "Compare", target: "control-comparison-model" },
-    { label: "Export", target: "control-export" },
+    { label: t(language, "scenario"), target: "control-scenario" },
+    { label: t(language, "view"), target: "control-view" },
+    { label: t(language, "primary"), target: "control-primary-model" },
+    { label: t(language, "compare"), target: "control-comparison-model" },
+    { label: t(language, "export"), target: "control-export" },
   ] as const;
   const presetDefaults = getPresetById(state.scenario.presetId).scenario;
   const setScenarioValue = <K extends keyof ScenarioInput>(
@@ -351,17 +389,14 @@ export function ControlsPanel({
   return (
     <aside className="left-panel panel">
       <div className="panel__intro">
-        <p className="panel__eyebrow">Observation Geometry Lab</p>
-        <h1>Comparison-first observation simulator</h1>
-        <p>
-          One shared ray engine drives both the convex baseline and the concave
-          shell interpretation.
-        </p>
+        <p className="panel__eyebrow">{t(language, "appEyebrow")}</p>
+        <h1>{t(language, "panelIntroTitle")}</h1>
+        <p>{t(language, "panelIntroBody")}</p>
       </div>
 
       <div className="controls-dock">
         <div className="controls-dock__nav">
-          <p className="controls-dock__eyebrow">Quick Jump</p>
+          <p className="controls-dock__eyebrow">{t(language, "quickJump")}</p>
           <div className="controls-dock__nav-grid">
             {controlSections.map((section) => (
               <a
@@ -373,195 +408,198 @@ export function ControlsPanel({
               </a>
             ))}
           </div>
-          <p className="field__hint">
-            Scroll the controls dock independently while the main scene stays in view.
-          </p>
+          <p className="field__hint">{t(language, "quickJumpHint")}</p>
         </div>
 
-      <PanelSection
-        title="Scenario"
-        eyebrow="Observation inputs"
-        sectionId="control-scenario"
-      >
-        <label className="field">
-          <div className="field__label-row">
-            <span>Preset</span>
-            <button
-              type="button"
-              className="field__reset"
-              onClick={() =>
+        <PanelSection
+          title={t(language, "scenario")}
+          eyebrow={t(language, "observationInputs")}
+          sectionId="control-scenario"
+        >
+          <label className="field">
+            <div className="field__label-row">
+              <span>{t(language, "preset")}</span>
+              <button
+                type="button"
+                className="field__reset"
+                onClick={() =>
+                  startTransition(() =>
+                    dispatch({ type: "applyPreset", presetId: state.scenario.presetId }),
+                  )
+                }
+              >
+                {t(language, "restoreAll")}
+              </button>
+            </div>
+            <select
+              value={state.scenario.presetId}
+              onChange={(event) =>
                 startTransition(() =>
-                  dispatch({ type: "applyPreset", presetId: state.scenario.presetId }),
+                  dispatch({ type: "applyPreset", presetId: event.target.value }),
                 )
               }
             >
-              Restore all
-            </button>
-          </div>
-          <select
-            value={state.scenario.presetId}
-            onChange={(event) =>
-              startTransition(() =>
-                dispatch({ type: "applyPreset", presetId: event.target.value }),
-              )
+              {scenarioPresets.map((preset) => (
+                <option key={preset.id} value={preset.id}>
+                  {getPresetName(language, preset)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <NumberField
+            label={t(language, "observerHeight")}
+            value={state.scenario.observerHeightM}
+            min={1}
+            max={40000}
+            step={10}
+            unit={state.unitPreferences.height}
+            unitOptions={[...heightUnitOptions]}
+            onUnitChange={(value) =>
+              dispatch({
+                type: "setUnitPreference",
+                key: "height",
+                value: value as HeightUnit,
+              })
             }
-          >
-            {scenarioPresets.map((preset) => (
-              <option key={preset.id} value={preset.id}>
-                {preset.name}
-              </option>
-            ))}
-          </select>
-        </label>
+            resetValue={presetDefaults.observerHeightM}
+            onReset={() => setScenarioValue("observerHeightM", presetDefaults.observerHeightM)}
+            toDisplayValue={(baseValue, nextUnit) =>
+              metersToHeightUnit(baseValue, nextUnit as HeightUnit)
+            }
+            toBaseValue={(displayValue, nextUnit) =>
+              heightUnitToMeters(displayValue, nextUnit as HeightUnit)
+            }
+            onChange={(nextValue) => setScenarioValue("observerHeightM", nextValue)}
+            language={language}
+          />
+          <NumberField
+            label={t(language, "targetHeight")}
+            value={state.scenario.targetHeightM}
+            min={0}
+            max={20000}
+            step={10}
+            unit={state.unitPreferences.height}
+            unitOptions={[...heightUnitOptions]}
+            onUnitChange={(value) =>
+              dispatch({
+                type: "setUnitPreference",
+                key: "height",
+                value: value as HeightUnit,
+              })
+            }
+            resetValue={presetDefaults.targetHeightM}
+            onReset={() => setScenarioValue("targetHeightM", presetDefaults.targetHeightM)}
+            toDisplayValue={(baseValue, nextUnit) =>
+              metersToHeightUnit(baseValue, nextUnit as HeightUnit)
+            }
+            toBaseValue={(displayValue, nextUnit) =>
+              heightUnitToMeters(displayValue, nextUnit as HeightUnit)
+            }
+            onChange={(nextValue) => setScenarioValue("targetHeightM", nextValue)}
+            language={language}
+          />
+          <NumberField
+            label={t(language, "surfaceDistance")}
+            value={state.scenario.surfaceDistanceM}
+            min={1000}
+            max={1000000}
+            step={1000}
+            unit={state.unitPreferences.distance}
+            unitOptions={[...distanceUnitOptions]}
+            onUnitChange={(value) =>
+              dispatch({
+                type: "setUnitPreference",
+                key: "distance",
+                value: value as DistanceUnit,
+              })
+            }
+            resetValue={presetDefaults.surfaceDistanceM}
+            onReset={() => setScenarioValue("surfaceDistanceM", presetDefaults.surfaceDistanceM)}
+            toDisplayValue={(baseValue, nextUnit) =>
+              metersToDistanceUnit(baseValue, nextUnit as DistanceUnit)
+            }
+            toBaseValue={(displayValue, nextUnit) =>
+              distanceUnitToMeters(displayValue, nextUnit as DistanceUnit)
+            }
+            onChange={(nextValue) => setScenarioValue("surfaceDistanceM", nextValue)}
+            language={language}
+          />
+          <NumberField
+            label={t(language, "shellSphereRadius")}
+            value={state.scenario.radiusM}
+            min={3000000}
+            max={9000000}
+            step={1000}
+            unit={state.unitPreferences.radius}
+            unitOptions={[...radiusUnitOptions]}
+            onUnitChange={(value) =>
+              dispatch({
+                type: "setUnitPreference",
+                key: "radius",
+                value: value as RadiusUnit,
+              })
+            }
+            resetValue={presetDefaults.radiusM}
+            onReset={() => setScenarioValue("radiusM", presetDefaults.radiusM)}
+            toDisplayValue={(baseValue, nextUnit) =>
+              metersToDistanceUnit(baseValue, nextUnit as RadiusUnit)
+            }
+            toBaseValue={(displayValue, nextUnit) =>
+              distanceUnitToMeters(displayValue, nextUnit as RadiusUnit)
+            }
+            onChange={(nextValue) => setScenarioValue("radiusM", nextValue)}
+            language={language}
+          />
+          <NumberField
+            label={t(language, "targetSamples")}
+            value={state.scenario.targetSampleCount}
+            min={8}
+            max={36}
+            step={1}
+            unit="pts"
+            resetValue={presetDefaults.targetSampleCount}
+            onReset={() =>
+              setScenarioValue("targetSampleCount", presetDefaults.targetSampleCount)
+            }
+            onChange={(nextValue) => setScenarioValue("targetSampleCount", nextValue)}
+            language={language}
+          />
+        </PanelSection>
 
-        <NumberField
-          label="Observer height"
-          value={state.scenario.observerHeightM}
-          min={1}
-          max={40000}
-          step={10}
-          unit={state.unitPreferences.height}
-          unitOptions={[...heightUnitOptions]}
-          onUnitChange={(value) =>
-            dispatch({
-              type: "setUnitPreference",
-              key: "height",
-              value: value as HeightUnit,
-            })
-          }
-          resetValue={presetDefaults.observerHeightM}
-          onReset={() => setScenarioValue("observerHeightM", presetDefaults.observerHeightM)}
-          toDisplayValue={(baseValue, unit) =>
-            metersToHeightUnit(baseValue, unit as HeightUnit)
-          }
-          toBaseValue={(displayValue, unit) =>
-            heightUnitToMeters(displayValue, unit as HeightUnit)
-          }
-          onChange={(value) => setScenarioValue("observerHeightM", value)}
-        />
-        <NumberField
-          label="Target height"
-          value={state.scenario.targetHeightM}
-          min={1}
-          max={20000}
-          step={10}
-          unit={state.unitPreferences.height}
-          unitOptions={[...heightUnitOptions]}
-          onUnitChange={(value) =>
-            dispatch({
-              type: "setUnitPreference",
-              key: "height",
-              value: value as HeightUnit,
-            })
-          }
-          resetValue={presetDefaults.targetHeightM}
-          onReset={() => setScenarioValue("targetHeightM", presetDefaults.targetHeightM)}
-          toDisplayValue={(baseValue, unit) =>
-            metersToHeightUnit(baseValue, unit as HeightUnit)
-          }
-          toBaseValue={(displayValue, unit) =>
-            heightUnitToMeters(displayValue, unit as HeightUnit)
-          }
-          onChange={(value) => setScenarioValue("targetHeightM", value)}
-        />
-        <NumberField
-          label="Surface distance"
-          value={state.scenario.surfaceDistanceM}
-          min={1000}
-          max={1000000}
-          step={1000}
-          unit={state.unitPreferences.distance}
-          unitOptions={[...distanceUnitOptions]}
-          onUnitChange={(value) =>
-            dispatch({
-              type: "setUnitPreference",
-              key: "distance",
-              value: value as DistanceUnit,
-            })
-          }
-          resetValue={presetDefaults.surfaceDistanceM}
-          onReset={() => setScenarioValue("surfaceDistanceM", presetDefaults.surfaceDistanceM)}
-          toDisplayValue={(baseValue, unit) =>
-            metersToDistanceUnit(baseValue, unit as DistanceUnit)
-          }
-          toBaseValue={(displayValue, unit) =>
-            distanceUnitToMeters(displayValue, unit as DistanceUnit)
-          }
-          onChange={(value) => setScenarioValue("surfaceDistanceM", value)}
-        />
-        <NumberField
-          label="Shell / sphere radius"
-          value={state.scenario.radiusM}
-          min={3000000}
-          max={9000000}
-          step={1000}
-          unit={state.unitPreferences.radius}
-          unitOptions={[...radiusUnitOptions]}
-          onUnitChange={(value) =>
-            dispatch({
-              type: "setUnitPreference",
-              key: "radius",
-              value: value as RadiusUnit,
-            })
-          }
-          resetValue={presetDefaults.radiusM}
-          onReset={() => setScenarioValue("radiusM", presetDefaults.radiusM)}
-          toDisplayValue={(baseValue, unit) =>
-            metersToDistanceUnit(baseValue, unit as RadiusUnit)
-          }
-          toBaseValue={(displayValue, unit) =>
-            distanceUnitToMeters(displayValue, unit as RadiusUnit)
-          }
-          onChange={(value) => setScenarioValue("radiusM", value)}
-        />
-        <NumberField
-          label="Target samples"
-          value={state.scenario.targetSampleCount}
-          min={8}
-          max={36}
-          step={1}
-          unit="pts"
-          resetValue={presetDefaults.targetSampleCount}
-          onReset={() =>
-            setScenarioValue("targetSampleCount", presetDefaults.targetSampleCount)
-          }
-          onChange={(value) => setScenarioValue("targetSampleCount", value)}
-        />
-      </PanelSection>
+        <PanelSection
+          title={t(language, "view")}
+          eyebrow={t(language, "presentation")}
+          sectionId="control-view"
+        >
+          <ViewPills
+            value={state.viewMode}
+            options={[
+              { label: t(language, "crossSection"), value: "cross-section" },
+              { label: t(language, "splitCompare"), value: "compare" },
+            ]}
+            onChange={(value) =>
+              dispatch({ type: "setViewMode", value: value as ViewMode })
+            }
+          />
 
-      <PanelSection title="View" eyebrow="Presentation" sectionId="control-view">
-        <ViewPills
-          value={state.viewMode}
-          options={[
-            { label: "Cross-section", value: "cross-section" },
-            { label: "Split Compare", value: "compare" },
-          ]}
-          onChange={(value) =>
-            dispatch({ type: "setViewMode", value: value as ViewMode })
-          }
-        />
-
-        {state.viewMode === "cross-section" ? (
-          <>
-            <p className="field__hint">Single-panel model</p>
-            <ViewPills
-              value={state.focusedModel}
-              options={[
-                { label: "Primary", value: "primary" },
-                { label: "Comparison", value: "comparison" },
-              ]}
-              onChange={(value) =>
-                dispatch({ type: "setFocusedModel", value: value as FocusedModel })
-              }
-            />
-          </>
-        ) : (
-          <>
-            <p className="field__hint">
-              Split compare can auto-fit side-by-side or stacked layouts depending on the workspace.
-            </p>
+          {state.viewMode === "cross-section" ? (
+            <>
+              <p className="field__hint">{t(language, "singlePanelModel")}</p>
+              <ViewPills
+                value={state.focusedModel}
+                options={[
+                  { label: t(language, "primaryModelShort"), value: "primary" },
+                  { label: t(language, "comparisonModelShort"), value: "comparison" },
+                ]}
+                onChange={(value) =>
+                  dispatch({ type: "setFocusedModel", value: value as FocusedModel })
+                }
+              />
+            </>
+          ) : (
             <label className="field">
-              <span>Compare layout</span>
+              <span>{t(language, "compareLayout")}</span>
               <select
                 value={state.sceneViewport.compareLayout}
                 onChange={(event) =>
@@ -572,98 +610,112 @@ export function ControlsPanel({
                   })
                 }
               >
-                <option value="auto">Auto</option>
-                <option value="side-by-side">Side by side</option>
-                <option value="stacked">Stacked</option>
+                <option value="auto">{t(language, "auto")}</option>
+                <option value="side-by-side">{t(language, "sideBySide")}</option>
+                <option value="stacked">{t(language, "stacked")}</option>
               </select>
             </label>
-          </>
-        )}
+          )}
 
-        <label className="switch">
-          <input
-            type="checkbox"
-            checked={state.annotated}
-            onChange={(event) =>
-              dispatch({ type: "setAnnotated", value: event.target.checked })
-            }
-          />
-          <span>Annotated mode</span>
-        </label>
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={state.fullWidthScene}
+              onChange={(event) =>
+                dispatch({ type: "setFullWidthScene", value: event.target.checked })
+              }
+            />
+            <span>{t(language, "fullWidthDiagrams")}</span>
+          </label>
 
-        <label className="field">
-          <span>Label density</span>
-          <select
-            value={state.labelDensity}
-            onChange={(event) =>
-              dispatch({
-                type: "setLabelDensity",
-                value: event.target.value as AppState["labelDensity"],
-              })
-            }
-          >
-            <option value="adaptive">Adaptive</option>
-            <option value="full">Full</option>
-          </select>
-        </label>
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={state.annotated}
+              onChange={(event) =>
+                dispatch({ type: "setAnnotated", value: event.target.checked })
+              }
+            />
+            <span>{t(language, "annotatedMode")}</span>
+          </label>
 
-        <label className="switch">
-          <input
-            type="checkbox"
-            checked={state.showScaleGuides}
-            onChange={(event) =>
-              dispatch({ type: "setShowScaleGuides", value: event.target.checked })
-            }
-          />
-          <span>Scale guides</span>
-        </label>
+          <label className="field">
+            <span>{t(language, "labelDensity")}</span>
+            <select
+              value={state.labelDensity}
+              onChange={(event) =>
+                dispatch({
+                  type: "setLabelDensity",
+                  value: event.target.value as AppState["labelDensity"],
+                })
+              }
+            >
+              <option value="adaptive">{t(language, "adaptive")}</option>
+              <option value="full">{t(language, "full")}</option>
+            </select>
+          </label>
 
-        <label className="switch">
-          <input
-            type="checkbox"
-            checked={state.showTerrainOverlay}
-            onChange={(event) =>
-              dispatch({ type: "setShowTerrainOverlay", value: event.target.checked })
-            }
-          />
-          <span>Profile overlay</span>
-        </label>
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={state.showScaleGuides}
+              onChange={(event) =>
+                dispatch({ type: "setShowScaleGuides", value: event.target.checked })
+              }
+            />
+            <span>{t(language, "scaleGuides")}</span>
+          </label>
 
-        <p className="field__hint">
-          Fine-tune framing, scale, and fullscreen from the scene toolbar in the center panel.
-        </p>
-      </PanelSection>
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={state.showTerrainOverlay}
+              onChange={(event) =>
+                dispatch({ type: "setShowTerrainOverlay", value: event.target.checked })
+              }
+            />
+            <span>{t(language, "profileOverlay")}</span>
+          </label>
 
-      <ModelEditor
-        title="Primary Model"
-        target="primary"
-        model={state.primaryModel}
-        dispatch={dispatch}
-        sectionId="control-primary-model"
-      />
+          <p className="field__hint">{t(language, "centerLayoutHint")}</p>
+        </PanelSection>
 
-      <ModelEditor
-        title="Comparison Model"
-        target="comparison"
-        model={state.comparisonModel}
-        dispatch={dispatch}
-        sectionId="control-comparison-model"
-      />
+        <ModelEditor
+          title={t(language, "primaryModelTitle")}
+          target="primary"
+          model={state.primaryModel}
+          dispatch={dispatch}
+          sectionId="control-primary-model"
+          language={language}
+        />
 
-      <PanelSection
-        title="Export"
-        eyebrow="Shareable state"
-        sectionId="control-export"
-      >
-        <div className="action-row">
-          <button type="button" className="action-button" onClick={onExport}>
-            Export PNG
-          </button>
-          <button type="button" className="action-button action-button--ghost" onClick={onCopyLink}>
-            Copy Share URL
-          </button>
-        </div>
-      </PanelSection>
+        <ModelEditor
+          title={t(language, "comparisonModelTitle")}
+          target="comparison"
+          model={state.comparisonModel}
+          dispatch={dispatch}
+          sectionId="control-comparison-model"
+          language={language}
+        />
+
+        <PanelSection
+          title={t(language, "export")}
+          eyebrow={t(language, "shareableState")}
+          sectionId="control-export"
+        >
+          <div className="action-row">
+            <button type="button" className="action-button" onClick={onExport}>
+              {t(language, "exportPng")}
+            </button>
+            <button
+              type="button"
+              className="action-button action-button--ghost"
+              onClick={onCopyLink}
+            >
+              {t(language, "copyShareUrl")}
+            </button>
+          </div>
+        </PanelSection>
       </div>
     </aside>
   );

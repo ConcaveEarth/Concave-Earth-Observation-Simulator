@@ -116,9 +116,18 @@ select {
   position: relative;
   display: grid;
   grid-template-columns: minmax(290px, 340px) minmax(0, 1fr) minmax(280px, 330px);
+  grid-template-areas: "left center right";
   gap: 20px;
   min-height: 0;
   flex: 1 1 auto;
+}
+
+.app-shell--fullwidth-scene {
+  grid-template-columns: minmax(290px, 340px) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "left center"
+    "left right";
 }
 
 .background-noise {
@@ -300,11 +309,30 @@ select {
   scroll-behavior: smooth;
 }
 
+.left-panel {
+  grid-area: left;
+}
+
+.center-panel {
+  grid-area: center;
+}
+
+.right-panel {
+  grid-area: right;
+}
+
 .center-panel {
   display: flex;
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
+}
+
+.app-shell--fullwidth-scene .right-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  align-content: start;
+  overflow-y: auto;
 }
 
 .panel__intro,
@@ -476,6 +504,7 @@ select {
 }
 
 .field input[type="number"],
+.field input[type="text"],
 .field select {
   width: 100%;
   padding: 10px 12px;
@@ -581,6 +610,7 @@ select {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .field__value input {
@@ -590,6 +620,7 @@ select {
   border: 1px solid var(--input-border);
   background: var(--input-bg);
   color: var(--text-primary);
+  text-align: center;
 }
 
 .field__unit-select {
@@ -909,6 +940,14 @@ select {
   grid-template-columns: minmax(280px, 320px) minmax(0, 1fr) minmax(240px, 285px);
 }
 
+.workspace-simple .app-shell--fullwidth-scene {
+  grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "left center"
+    "left right";
+}
+
 .workspace-simple .controls-dock__nav {
   display: none;
 }
@@ -948,6 +987,10 @@ select {
   .app-shell {
     height: auto;
     grid-template-columns: 1fr;
+    grid-template-areas:
+      "center"
+      "left"
+      "right";
   }
 
   .left-panel,
@@ -983,6 +1026,15 @@ select {
 
   .app-shell {
     padding: 0;
+  }
+
+  .app-shell--fullwidth-scene {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+    grid-template-areas:
+      "center"
+      "left"
+      "right";
   }
 
   .top-nav {

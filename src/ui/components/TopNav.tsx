@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { languageOptions, t, type LanguageMode } from "../../i18n";
 import type { ThemeMode, WorkspaceMode } from "../../state/appState";
 
 interface NavLink {
@@ -68,15 +69,19 @@ function NavAnchor({
 
 interface TopNavProps {
   theme: ThemeMode;
+  language: LanguageMode;
   workspaceMode: WorkspaceMode;
   onThemeChange: (value: ThemeMode) => void;
+  onLanguageChange: (value: LanguageMode) => void;
   onWorkspaceModeChange: (value: WorkspaceMode) => void;
 }
 
 export function TopNav({
   theme,
+  language,
   workspaceMode,
   onThemeChange,
+  onLanguageChange,
   onWorkspaceModeChange,
 }: TopNavProps) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -107,15 +112,15 @@ export function TopNav({
   return (
     <header className="top-nav panel">
       <div className="top-nav__brand">
-        <p className="top-nav__eyebrow">Observation Geometry Lab</p>
-        <strong>Concave Earth Observation Simulator</strong>
+        <p className="top-nav__eyebrow">{t(language, "appEyebrow")}</p>
+        <strong>{t(language, "simulatorTitle")}</strong>
       </div>
 
       <nav className="top-nav__actions" aria-label="Primary">
         <a className="top-nav__link" href={import.meta.env.BASE_URL}>
-          Home
+          {t(language, "home")}
         </a>
-        <NavAnchor label="Concave Earth Forums" href="https://concaveearth.net" />
+        <NavAnchor label={t(language, "forums")} href="https://concaveearth.net" />
         <div className="top-nav__menu" ref={menuRef}>
           <button
             type="button"
@@ -124,13 +129,13 @@ export function TopNav({
             aria-haspopup="true"
             onClick={() => setMenuOpen((current) => !current)}
           >
-            More CE
+            {t(language, "moreCE")}
             <span className="top-nav__caret">{menuOpen ? "▲" : "▼"}</span>
           </button>
 
           {menuOpen ? (
             <div className="top-nav__dropdown" role="menu" aria-label="More Concave Earth links">
-              <p className="top-nav__dropdown-title">Community / research links</p>
+              <p className="top-nav__dropdown-title">{t(language, "communityResearchLinks")}</p>
               <div className="top-nav__dropdown-list">
                 {moreCeLinks.map((link) => (
                   <NavAnchor
@@ -148,27 +153,41 @@ export function TopNav({
 
       <div className="top-nav__utilities">
         <label className="top-nav__control">
-          <span>Theme</span>
+          <span>{t(language, "theme")}</span>
           <select
             value={theme}
             onChange={(event) => onThemeChange(event.target.value as ThemeMode)}
           >
-            <option value="night-lab">Night Lab</option>
-            <option value="blueprint">Blueprint</option>
-            <option value="paper-light">Paper Light</option>
+            <option value="night-lab">{t(language, "themeNightLab")}</option>
+            <option value="blueprint">{t(language, "themeBlueprint")}</option>
+            <option value="paper-light">{t(language, "themePaperLight")}</option>
           </select>
         </label>
 
         <label className="top-nav__control">
-          <span>Workspace</span>
+          <span>{t(language, "language")}</span>
+          <select
+            value={language}
+            onChange={(event) => onLanguageChange(event.target.value as LanguageMode)}
+          >
+            {languageOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="top-nav__control">
+          <span>{t(language, "workspace")}</span>
           <select
             value={workspaceMode}
             onChange={(event) =>
               onWorkspaceModeChange(event.target.value as WorkspaceMode)
             }
           >
-            <option value="professional">Professional</option>
-            <option value="simple">Simple</option>
+            <option value="professional">{t(language, "workspaceProfessional")}</option>
+            <option value="simple">{t(language, "workspaceSimple")}</option>
           </select>
         </label>
       </div>

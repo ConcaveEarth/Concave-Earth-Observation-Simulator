@@ -16,6 +16,7 @@ import {
   formatHeight,
 } from "./units";
 import type { UnitPreferences } from "./units";
+import { getModelLabel, t, type LanguageMode } from "../i18n";
 import type {
   FocusedModel,
   SceneBounds,
@@ -98,16 +99,17 @@ interface FeatureDefinition {
 function getFeatureDefinitions(
   result: VisibilitySolveResult,
   terrainOverlay?: SceneTerrainOverlay,
+  language: LanguageMode = "en",
 ): Record<string, FeatureDefinition> {
   const apparentLabel = result.visible
-    ? "Apparent Line Of Sight"
-    : "Apparent Horizon Direction";
+    ? t(language, "featureApparentLineOfSight")
+    : t(language, "featureApparentHorizonDirection");
   const actualRayLabel =
     result.primaryRay?.targetCrossing != null
-      ? "Actual Ray Path"
+      ? t(language, "featureActualRayPath")
       : result.opticalHorizon?.trace
-        ? "Optical Horizon Reference Ray"
-        : "Actual Ray Path";
+        ? t(language, "featureOpticalHorizonReferenceRay")
+        : t(language, "featureActualRayPath");
   const curvedRayRole =
     result.primaryRay?.targetCrossing != null
       ? result.model.geometryMode === "convex"
@@ -121,47 +123,50 @@ function getFeatureDefinitions(
 
   return {
     surface: {
-      label: result.model.geometryMode === "convex" ? "Surface / Sea Level" : "Surface / Ground Level",
+      label:
+        result.model.geometryMode === "convex"
+          ? t(language, "featureSurfaceSea")
+          : t(language, "featureSurfaceGround"),
       description:
         result.model.geometryMode === "convex"
           ? "The physical convex surface curve used by the globe interpretation."
           : "The physical concave shell curve used by the endospherical interpretation.",
     },
     "observer-horizontal": {
-      label: "Straight Observer Horizontal",
+      label: t(language, "featureObserverHorizontal"),
       description:
         "The straight local tangent through the observer. This is the Euclidean horizontal reference construction at the observation point.",
     },
     "observer-altitude-curve": {
       label:
         result.model.geometryMode === "convex"
-          ? "Curved Altitude Reference"
-          : "Curvilinear Tangent",
+          ? t(language, "featureCurvedAltitudeReference")
+          : t(language, "featureCurvilinearTangent"),
       description: curvedReferenceRole,
     },
     "observer-height": {
-      label: "Observer Height",
+      label: t(language, "featureObserverHeight"),
       description:
         "The observer's vertical height construction from the local surface/shell to the observation point.",
     },
     "target-height": {
-      label: "Target Height",
+      label: t(language, "featureTargetHeight"),
       description:
         "The target's vertical height construction from the target base on the surface/shell to its top.",
     },
     "terrain-profile": {
-      label: terrainOverlay?.name ?? "Terrain / Profile Overlay",
+      label: terrainOverlay?.name ?? t(language, "featureTerrainOverlay"),
       description:
         terrainOverlay?.description ??
         "A terrain or structure overlay aligned to the current preset distances.",
     },
     "geometric-sightline": {
-      label: "Direct Geometric Sightline",
+      label: t(language, "featureDirectGeometricSightline"),
       description:
         "The straight Euclidean line from observer to target top before any optical bending is applied.",
     },
     "source-geometric-path": {
-      label: "Object-To-Observer Geometric Path",
+      label: t(language, "featureObjectToObserverGeometricPath"),
       description:
         "The straight Euclidean path from the currently referenced source point on the object to the observer. Under the convex model this line can be geometrically obstructed by the surface even when a curved optical path still reaches the observer.",
     },
@@ -170,7 +175,7 @@ function getFeatureDefinitions(
       description: curvedRayRole,
     },
     "source-light-path": {
-      label: "Object-To-Observer Light Path",
+      label: t(language, "featureObjectToObserverLightPath"),
       description:
         result.model.geometryMode === "convex"
           ? "The curved physical light path from the referenced source point on the object to the observer under the active atmospheric bending."
@@ -184,20 +189,20 @@ function getFeatureDefinitions(
           : "The straight apparent direction associated with the solved grazing horizon ray when no target-reaching ray is available.",
     },
     "horizon-optical": {
-      label: "Optical Horizon",
+      label: t(language, "featureOpticalHorizon"),
       description:
         "The traced grazing boundary under the active intrinsic-plus-atmospheric curvature law.",
     },
     "horizon-geometric": {
       label:
         result.model.geometryMode === "convex"
-          ? "Geometric Horizon Tangent"
-          : "Geometric Horizon Construction",
+          ? t(language, "featureGeometricHorizonTangent")
+          : t(language, "featureGeometricHorizonConstruction"),
       description:
         "The purely geometric tangent-to-surface horizon with no optical correction.",
     },
     "hidden-height": {
-      label: "Hidden Height",
+      label: t(language, "featureHiddenHeight"),
       description:
         "The obscured lower portion of the target under the active solve.",
     },
@@ -225,8 +230,9 @@ function collectBounds(points: Vec2[], paddingFactor = 0.06, minYPad = 180): Sce
 function buildAnnotationMap(
   result: VisibilitySolveResult,
   terrainOverlay?: SceneTerrainOverlay,
+  language: LanguageMode = "en",
 ): SurfaceAnnotation[] {
-  const definitions = getFeatureDefinitions(result, terrainOverlay);
+  const definitions = getFeatureDefinitions(result, terrainOverlay, language);
 
   return [
     {
@@ -496,6 +502,7 @@ export function buildSceneViewModel(
   title: string,
   sceneKey: FocusedModel,
   unitPreferences: UnitPreferences,
+  language: LanguageMode = "en",
 ): SceneViewModel {
   const rawTransform = getRawTransform(result);
   const horizonDistanceM = Math.max(
@@ -649,7 +656,7 @@ export function buildSceneViewModel(
       : undefined;
 
   const terrainOverlay = buildTerrainOverlay(result, rawTransform, exaggerate);
-  const featureDefinitions = getFeatureDefinitions(result, terrainOverlay);
+  const featureDefinitions = getFeatureDefinitions(result, terrainOverlay, language);
 
   const lines: SceneLine[] = [
     makePolyline(
@@ -835,7 +842,7 @@ export function buildSceneViewModel(
       id: "observer",
       featureId: "observer-horizontal",
       point: { x: 0, y: 0 },
-      label: "Observer",
+      label: t(language, "observer"),
       color: featurePalette.observerMarker,
       labelOffset: { x: 10, y: -18 },
     },
@@ -843,7 +850,7 @@ export function buildSceneViewModel(
       id: "target",
       featureId: "geometric-sightline",
       point: targetTop,
-      label: "Target",
+      label: t(language, "target"),
       color: featurePalette.targetMarker,
       labelOffset: { x: 12, y: -14 },
     },
@@ -854,7 +861,7 @@ export function buildSceneViewModel(
       id: "source-point",
       featureId: "source-light-path",
       point: referenceTargetPoint,
-      label: result.hiddenHeightM > 0 ? "Sighted point" : "Source point",
+      label: result.hiddenHeightM > 0 ? t(language, "sightedPoint") : t(language, "sourcePoint"),
       color: featurePalette.sourceLightPath,
       labelOffset: { x: 12, y: 18 },
       density: "full",
@@ -1018,7 +1025,9 @@ export function buildSceneViewModel(
       labels,
       "ray-bend",
       result.primaryRay.targetCrossing ? "source-light-path" : "actual-ray",
-      `Ray bend ${formatAngle(result.primaryRay.totalBendRad)}`,
+      t(language, "rayBend", {
+        value: formatAngle(result.primaryRay.totalBendRad),
+      }),
       pointOnPolyline(
         curvedPathForLabel,
         result.model.geometryMode === "convex" ? 0.26 : 0.3,
@@ -1103,10 +1112,9 @@ export function buildSceneViewModel(
     labels,
     "distance-label",
     "surface",
-    `Surface distance ${formatDistance(
-      result.scenario.surfaceDistanceM,
-      unitPreferences.distance,
-    )}`,
+    t(language, "surfaceDistanceShort", {
+      value: formatDistance(result.scenario.surfaceDistanceM, unitPreferences.distance),
+    }),
     { x: result.scenario.surfaceDistanceM * 0.42, y: -verticalExaggeration * 26 },
     [
       { x: 0, y: 0 },
@@ -1121,10 +1129,9 @@ export function buildSceneViewModel(
     labels,
     "observer-height-label",
     "observer-height",
-    `Observer height ${formatHeight(
-      result.scenario.observerHeightM,
-      unitPreferences.height,
-    )}`,
+    t(language, "observerHeightShort", {
+      value: formatHeight(result.scenario.observerHeightM, unitPreferences.height),
+    }),
     pointAlongSegment(observerBase, { x: 0, y: 0 }, 0.56),
     [
       { x: shortOffsetX * 0.1, y: labelRise * 0.24 },
@@ -1138,10 +1145,9 @@ export function buildSceneViewModel(
     labels,
     "target-height-label",
     "target-height",
-    `Target height ${formatHeight(
-      result.scenario.targetHeightM,
-      unitPreferences.height,
-    )}`,
+    t(language, "targetHeightShort", {
+      value: formatHeight(result.scenario.targetHeightM, unitPreferences.height),
+    }),
     pointAlongSegment(targetBase, targetTop, 0.72),
     [
       { x: shortOffsetX * 0.1, y: labelRise * 0.22 },
@@ -1156,7 +1162,9 @@ export function buildSceneViewModel(
       labels,
       "hidden-height",
       "hidden-height",
-      `Hidden ${formatHeight(result.hiddenHeightM, unitPreferences.height)}`,
+      t(language, "hiddenShort", {
+        value: formatHeight(result.hiddenHeightM, unitPreferences.height),
+      }),
       pointAlongSegment(targetBase, targetVisibleStart, 0.5),
       [
         { x: shortOffsetX * 0.16, y: 0 },
@@ -1171,7 +1179,9 @@ export function buildSceneViewModel(
     labels,
     "visibility-label",
     "hidden-height",
-    `Visibility ${formatFraction(result.visibilityFraction)}`,
+    t(language, "visibilityShort", {
+      value: formatFraction(result.visibilityFraction),
+    }),
     {
       x: result.scenario.surfaceDistanceM * 0.58,
       y: verticalExaggeration * 22,
@@ -1218,10 +1228,11 @@ export function buildSceneViewModel(
   return {
     sceneKey,
     title,
-    subtitle: `${result.model.label} | hidden ${formatHeight(
-      result.hiddenHeightM,
-      unitPreferences.height,
-    )} | apparent ${formatAngle(result.apparentElevationRad)}`,
+    subtitle: `${getModelLabel(language, result.model)} | ${t(language, "hiddenShort", {
+      value: formatHeight(result.hiddenHeightM, unitPreferences.height),
+    })} | ${t(language, "apparentShort", {
+      value: formatAngle(result.apparentElevationRad),
+    })}`,
     bounds,
     focusBounds,
     suggestedVerticalScale: verticalExaggeration,
@@ -1236,6 +1247,6 @@ export function buildSceneViewModel(
     labels,
     lines,
     segments,
-    annotations: buildAnnotationMap(result, terrainOverlay),
+    annotations: buildAnnotationMap(result, terrainOverlay, language),
   };
 }

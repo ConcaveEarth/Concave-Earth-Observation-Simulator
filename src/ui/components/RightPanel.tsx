@@ -11,6 +11,7 @@ import {
   formatHeight,
   formatRadius,
 } from "../../domain/units";
+import { getModelLabel, getPresetDescription, getPresetName, t, type LanguageMode } from "../../i18n";
 import type { FocusedModel, SceneViewModel, VisibilitySolveResult } from "../../domain/types";
 import type { AppState, WorkspaceMode } from "../../state/appState";
 import { PanelSection } from "./PanelSection";
@@ -27,6 +28,7 @@ interface RightPanelProps {
   onExport: () => void;
   onCopyLink: () => void;
   message: string | null;
+  language: LanguageMode;
 }
 
 interface FeatureMetric {
@@ -555,6 +557,7 @@ export function RightPanel({
   onExport,
   onCopyLink,
   message,
+  language,
 }: RightPanelProps) {
   const preset = getPresetById(state.scenario.presetId);
   const hoveredAnnotation = activeScene.annotations.find(
@@ -594,30 +597,30 @@ export function RightPanel({
 
   return (
     <aside className="right-panel panel">
-      <PanelSection title="Current Output" eyebrow="Numerics">
+      <PanelSection title={t(language, "currentOutput")} eyebrow={t(language, "numerics")}>
         <div className="metrics-grid">
           <SummaryMetric
-            label="Hidden height"
+            label={t(language, "hiddenHeight")}
             value={formatHeight(activeResult.hiddenHeightM, state.unitPreferences.height)}
           />
           <SummaryMetric
-            label="Visible height"
+            label={t(language, "visibleHeight")}
             value={formatHeight(activeResult.visibleHeightM, state.unitPreferences.height)}
           />
           <SummaryMetric
-            label="Visibility fraction"
+            label={t(language, "visibilityFraction")}
             value={formatFraction(activeResult.visibilityFraction)}
           />
           <SummaryMetric
-            label="Apparent elevation"
+            label={t(language, "apparentElevation")}
             value={formatAngle(activeResult.apparentElevationRad)}
           />
           <SummaryMetric
-            label="Actual elevation"
+            label={t(language, "actualElevation")}
             value={formatAngle(activeResult.actualElevationRad)}
           />
           <SummaryMetric
-            label="Optical horizon"
+            label={t(language, "opticalHorizon")}
             value={
               activeResult.opticalHorizon
                 ? formatDistance(
@@ -630,16 +633,19 @@ export function RightPanel({
         </div>
       </PanelSection>
 
-      <PanelSection title="Model Transparency" eyebrow="Assumptions">
+      <PanelSection title={t(language, "modelTransparency")} eyebrow={t(language, "assumptions")}>
         <div className="detail-card">
           <p>
-            <strong>Inspecting:</strong> {inspectedSceneKey === "primary" ? "Primary panel" : "Comparison panel"}
+            <strong>Inspecting:</strong> {inspectedSceneKey === "primary" ? `${t(language, "primaryModelTitle")} panel` : `${t(language, "comparisonModelTitle")} panel`}
           </p>
           <p>
-            <strong>Geometry:</strong> {activeResult.model.geometryMode === "convex" ? "Convex sphere" : "Concave shell"}
+            <strong>Geometry:</strong> {activeResult.model.geometryMode === "convex" ? t(language, "convexSphere") : t(language, "concaveShell")}
           </p>
           <p>
             <strong>Intrinsic:</strong> {activeResult.model.intrinsicCurvatureMode}
+          </p>
+          <p>
+            <strong>Model:</strong> {getModelLabel(language, activeResult.model)}
           </p>
           <p>
             <strong>Atmosphere:</strong> {activeResult.model.atmosphere.mode}
@@ -695,7 +701,7 @@ export function RightPanel({
       </PanelSection>
 
       {professionalMode ? (
-        <PanelSection title="Survey Geometry" eyebrow="Field metrics">
+        <PanelSection title={t(language, "surveyGeometry")} eyebrow={t(language, "fieldMetrics")}>
           <div className="detail-card">
             <div className="feature-metrics">
               <div className="feature-metrics__row">
@@ -750,7 +756,7 @@ export function RightPanel({
       ) : null}
 
       {professionalMode ? (
-        <PanelSection title="Line Legend" eyebrow="Scene guide">
+        <PanelSection title={t(language, "lineLegend")} eyebrow={t(language, "sceneGuide")}>
           <div className="detail-card">
             <div className="legend-list">
               {activeScene.annotations
@@ -779,12 +785,12 @@ export function RightPanel({
         </PanelSection>
       ) : null}
 
-      <PanelSection title="Feature Inspection" eyebrow="Inspection">
+      <PanelSection title={t(language, "featureInspection")} eyebrow={t(language, "inspection")}>
         <div className="detail-card">
           <div className="detail-card__toolbar">
             <div>
               <p className="detail-card__eyebrow">
-                {isFeaturePinned ? "Pinned feature" : activeFeatureId ? "Hovered feature" : "Scene summary"}
+                {isFeaturePinned ? t(language, "pinnedFeature") : activeFeatureId ? t(language, "hoveredFeature") : t(language, "sceneSummary")}
               </p>
               <h4>{hoveredAnnotation?.label ?? featureDetails.title}</h4>
             </div>
@@ -794,14 +800,12 @@ export function RightPanel({
                 className="field__reset"
                 onClick={onClearSelection}
               >
-                Clear pin
+                {t(language, "clearPin")}
               </button>
             ) : null}
           </div>
           <p>{hoveredAnnotation?.description ?? featureDetails.description}</p>
-          <p className="field__hint">
-            Hover a construction to inspect it. Click a line or marker in the scene to pin it here.
-          </p>
+          <p className="field__hint">{t(language, "hoverToInspectHint")}</p>
           <div className="feature-metrics">
             {featureDetails.metrics.map((metric) => (
               <div key={metric.label} className="feature-metrics__row">
@@ -814,10 +818,10 @@ export function RightPanel({
       </PanelSection>
 
       {professionalMode ? (
-        <PanelSection title="Preset Notes" eyebrow="Context">
+        <PanelSection title={t(language, "presetNotes")} eyebrow={t(language, "context")}>
           <div className="detail-card">
-            <h4>{preset.name}</h4>
-            <p>{preset.description}</p>
+            <h4>{getPresetName(language, preset)}</h4>
+            <p>{getPresetDescription(language, preset)}</p>
             {activeScene.terrainOverlay ? (
               <p>
                 Profile overlay: {activeScene.terrainOverlay.name}. This layer is
@@ -829,13 +833,13 @@ export function RightPanel({
         </PanelSection>
       ) : null}
 
-      <PanelSection title="Share / Export" eyebrow="Output">
+      <PanelSection title={t(language, "shareExport")} eyebrow={t(language, "output")}>
         <div className="action-row">
           <button type="button" className="action-button" onClick={onExport}>
-            Export PNG
+            {t(language, "exportPng")}
           </button>
           <button type="button" className="action-button action-button--ghost" onClick={onCopyLink}>
-            Copy Share URL
+            {t(language, "copyShareUrl")}
           </button>
         </div>
         {message ? <p className="status-text">{message}</p> : null}

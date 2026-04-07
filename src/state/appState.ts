@@ -5,6 +5,7 @@ import {
   defaultScenario,
   getPresetById,
 } from "../domain/presets";
+import type { LanguageMode } from "../i18n";
 import { clamp, defaultUnitPreferences } from "../domain/units";
 import type {
   FocusedModel,
@@ -44,7 +45,9 @@ export interface AppState {
   annotated: boolean;
   labelDensity: LabelDensityMode;
   theme: ThemeMode;
+  language: LanguageMode;
   workspaceMode: WorkspaceMode;
+  fullWidthScene: boolean;
   showScaleGuides: boolean;
   showTerrainOverlay: boolean;
   selectedSceneKey: FocusedModel | null;
@@ -89,7 +92,9 @@ export type AppAction =
   | { type: "setAnnotated"; value: boolean }
   | { type: "setLabelDensity"; value: LabelDensityMode }
   | { type: "setTheme"; value: ThemeMode }
+  | { type: "setLanguage"; value: LanguageMode }
   | { type: "setWorkspaceMode"; value: WorkspaceMode }
+  | { type: "setFullWidthScene"; value: boolean }
   | { type: "setShowScaleGuides"; value: boolean }
   | { type: "setShowTerrainOverlay"; value: boolean }
   | { type: "setSelectedFeature"; sceneKey: FocusedModel | null; value: string | null }
@@ -102,7 +107,7 @@ export function createDefaultState(): AppState {
     scenario: defaultScenario,
     primaryModel: defaultPrimaryModel,
     comparisonModel: defaultComparisonModel,
-    viewMode: "cross-section",
+    viewMode: "compare",
     focusedModel: "primary",
     sceneViewport: {
       framingMode: "auto",
@@ -117,7 +122,9 @@ export function createDefaultState(): AppState {
     annotated: true,
     labelDensity: "adaptive",
     theme: "night-lab",
+    language: "en",
     workspaceMode: "professional",
+    fullWidthScene: true,
     showScaleGuides: true,
     showTerrainOverlay: true,
     selectedSceneKey: null,
@@ -200,6 +207,18 @@ function normalizeThemeMode(value: string): ThemeMode {
 
 function normalizeWorkspaceMode(value: string): WorkspaceMode {
   return value === "simple" ? "simple" : "professional";
+}
+
+function normalizeLanguageMode(value: string): LanguageMode {
+  switch (value) {
+    case "es":
+    case "it":
+    case "pt":
+    case "ru":
+      return value;
+    default:
+      return "en";
+  }
 }
 
 function updateModel(
@@ -341,8 +360,12 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, labelDensity: normalizeLabelDensity(action.value) };
     case "setTheme":
       return { ...state, theme: normalizeThemeMode(action.value) };
+    case "setLanguage":
+      return { ...state, language: normalizeLanguageMode(action.value) };
     case "setWorkspaceMode":
       return { ...state, workspaceMode: normalizeWorkspaceMode(action.value) };
+    case "setFullWidthScene":
+      return { ...state, fullWidthScene: action.value };
     case "setShowScaleGuides":
       return { ...state, showScaleGuides: action.value };
     case "setShowTerrainOverlay":
@@ -455,7 +478,9 @@ export function serializeStateToSearch(state: AppState): string {
   params.set("annotated", state.annotated ? "1" : "0");
   params.set("labels", state.labelDensity);
   params.set("theme", state.theme);
+  params.set("language", state.language);
   params.set("workspace", state.workspaceMode);
+  params.set("fullWidth", state.fullWidthScene ? "1" : "0");
   params.set("scales", state.showScaleGuides ? "1" : "0");
   params.set("terrain", state.showTerrainOverlay ? "1" : "0");
   params.set("observer", String(state.scenario.observerHeightM));
@@ -538,9 +563,11 @@ export function hydrateStateFromSearch(search: string): AppState {
       params.get("labels") ?? defaults.labelDensity,
     ),
     theme: normalizeThemeMode(params.get("theme") ?? defaults.theme),
+    language: normalizeLanguageMode(params.get("language") ?? defaults.language),
     workspaceMode: normalizeWorkspaceMode(
       params.get("workspace") ?? defaults.workspaceMode,
     ),
+    fullWidthScene: params.get("fullWidth") !== "0",
     showScaleGuides: params.get("scales") !== "0",
     showTerrainOverlay: params.get("terrain") !== "0",
     selectedSceneKey: null,

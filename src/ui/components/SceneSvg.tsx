@@ -3,6 +3,7 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent, WheelEvent as Re
 import type { SceneLine, SceneSegment, SceneViewModel, Vec2 } from "../../domain/types";
 import { formatDistance } from "../../domain/units";
 import type { UnitPreferences } from "../../domain/units";
+import { t, type LanguageMode } from "../../i18n";
 import type {
   CompareLayoutMode,
   LabelDensityMode,
@@ -30,6 +31,7 @@ interface SceneSvgProps {
   panX: number;
   panY: number;
   unitPreferences: UnitPreferences;
+  language: LanguageMode;
   onHoverFeature: (
     sceneKey: SceneViewModel["sceneKey"] | null,
     featureId: string | null,
@@ -329,6 +331,7 @@ function renderScaleGuides(
   bounds: SceneViewModel["bounds"],
   project: Projection["project"],
   unitPreferences: UnitPreferences,
+  language: LanguageMode,
 ) {
   const elements: JSX.Element[] = [];
   const spanX = bounds.maxX - bounds.minX;
@@ -408,7 +411,7 @@ function renderScaleGuides(
         fontSize={11}
         fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
       >
-        Horizontal scale
+        {t(language, "horizontalScale")}
       </text>
     </g>,
   );
@@ -461,7 +464,7 @@ function renderScaleGuides(
         fontSize={11}
         fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
       >
-        Vertical scale
+        {t(language, "verticalScale")}
       </text>
     </g>,
   );
@@ -489,6 +492,7 @@ export function SceneSvg({
   panX,
   panY,
   unitPreferences,
+  language,
   onHoverFeature,
   onSelectFeature,
   onPanBy,
@@ -788,7 +792,13 @@ export function SceneSvg({
               ) : null}
 
               {showScaleGuides
-                ? renderScaleGuides(scene, visibleBounds, project, unitPreferences)
+                ? renderScaleGuides(
+                    scene,
+                    visibleBounds,
+                    project,
+                    unitPreferences,
+                    language,
+                  )
                 : null}
 
               {scene.lines

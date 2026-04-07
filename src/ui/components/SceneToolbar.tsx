@@ -1,4 +1,5 @@
 import type { Dispatch } from "react";
+import { t, type LanguageMode } from "../../i18n";
 import type { AppAction, AppState } from "../../state/appState";
 
 interface SceneToolbarProps {
@@ -7,6 +8,7 @@ interface SceneToolbarProps {
   suggestedVerticalScale: number;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
+  language: LanguageMode;
 }
 
 function ControlButton({
@@ -35,20 +37,28 @@ export function SceneToolbar({
   suggestedVerticalScale,
   isFullscreen,
   onToggleFullscreen,
+  language,
 }: SceneToolbarProps) {
   const scaleSummary =
     state.sceneViewport.scaleMode === "true-scale"
-      ? `True scale • vertical x${state.sceneViewport.verticalZoom.toFixed(2)}`
+      ? t(language, "scaleSummaryTrue", {
+          vertical: state.sceneViewport.verticalZoom.toFixed(2),
+        })
       : state.sceneViewport.scaleMode === "survey"
-        ? `Survey scale • vertical x${state.sceneViewport.verticalZoom.toFixed(2)}`
-      : `Diagram base x${suggestedVerticalScale.toFixed(1)} • vertical x${state.sceneViewport.verticalZoom.toFixed(2)}`;
+        ? t(language, "scaleSummarySurvey", {
+            vertical: state.sceneViewport.verticalZoom.toFixed(2),
+          })
+        : t(language, "scaleSummaryDiagram", {
+            base: suggestedVerticalScale.toFixed(1),
+            vertical: state.sceneViewport.verticalZoom.toFixed(2),
+          });
 
   return (
     <div className="scene-toolbar">
       <div className="scene-toolbar__group">
-        <span className="scene-toolbar__label">Frame</span>
+        <span className="scene-toolbar__label">{t(language, "frame")}</span>
         <ControlButton
-          label="Auto Fit"
+          label={t(language, "autoFit")}
           active={state.sceneViewport.framingMode === "auto"}
           onClick={() => {
             dispatch({
@@ -61,7 +71,7 @@ export function SceneToolbar({
           }}
         />
         <ControlButton
-          label="Full Span"
+          label={t(language, "fullSpan")}
           active={state.sceneViewport.framingMode === "full"}
           onClick={() => {
             dispatch({
@@ -76,9 +86,23 @@ export function SceneToolbar({
       </div>
 
       <div className="scene-toolbar__group">
-        <span className="scene-toolbar__label">Scale</span>
+        <span className="scene-toolbar__label">{t(language, "layout")}</span>
         <ControlButton
-          label="Survey"
+          label={t(language, "fullWidth")}
+          active={state.fullWidthScene}
+          onClick={() => dispatch({ type: "setFullWidthScene", value: true })}
+        />
+        <ControlButton
+          label={t(language, "docked")}
+          active={!state.fullWidthScene}
+          onClick={() => dispatch({ type: "setFullWidthScene", value: false })}
+        />
+      </div>
+
+      <div className="scene-toolbar__group">
+        <span className="scene-toolbar__label">{t(language, "scale")}</span>
+        <ControlButton
+          label={t(language, "survey")}
           active={state.sceneViewport.scaleMode === "survey"}
           onClick={() =>
             dispatch({
@@ -89,7 +113,7 @@ export function SceneToolbar({
           }
         />
         <ControlButton
-          label="True Scale"
+          label={t(language, "trueScale")}
           active={state.sceneViewport.scaleMode === "true-scale"}
           onClick={() =>
             dispatch({
@@ -100,7 +124,7 @@ export function SceneToolbar({
           }
         />
         <ControlButton
-          label="Diagram"
+          label={t(language, "diagram")}
           active={state.sceneViewport.scaleMode === "diagram"}
           onClick={() =>
             dispatch({
@@ -113,7 +137,7 @@ export function SceneToolbar({
       </div>
 
       <div className="scene-toolbar__group">
-        <span className="scene-toolbar__label">Zoom</span>
+        <span className="scene-toolbar__label">{t(language, "zoom")}</span>
         <ControlButton
           label="-"
           onClick={() => dispatch({ type: "adjustViewportZoom", delta: -0.15 })}
@@ -128,7 +152,7 @@ export function SceneToolbar({
       </div>
 
       <div className="scene-toolbar__group">
-        <span className="scene-toolbar__label">Vertical</span>
+        <span className="scene-toolbar__label">{t(language, "vertical")}</span>
         <ControlButton
           label="-"
           onClick={() =>
@@ -148,20 +172,18 @@ export function SceneToolbar({
 
       <div className="scene-toolbar__group scene-toolbar__group--meta">
         <span className="scene-toolbar__meta scene-toolbar__meta--hint">
-          Hover to inspect, click to pin, drag to pan, wheel to zoom, Shift+wheel vertical
+          {t(language, "hoverHint")}
         </span>
-        <span className="scene-toolbar__meta">
-          {scaleSummary}
-        </span>
+        <span className="scene-toolbar__meta">{scaleSummary}</span>
         <ControlButton
-          label="Reset"
+          label={t(language, "reset")}
           onClick={() => dispatch({ type: "resetViewport" })}
         />
       </div>
 
       <div className="scene-toolbar__group">
         <ControlButton
-          label={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+          label={isFullscreen ? t(language, "exitFullscreen") : t(language, "fullscreen")}
           onClick={onToggleFullscreen}
         />
       </div>
