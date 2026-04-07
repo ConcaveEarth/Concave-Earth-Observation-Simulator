@@ -141,6 +141,8 @@ export interface SceneMarker {
   point: Vec2;
   label: string;
   color: string;
+  labelOffset?: Vec2;
+  hideLabel?: boolean;
 }
 
 export interface SceneLabel {
@@ -178,4 +180,3 @@ export interface SceneViewModel {
   segments: SceneSegment[];
   annotations: SurfaceAnnotation[];
 }
-

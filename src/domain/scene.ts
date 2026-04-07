@@ -4,7 +4,7 @@ import {
   pointAtSurfaceHeight,
   toObserverFrame,
 } from "./geometry";
-import { formatAngle, formatDistance, formatFraction, formatHeight } from "./units";
+import { clamp, formatAngle, formatDistance, formatFraction, formatHeight, roundTo } from "./units";
 import type {
   SceneLine,
   SceneSegment,
@@ -21,8 +21,8 @@ function collectBounds(points: Vec2[]): SceneViewModel["bounds"] {
   const maxX = Math.max(...xs);
   const minY = Math.min(...ys);
   const maxY = Math.max(...ys);
-  const xPad = Math.max((maxX - minX) * 0.08, 1_200);
-  const yPad = Math.max((maxY - minY) * 0.18, 120);
+  const xPad = Math.max((maxX - minX) * 0.05, 900);
+  const yPad = Math.max((maxY - minY) * 0.12, 180);
 
   return {
     minX: minX - xPad,
@@ -101,34 +101,94 @@ function makePolyline(
   };
 }
 
+function getRawTransform(result: VisibilitySolveResult) {
+  const forwardAxis = localTangentAtAngle(0);
+  const upAxis = localUpAtAngle(0, result.model.geometryMode);
+
+  return (point: Vec2) =>
+    toObserverFrame(point, result.observerPoint, forwardAxis, upAxis);
+}
+
+function getVerticalExaggeration(
+  focusDistanceM: number,
+  samples: Vec2[],
+): number {
+  const minY = Math.min(...samples.map((point) => point.y));
+  const maxY = Math.max(...samples.map((point) => point.y));
+  const rawSpan = Math.max(maxY - minY, 40);
+  const targetSpan = focusDistanceM * 0.28;
+  return clamp(targetSpan / rawSpan, 8, 65);
+}
+
 export function buildSceneViewModel(
   result: VisibilitySolveResult,
   title = result.model.label,
 ): SceneViewModel {
-  const forwardAxis = localTangentAtAngle(0);
-  const upAxis = localUpAtAngle(0, result.model.geometryMode);
-  const transform = (point: Vec2) =>
-    toObserverFrame(point, result.observerPoint, forwardAxis, upAxis);
-
-  const surfaceMaxAngle = Math.max(
-    result.targetAngleRad * 1.18,
-    (result.opticalHorizon?.surfaceAngleRad ?? 0) * 1.08,
-    (result.geometricHorizon?.surfaceAngleRad ?? 0) * 1.08,
-    0.045,
+  const rawTransform = getRawTransform(result);
+  const horizonDistanceM = Math.max(
+    result.scenario.surfaceDistanceM,
+    result.opticalHorizon?.distanceM ?? 0,
+    result.geometricHorizon?.distanceM ?? 0,
   );
-  const surfaceMinAngle = -0.04;
-  const surfaceSamples = Array.from({ length: 140 }, (_, index) => {
+  const forwardDistanceM = horizonDistanceM * 1.06;
+  const backDistanceM = clamp(forwardDistanceM * 0.08, 1_500, 18_000);
+  const surfaceMinAngle = -backDistanceM / result.scenario.radiusM;
+  const surfaceMaxAngle = forwardDistanceM / result.scenario.radiusM;
+
+  const rawSurfaceSamples = Array.from({ length: 180 }, (_, index) => {
     const angle =
       surfaceMinAngle +
-      ((surfaceMaxAngle - surfaceMinAngle) * index) / 139;
-    return transform(
+      ((surfaceMaxAngle - surfaceMinAngle) * index) / 179;
+    return rawTransform(
       pointAtSurfaceHeight(result.scenario.radiusM, angle, result.model.geometryMode, 0),
     );
   });
-  const fillDepth = Math.max(
-    result.scenario.observerHeightM + result.scenario.targetHeightM,
-    2_800,
+
+  const rawTargetBase = rawTransform(result.targetBasePoint);
+  const rawTargetTop = rawTransform(result.targetTopPoint);
+  const rawObserverBase = rawTransform(result.observerSurfacePoint);
+  const targetVisibleStartHeight =
+    result.visibleHeightM > 0 ? result.hiddenHeightM : result.scenario.targetHeightM;
+  const rawTargetVisibleStart = rawTransform(
+    pointAtSurfaceHeight(
+      result.scenario.radiusM,
+      result.targetAngleRad,
+      result.model.geometryMode,
+      targetVisibleStartHeight,
+    ),
   );
+  const rawOpticalHorizon = result.opticalHorizon
+    ? rawTransform(result.opticalHorizon.point)
+    : null;
+  const rawGeometricHorizon = result.geometricHorizon
+    ? rawTransform(result.geometricHorizon.point)
+    : null;
+  const rawRayPoints = result.primaryRay?.points.map(rawTransform) ?? [];
+
+  const verticalExaggeration = getVerticalExaggeration(forwardDistanceM + backDistanceM, [
+    ...rawSurfaceSamples,
+    rawTargetBase,
+    rawTargetTop,
+    rawObserverBase,
+    rawTargetVisibleStart,
+    ...(rawOpticalHorizon ? [rawOpticalHorizon] : []),
+    ...(rawGeometricHorizon ? [rawGeometricHorizon] : []),
+    ...rawRayPoints,
+  ]);
+  const exaggerate = (point: Vec2): Vec2 => ({
+    x: point.x,
+    y: point.y * verticalExaggeration,
+  });
+
+  const surfaceSamples = rawSurfaceSamples.map(exaggerate);
+  const targetBase = exaggerate(rawTargetBase);
+  const targetTop = exaggerate(rawTargetTop);
+  const observerBase = exaggerate(rawObserverBase);
+  const targetVisibleStart = exaggerate(rawTargetVisibleStart);
+  const opticalHorizonPoint = rawOpticalHorizon ? exaggerate(rawOpticalHorizon) : null;
+  const geometricHorizonPoint = rawGeometricHorizon ? exaggerate(rawGeometricHorizon) : null;
+
+  const fillDepth = Math.max(2_600, verticalExaggeration * 260);
   const surfaceFill = {
     id: "surface-fill",
     fill: "url(#surfaceFill)",
@@ -150,36 +210,24 @@ export function buildSceneViewModel(
           opacity: 0.45,
           points: [
             ...surfaceSamples,
-            ...Array.from({ length: 140 }, (_, index) => {
+            ...Array.from({ length: 180 }, (_, index) => {
               const angle =
                 surfaceMaxAngle -
-                ((surfaceMaxAngle - surfaceMinAngle) * index) / 139;
-              return transform(
-                pointAtSurfaceHeight(
-                  result.scenario.radiusM,
-                  angle,
-                  result.model.geometryMode,
-                  2_500,
+                ((surfaceMaxAngle - surfaceMinAngle) * index) / 179;
+              return exaggerate(
+                rawTransform(
+                  pointAtSurfaceHeight(
+                    result.scenario.radiusM,
+                    angle,
+                    result.model.geometryMode,
+                    2_500,
+                  ),
                 ),
               );
             }),
           ],
         }
       : undefined;
-
-  const targetVisibleStartHeight =
-    result.visibleHeightM > 0 ? result.hiddenHeightM : result.scenario.targetHeightM;
-  const targetBase = transform(result.targetBasePoint);
-  const targetTop = transform(result.targetTopPoint);
-  const targetVisibleStart = transform(
-    pointAtSurfaceHeight(
-      result.scenario.radiusM,
-      result.targetAngleRad,
-      result.model.geometryMode,
-      targetVisibleStartHeight,
-    ),
-  );
-  const observerBase = transform(result.observerSurfacePoint);
 
   const lines: SceneLine[] = [
     makePolyline("surface-line", "surface", "#83c4ff", surfaceSamples, 2.4, false, "Surface"),
@@ -191,7 +239,7 @@ export function buildSceneViewModel(
         "primary-ray",
         "ray",
         "#ffb85c",
-        result.primaryRay.points.map((point) => transform(point)),
+        result.primaryRay.points.map((point) => exaggerate(rawTransform(point))),
         2.8,
         false,
         "Actual Ray",
@@ -207,8 +255,8 @@ export function buildSceneViewModel(
       color: "#9ba7ff",
       width: 1.35,
       dashed: true,
-      from: { x: -20_000, y: 0 },
-      to: { x: result.scenario.surfaceDistanceM * 1.08, y: 0 },
+      from: { x: -backDistanceM * 0.45, y: 0 },
+      to: { x: forwardDistanceM, y: 0 },
     },
     {
       id: "observer-stem",
@@ -250,13 +298,13 @@ export function buildSceneViewModel(
       dashed: true,
       from: { x: 0, y: 0 },
       to: {
-        x: Math.cos(result.apparentElevationRad) * result.scenario.surfaceDistanceM * 1.05,
-        y: Math.sin(result.apparentElevationRad) * result.scenario.surfaceDistanceM * 1.05,
+        x: Math.cos(result.apparentElevationRad) * forwardDistanceM,
+        y: Math.sin(result.apparentElevationRad) * forwardDistanceM * verticalExaggeration,
       },
     });
   }
 
-  if (result.opticalHorizon) {
+  if (opticalHorizonPoint) {
     segments.push({
       id: "optical-horizon-ray",
       featureId: "horizon-optical",
@@ -265,11 +313,11 @@ export function buildSceneViewModel(
       width: 1.8,
       dashed: true,
       from: { x: 0, y: 0 },
-      to: transform(result.opticalHorizon.point),
+      to: opticalHorizonPoint,
     });
   }
 
-  if (result.geometricHorizon) {
+  if (geometricHorizonPoint) {
     segments.push({
       id: "geometric-horizon-ray",
       featureId: "horizon-geometric",
@@ -278,7 +326,7 @@ export function buildSceneViewModel(
       width: 1.5,
       dashed: true,
       from: { x: 0, y: 0 },
-      to: transform(result.geometricHorizon.point),
+      to: geometricHorizonPoint,
     });
   }
 
@@ -289,6 +337,7 @@ export function buildSceneViewModel(
       point: { x: 0, y: 0 },
       label: "Observer",
       color: "#d5e7ff",
+      labelOffset: { x: 10, y: -18 },
     },
     {
       id: "target",
@@ -296,26 +345,29 @@ export function buildSceneViewModel(
       point: targetTop,
       label: "Target",
       color: "#ffdfa8",
+      labelOffset: { x: 12, y: -14 },
     },
   ];
 
-  if (result.opticalHorizon) {
+  if (opticalHorizonPoint) {
     markers.push({
       id: "optical-horizon",
       featureId: "horizon-optical",
-      point: transform(result.opticalHorizon.point),
+      point: opticalHorizonPoint,
       label: "Optical Horizon",
       color: "#7fe8be",
+      labelOffset: { x: 14, y: -18 },
     });
   }
 
-  if (result.geometricHorizon) {
+  if (geometricHorizonPoint) {
     markers.push({
       id: "geometric-horizon",
       featureId: "horizon-geometric",
-      point: transform(result.geometricHorizon.point),
+      point: geometricHorizonPoint,
       label: "Geometric Horizon",
       color: "#8392ff",
+      labelOffset: { x: 14, y: 22 },
     });
   }
 
@@ -324,14 +376,14 @@ export function buildSceneViewModel(
       id: "observer-height",
       featureId: "surface",
       text: `Observer ${formatHeight(result.scenario.observerHeightM)}`,
-      point: { x: observerBase.x + 1_500, y: observerBase.y + result.scenario.observerHeightM * 0.5 },
+      point: { x: observerBase.x + 1_600, y: observerBase.y * 0.52 },
     },
     {
       id: "target-height",
       featureId: "surface",
       text: `Target ${formatHeight(result.scenario.targetHeightM)}`,
       point: {
-        x: targetTop.x + 1_500,
+        x: targetTop.x + 2_000,
         y: (targetTop.y + targetBase.y) / 2,
       },
     },
@@ -340,8 +392,8 @@ export function buildSceneViewModel(
       featureId: "apparent",
       text: `Surface distance ${formatDistance(result.scenario.surfaceDistanceM)}`,
       point: {
-        x: result.scenario.surfaceDistanceM * 0.44,
-        y: -800,
+        x: result.scenario.surfaceDistanceM * 0.42,
+        y: -verticalExaggeration * 22,
       },
     },
     {
@@ -349,8 +401,8 @@ export function buildSceneViewModel(
       featureId: result.visible ? "ray" : "hidden",
       text: `Visibility ${formatFraction(result.visibilityFraction)}`,
       point: {
-        x: result.scenario.surfaceDistanceM * 0.66,
-        y: 320,
+        x: result.scenario.surfaceDistanceM * 0.6,
+        y: verticalExaggeration * 18,
       },
     },
     {
@@ -358,8 +410,17 @@ export function buildSceneViewModel(
       featureId: "apparent",
       text: `Apparent elev. ${formatAngle(result.apparentElevationRad)}`,
       point: {
-        x: result.scenario.surfaceDistanceM * 0.14,
-        y: 320,
+        x: Math.max(1_400, result.scenario.surfaceDistanceM * 0.1),
+        y: verticalExaggeration * 18,
+      },
+    },
+    {
+      id: "vertical-exaggeration",
+      featureId: "surface",
+      text: `Vertical exaggeration x${roundTo(verticalExaggeration, 1)}`,
+      point: {
+        x: -backDistanceM * 0.2,
+        y: -verticalExaggeration * 70,
       },
     },
   ];
@@ -373,7 +434,7 @@ export function buildSceneViewModel(
 
   return {
     title,
-    subtitle: `${result.model.label} • hidden ${formatHeight(result.hiddenHeightM)} • apparent ${formatAngle(result.apparentElevationRad)}`,
+    subtitle: `${result.model.label} | hidden ${formatHeight(result.hiddenHeightM)} | apparent ${formatAngle(result.apparentElevationRad)}`,
     bounds,
     surfaceFill,
     atmosphereFill,
@@ -388,4 +449,3 @@ export function buildSceneViewModel(
     annotations: buildAnnotationMap(result),
   };
 }
-

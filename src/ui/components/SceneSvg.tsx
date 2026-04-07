@@ -32,7 +32,11 @@ function createProjector(scene: SceneViewModel, panel: PanelRect) {
   const offsetX =
     panel.x + padding + (availableWidth - spanX * scale) / 2 - scene.bounds.minX * scale;
   const offsetY =
-    panel.y + padding + (availableHeight - spanY * scale) / 2 + scene.bounds.maxY * scale;
+    panel.y +
+    padding +
+    (availableHeight - spanY * scale) / 2 +
+    scene.bounds.maxY * scale +
+    availableHeight * 0.08;
 
   return (point: Vec2) => ({
     x: offsetX + point.x * scale,
@@ -141,6 +145,11 @@ export function SceneSvg({
   hoveredFeatureId,
   onHoverFeature,
 }: SceneSvgProps) {
+  const isCompare = scenes.length > 1;
+  const markerFontSize = isCompare ? 13 : 16;
+  const titleFontSize = isCompare ? 20 : 22;
+  const subtitleFontSize = isCompare ? 13 : 15;
+  const labelFontSize = isCompare ? 12 : 14;
   const panelRects: PanelRect[] =
     scenes.length === 1
       ? [{ x: 28, y: 28, width: SVG_WIDTH - 56, height: SVG_HEIGHT - 56 }]
@@ -254,10 +263,15 @@ export function SceneSvg({
                       x={point.x + 10}
                       y={point.y - 10}
                       fill="#e9f4ff"
-                      fontSize="16"
+                      fontSize={markerFontSize}
                       fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
                     >
-                      {marker.label}
+                      <tspan
+                        x={point.x + (marker.labelOffset?.x ?? 10)}
+                        y={point.y + (marker.labelOffset?.y ?? -10)}
+                      >
+                        {marker.label}
+                      </tspan>
                     </text>
                   ) : null}
                 </g>
@@ -268,7 +282,7 @@ export function SceneSvg({
               x={panel.x + 30}
               y={panel.y + 34}
               fill="#f5f2e8"
-              fontSize="22"
+              fontSize={titleFontSize}
               fontWeight="600"
               fontFamily="'Trebuchet MS', 'Segoe UI Variable Display', sans-serif"
             >
@@ -278,7 +292,7 @@ export function SceneSvg({
               x={panel.x + 30}
               y={panel.y + 60}
               fill="rgba(219, 237, 255, 0.7)"
-              fontSize="15"
+              fontSize={subtitleFontSize}
               fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
             >
               {scene.subtitle}
@@ -297,7 +311,7 @@ export function SceneSvg({
                           ? "#ffffff"
                           : "rgba(230, 240, 255, 0.76)"
                       }
-                      fontSize="14"
+                      fontSize={labelFontSize}
                       fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
                     >
                       {label.text}
