@@ -74,6 +74,43 @@ function solveGeometricHorizon(
   };
 }
 
+function solveConvexOpticalHorizon(
+  scenario: ScenarioInput,
+  model: ModelConfig,
+  _observerPoint: Vec2,
+  _observerTangent: Vec2,
+  _observerUp: Vec2,
+): HorizonResult | null {
+  if (model.geometryMode !== "convex") {
+    return null;
+  }
+
+  const coefficient =
+    model.atmosphere.mode === "simpleCoefficient"
+      ? Math.max(0, model.atmosphere.coefficient)
+      : 0;
+  const relativeCurvatureFactor = Math.max(1e-6, 1 - coefficient);
+  const effectiveRadius = scenario.radiusM / relativeCurvatureFactor;
+  const effectiveHorizonAngle = Math.acos(
+    effectiveRadius / (effectiveRadius + scenario.observerHeightM),
+  );
+  const surfaceDistanceM = effectiveRadius * effectiveHorizonAngle;
+  const actualSurfaceAngle = surfaceDistanceM / scenario.radiusM;
+  const point = pointAtSurfaceHeight(
+    scenario.radiusM,
+    actualSurfaceAngle,
+    model.geometryMode,
+    0,
+  );
+
+  return {
+    point,
+    surfaceAngleRad: actualSurfaceAngle,
+    distanceM: surfaceDistanceM,
+    apparentElevationRad: -effectiveHorizonAngle,
+  };
+}
+
 function evaluateRayAtHeight(
   scenario: ScenarioInput,
   model: ModelConfig,
@@ -192,8 +229,18 @@ function solveOpticalHorizon(
   observerTangent: Vec2,
   observerUp: Vec2,
 ): HorizonResult | null {
-  const minLaunch = model.geometryMode === "convex" ? -0.15 : -0.4;
-  const maxLaunch = model.geometryMode === "convex" ? 0.02 : 0.18;
+  if (model.geometryMode === "convex") {
+    return solveConvexOpticalHorizon(
+      scenario,
+      model,
+      observerPoint,
+      observerTangent,
+      observerUp,
+    );
+  }
+
+  const minLaunch = -0.4;
+  const maxLaunch = 0.18;
   const attempts = 72;
   let best: { result: HorizonResult; forwardX: number } | null = null;
 
@@ -203,6 +250,7 @@ function solveOpticalHorizon(
       scenario,
       model,
       launchAngleRad,
+      targetAngleRad: null,
       maxArcLengthM: getDefaultMaxArcLengthM(scenario),
       stepM: getDefaultStepM(scenario),
     });
@@ -345,4 +393,3 @@ export function solveVisibility(
     },
   };
 }
-

@@ -24,7 +24,7 @@ export interface TraceRayOptions {
   scenario: ScenarioInput;
   model: ModelConfig;
   launchAngleRad: number;
-  targetAngleRad?: number;
+  targetAngleRad?: number | null;
   maxArcLengthM?: number;
   stepM?: number;
 }
@@ -111,7 +111,7 @@ export function traceRay({
     model.geometryMode,
     scenario.observerHeightM,
   );
-  const initialHeading = angleOf(localTangentAtAngle(0)) + launchAngleRad;
+  const initialHeading = angleOf(localTangentAtAngle(0)) - launchAngleRad;
 
   let state: TraceState = {
     x: observerPoint.x,
@@ -160,6 +160,7 @@ export function traceRay({
     const angleDelta = nextAngle - previousAngle;
 
     if (
+      targetAngleRad != null &&
       targetAngleRad >= previousAngle &&
       targetAngleRad <= nextAngle &&
       Math.abs(angleDelta) > 1e-9
@@ -240,4 +241,3 @@ export function traceRay({
     minSurfaceClearanceM,
   };
 }
-
