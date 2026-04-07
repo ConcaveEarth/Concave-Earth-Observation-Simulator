@@ -345,15 +345,15 @@ select {
   order: 2;
 }
 
-.app-shell--fullwidth-scene .right-panel__section--assumptions {
+.app-shell--fullwidth-scene .right-panel__section--field-metrics {
   order: 3;
 }
 
-.app-shell--fullwidth-scene .right-panel__section--field-metrics {
+.app-shell--fullwidth-scene .right-panel__section--context {
   order: 4;
 }
 
-.app-shell--fullwidth-scene .right-panel__section--context {
+.app-shell--fullwidth-scene .right-panel__section--assumptions {
   order: 5;
 }
 
@@ -479,9 +479,35 @@ select {
   margin-bottom: 14px;
 }
 
+.panel-section__header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .panel-section__header h3 {
   margin: 0;
   font-size: 1rem;
+}
+
+.panel-section__toggle {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid var(--control-border);
+  background: var(--control-bg);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.panel-section__toggle:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--eyebrow) 40%, transparent);
+  background: var(--control-bg-hover);
 }
 
 .panel-section__body {
@@ -769,20 +795,30 @@ select {
   overflow: hidden;
 }
 
+.scene-card__viewport--with-legend {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(188px, 220px);
+  gap: 10px;
+  align-items: stretch;
+}
+
+.scene-card__canvas {
+  min-width: 0;
+  min-height: 0;
+}
+
 .app-shell--fullwidth-scene .scene-card__viewport,
 .app-shell--fullwidth-scene .scene-svg {
   min-height: min(78vh, 940px);
 }
 
 .scene-legend-overlay {
-  position: absolute;
-  top: 18px;
-  right: 18px;
-  width: min(290px, calc(100% - 36px));
-  max-height: calc(100% - 36px);
-  padding: 14px 16px;
+  position: relative;
+  width: 100%;
+  max-height: 100%;
+  padding: 12px 14px;
   overflow: auto;
-  z-index: 2;
+  min-height: 0;
   border-radius: 20px;
   background: linear-gradient(180deg, rgba(8, 18, 28, 0.9), rgba(7, 14, 22, 0.82));
 }
@@ -943,6 +979,7 @@ select {
 .legend-list {
   display: grid;
   gap: 10px;
+  align-content: start;
 }
 
 .legend-item {
@@ -1081,9 +1118,8 @@ select {
   }
 
   .scene-legend-overlay {
-    top: 12px;
-    right: 12px;
-    width: min(250px, calc(100% - 24px));
+    width: 100%;
+    max-height: none;
   }
 
   .hero-card {
@@ -1164,11 +1200,13 @@ select {
     min-height: 360px;
   }
 
+  .scene-card__viewport--with-legend {
+    grid-template-columns: 1fr;
+  }
+
   .scene-legend-overlay {
-    position: static;
     width: 100%;
     max-height: none;
-    margin-top: 12px;
   }
 
   .metrics-grid,

@@ -466,21 +466,64 @@ function placeLabel(
   preferredOffsets: Vec2[],
   minDx: number,
   minDy: number,
+  placementBounds: SceneBounds,
   density: "adaptive" | "full" = "adaptive",
 ) {
+  const horizontalPadding = minDx * 0.2;
+  const verticalPadding = minDy * 0.14;
+  let bestCandidate:
+    | {
+        point: Vec2;
+        textAnchor: "start" | "middle" | "end";
+        score: number;
+      }
+    | null = null;
+
   for (const offset of preferredOffsets) {
     const point = {
-      x: anchor.x + offset.x,
-      y: anchor.y + offset.y,
+      x: clamp(
+        anchor.x + offset.x,
+        placementBounds.minX + horizontalPadding,
+        placementBounds.maxX - horizontalPadding,
+      ),
+      y: clamp(
+        anchor.y + offset.y,
+        placementBounds.minY + verticalPadding,
+        placementBounds.maxY - verticalPadding,
+      ),
     };
+    const textAnchor =
+      offset.x < -minDx * 0.05
+        ? "end"
+        : Math.abs(offset.x) <= minDx * 0.05
+          ? "middle"
+          : "start";
     const overlapsExisting = labels.some(
       (label) =>
         Math.abs(label.point.x - point.x) < minDx &&
         Math.abs(label.point.y - point.y) < minDy,
     );
+    const nearestExistingDistance = labels.reduce((nearest, label) => {
+      const dx = label.point.x - point.x;
+      const dy = label.point.y - point.y;
+      return Math.min(nearest, Math.hypot(dx, dy));
+    }, Number.POSITIVE_INFINITY);
+    const boundsDistance = Math.min(
+      point.x - placementBounds.minX,
+      placementBounds.maxX - point.x,
+      point.y - placementBounds.minY,
+      placementBounds.maxY - point.y,
+    );
+    const score =
+      (Number.isFinite(nearestExistingDistance) ? nearestExistingDistance : minDx * 2) +
+      boundsDistance * 0.18;
+
+    if (!bestCandidate || score > bestCandidate.score) {
+      bestCandidate = { point, textAnchor, score };
+    }
 
     if (!overlapsExisting) {
-      labels.push({ id, featureId, text, point, density });
+      labels.push({ id, featureId, text, point, textAnchor, density });
       return;
     }
   }
@@ -489,10 +532,12 @@ function placeLabel(
     id,
     featureId,
     text,
-    point: {
-      x: anchor.x + preferredOffsets[0].x,
-      y: anchor.y + preferredOffsets[0].y,
-    },
+    point:
+      bestCandidate?.point ?? {
+        x: anchor.x + preferredOffsets[0].x,
+        y: anchor.y + preferredOffsets[0].y,
+      },
+    textAnchor: bestCandidate?.textAnchor ?? "start",
     density,
   });
 }
@@ -844,7 +889,7 @@ export function buildSceneViewModel(
       point: { x: 0, y: 0 },
       label: t(language, "observer"),
       color: featurePalette.observerMarker,
-      labelOffset: { x: 10, y: -18 },
+      labelOffset: { x: 12, y: -24 },
     },
     {
       id: "target",
@@ -852,7 +897,7 @@ export function buildSceneViewModel(
       point: targetTop,
       label: t(language, "target"),
       color: featurePalette.targetMarker,
-      labelOffset: { x: 12, y: -14 },
+      labelOffset: { x: 18, y: -20 },
     },
   ];
 
@@ -863,7 +908,7 @@ export function buildSceneViewModel(
       point: referenceTargetPoint,
       label: result.hiddenHeightM > 0 ? t(language, "sightedPoint") : t(language, "sourcePoint"),
       color: featurePalette.sourceLightPath,
-      labelOffset: { x: 12, y: 18 },
+      labelOffset: { x: 18, y: -18 },
       density: "full",
     });
   }
@@ -875,7 +920,7 @@ export function buildSceneViewModel(
       point: opticalHorizonPoint,
       label: featureDefinitions["horizon-optical"].label,
       color: featurePalette.opticalHorizon,
-      labelOffset: { x: 14, y: -18 },
+      labelOffset: { x: 18, y: -26 },
     });
   }
 
@@ -886,17 +931,26 @@ export function buildSceneViewModel(
       point: geometricHorizonPoint,
       label: featureDefinitions["horizon-geometric"].label,
       color: featurePalette.geometricHorizon,
-      labelOffset: { x: 14, y: 20 },
+      labelOffset: { x: 18, y: 28 },
     });
   }
+
+  const labelPlacementBounds = collectBounds([
+    ...surfaceSamples,
+    ...observerAltitudeCurve,
+    ...geometricSightline,
+    ...segments.flatMap((segment) => [segment.from, segment.to]),
+    ...lines.flatMap((line) => line.points),
+    ...markers.map((marker) => marker.point),
+  ]);
 
   const labels: SceneViewModel["labels"] = [];
   const mediumOffsetX = clamp(result.scenario.surfaceDistanceM * 0.06, 1_600, 8_200);
   const shortOffsetX = clamp(result.scenario.surfaceDistanceM * 0.03, 900, 4_200);
   const labelRise = clamp(verticalExaggeration * 26, 260, 2_200);
   const labelDrop = -labelRise * 0.84;
-  const labelMinDx = clamp(result.scenario.surfaceDistanceM * 0.09, 2_400, 14_000);
-  const labelMinDy = clamp(verticalExaggeration * 36, 260, 2_800);
+  const labelMinDx = clamp(result.scenario.surfaceDistanceM * 0.12, 3_000, 18_000);
+  const labelMinDy = clamp(verticalExaggeration * 44, 360, 3_400);
 
   placeLabel(
     labels,
@@ -911,6 +965,7 @@ export function buildSceneViewModel(
     ],
     labelMinDx,
     labelMinDy,
+    labelPlacementBounds,
   );
 
   placeLabel(
@@ -918,14 +973,15 @@ export function buildSceneViewModel(
     "observer-horizontal-label",
     "observer-horizontal",
     featureDefinitions["observer-horizontal"].label,
-    pointAlongSegment({ x: -backDistanceM * 0.45, y: 0 }, { x: forwardDistanceM, y: 0 }, 0.54),
+    pointAlongSegment({ x: -backDistanceM * 0.45, y: 0 }, { x: forwardDistanceM, y: 0 }, 0.66),
     [
       { x: 0, y: labelRise * 1.18 },
-      { x: mediumOffsetX * 0.2, y: labelRise * 1.18 },
-      { x: -mediumOffsetX * 0.22, y: labelRise * 1.1 },
+      { x: mediumOffsetX * 0.22, y: labelRise * 1.12 },
+      { x: -mediumOffsetX * 0.16, y: labelRise * 1.04 },
     ],
     labelMinDx,
     labelMinDy,
+    labelPlacementBounds,
   );
 
   placeLabel(
@@ -935,15 +991,16 @@ export function buildSceneViewModel(
     featureDefinitions["observer-altitude-curve"].label,
     pointOnPolyline(
       observerAltitudeCurve,
-      result.model.geometryMode === "convex" ? 0.56 : 0.68,
+      result.model.geometryMode === "convex" ? 0.7 : 0.74,
     ),
     [
-      { x: shortOffsetX * 0.1, y: labelRise * 0.82 },
-      { x: mediumOffsetX * 0.18, y: labelRise * 0.72 },
-      { x: -mediumOffsetX * 0.14, y: labelDrop * 0.78 },
+      { x: shortOffsetX * 0.12, y: labelRise * 0.78 },
+      { x: mediumOffsetX * 0.24, y: labelRise * 0.66 },
+      { x: -mediumOffsetX * 0.12, y: labelDrop * 0.88 },
     ],
     labelMinDx,
     labelMinDy,
+    labelPlacementBounds,
   );
 
   placeLabel(
@@ -951,14 +1008,15 @@ export function buildSceneViewModel(
     "geometric-sightline-label",
     "geometric-sightline",
     featureDefinitions["geometric-sightline"].label,
-    pointOnPolyline(geometricSightline, result.model.geometryMode === "convex" ? 0.46 : 0.56),
+    pointOnPolyline(geometricSightline, result.model.geometryMode === "convex" ? 0.58 : 0.64),
     [
-      { x: shortOffsetX * 0.16, y: labelDrop },
-      { x: mediumOffsetX * 0.16, y: labelDrop * 1.08 },
-      { x: -mediumOffsetX * 0.12, y: labelRise * 0.7 },
+      { x: shortOffsetX * 0.18, y: labelDrop * 0.96 },
+      { x: mediumOffsetX * 0.26, y: labelDrop * 1.08 },
+      { x: -mediumOffsetX * 0.18, y: labelRise * 0.7 },
     ],
     labelMinDx,
     labelMinDy,
+    labelPlacementBounds,
   );
 
   if (referenceTargetPoint) {
@@ -967,14 +1025,15 @@ export function buildSceneViewModel(
       "source-geometric-path-label",
       "source-geometric-path",
       featureDefinitions["source-geometric-path"].label,
-      pointAlongSegment(referenceTargetPoint, { x: 0, y: 0 }, 0.56),
+      pointAlongSegment(referenceTargetPoint, { x: 0, y: 0 }, 0.66),
       [
-        { x: shortOffsetX * 0.18, y: labelDrop * 0.82 },
-        { x: mediumOffsetX * 0.16, y: labelDrop * 0.96 },
+        { x: shortOffsetX * 0.18, y: labelDrop * 0.88 },
+        { x: mediumOffsetX * 0.26, y: labelDrop * 1.02 },
         { x: -mediumOffsetX * 0.12, y: labelRise * 0.68 },
       ],
       labelMinDx,
       labelMinDy,
+      labelPlacementBounds,
     );
   }
 
@@ -984,14 +1043,15 @@ export function buildSceneViewModel(
       "source-light-path-label",
       "source-light-path",
       featureDefinitions["source-light-path"].label,
-      pointOnPolyline(referenceLightPath, result.model.geometryMode === "convex" ? 0.42 : 0.58),
+      pointOnPolyline(referenceLightPath, result.model.geometryMode === "convex" ? 0.66 : 0.74),
       [
-        { x: shortOffsetX * 0.12, y: labelRise * 0.74 },
-        { x: mediumOffsetX * 0.12, y: labelRise * 0.9 },
+        { x: shortOffsetX * 0.12, y: labelRise * 0.82 },
+        { x: mediumOffsetX * 0.24, y: labelRise * 0.94 },
         { x: -mediumOffsetX * 0.14, y: labelDrop * 0.78 },
       ],
       labelMinDx,
       labelMinDy,
+      labelPlacementBounds,
     );
   }
 
@@ -1010,14 +1070,15 @@ export function buildSceneViewModel(
         "actual-ray-label",
         "actual-ray",
         featureDefinitions["actual-ray"].label,
-        pointOnPolyline(primaryRayPoints, result.model.geometryMode === "convex" ? 0.42 : 0.52),
+        pointOnPolyline(primaryRayPoints, result.model.geometryMode === "convex" ? 0.62 : 0.68),
         [
-          { x: shortOffsetX * 0.12, y: labelRise * 0.72 },
-          { x: mediumOffsetX * 0.1, y: labelRise * 0.92 },
+          { x: shortOffsetX * 0.12, y: labelRise * 0.8 },
+          { x: mediumOffsetX * 0.18, y: labelRise * 0.96 },
           { x: -mediumOffsetX * 0.14, y: labelDrop * 0.86 },
         ],
         labelMinDx,
         labelMinDy,
+        labelPlacementBounds,
       );
     }
 
@@ -1030,7 +1091,7 @@ export function buildSceneViewModel(
       }),
       pointOnPolyline(
         curvedPathForLabel,
-        result.model.geometryMode === "convex" ? 0.26 : 0.3,
+        result.model.geometryMode === "convex" ? 0.34 : 0.4,
       ),
       [
         { x: shortOffsetX * 0.08, y: labelRise * 0.46 },
@@ -1038,6 +1099,7 @@ export function buildSceneViewModel(
       ],
       labelMinDx * 0.7,
       labelMinDy * 0.72,
+      labelPlacementBounds,
       "full",
     );
   }
@@ -1053,14 +1115,15 @@ export function buildSceneViewModel(
       "apparent-line-label",
       "apparent-line",
       featureDefinitions["apparent-line"].label,
-      pointAlongSegment({ x: 0, y: 0 }, apparentLineEnd, 0.72),
+      pointAlongSegment({ x: 0, y: 0 }, apparentLineEnd, 0.8),
       [
-        { x: shortOffsetX * 0.16, y: labelRise * 0.8 },
-        { x: -mediumOffsetX * 0.12, y: labelRise * 0.92 },
+        { x: shortOffsetX * 0.16, y: labelRise * 0.72 },
+        { x: mediumOffsetX * 0.24, y: labelRise * 0.84 },
         { x: shortOffsetX * 0.12, y: labelDrop * 0.76 },
       ],
       labelMinDx,
       labelMinDy,
+      labelPlacementBounds,
     );
   }
 
@@ -1070,14 +1133,15 @@ export function buildSceneViewModel(
       "geometric-horizon-line-label",
       "horizon-geometric",
       featureDefinitions["horizon-geometric"].label,
-      pointAlongSegment({ x: 0, y: 0 }, geometricHorizonPoint, 0.68),
+      pointAlongSegment({ x: 0, y: 0 }, geometricHorizonPoint, 0.46),
       [
-        { x: shortOffsetX * 0.14, y: labelDrop * 0.88 },
-        { x: mediumOffsetX * 0.14, y: labelDrop * 0.98 },
+        { x: shortOffsetX * 0.14, y: labelDrop * 0.74 },
+        { x: mediumOffsetX * 0.22, y: labelDrop * 0.88 },
         { x: -mediumOffsetX * 0.12, y: labelRise * 0.7 },
       ],
       labelMinDx,
       labelMinDy,
+      labelPlacementBounds,
     );
   }
 
@@ -1088,7 +1152,7 @@ export function buildSceneViewModel(
             result.opticalHorizon.trace.points.map((point) =>
               exaggerate(rawTransform(point)),
             ),
-            0.52,
+            0.72,
           )
         : pointAlongSegment({ x: 0, y: 0 }, opticalHorizonPoint, 0.7);
 
@@ -1099,12 +1163,13 @@ export function buildSceneViewModel(
       `${featureDefinitions["horizon-optical"].label} Ray`,
       opticalAnchor,
       [
-        { x: shortOffsetX * 0.14, y: labelRise * 0.78 },
-        { x: mediumOffsetX * 0.14, y: labelRise * 0.92 },
+        { x: shortOffsetX * 0.14, y: labelRise * 0.86 },
+        { x: mediumOffsetX * 0.24, y: labelRise * 1.04 },
         { x: -mediumOffsetX * 0.14, y: labelDrop * 0.82 },
       ],
       labelMinDx,
       labelMinDy,
+      labelPlacementBounds,
     );
   }
 
@@ -1123,6 +1188,7 @@ export function buildSceneViewModel(
     ],
     labelMinDx * 0.85,
     labelMinDy * 0.82,
+    labelPlacementBounds,
   );
 
   placeLabel(
@@ -1134,11 +1200,12 @@ export function buildSceneViewModel(
     }),
     pointAlongSegment(observerBase, { x: 0, y: 0 }, 0.56),
     [
-      { x: shortOffsetX * 0.1, y: labelRise * 0.24 },
-      { x: shortOffsetX * 0.1, y: labelDrop * 0.34 },
+      { x: -shortOffsetX * 0.4, y: labelDrop * 0.46 },
+      { x: shortOffsetX * 0.1, y: labelRise * 0.2 },
     ],
     labelMinDx * 0.72,
     labelMinDy * 0.7,
+    labelPlacementBounds,
   );
 
   placeLabel(
@@ -1150,11 +1217,12 @@ export function buildSceneViewModel(
     }),
     pointAlongSegment(targetBase, targetTop, 0.72),
     [
-      { x: shortOffsetX * 0.1, y: labelRise * 0.22 },
-      { x: shortOffsetX * 0.1, y: labelDrop * 0.34 },
+      { x: shortOffsetX * 0.16, y: labelRise * 0.14 },
+      { x: shortOffsetX * 0.22, y: labelDrop * 0.44 },
     ],
     labelMinDx * 0.72,
     labelMinDy * 0.7,
+    labelPlacementBounds,
   );
 
   if (result.hiddenHeightM > 0) {
@@ -1167,11 +1235,12 @@ export function buildSceneViewModel(
       }),
       pointAlongSegment(targetBase, targetVisibleStart, 0.5),
       [
-        { x: shortOffsetX * 0.16, y: 0 },
-        { x: shortOffsetX * 0.16, y: labelRise * 0.22 },
+        { x: shortOffsetX * 0.2, y: 0 },
+        { x: shortOffsetX * 0.2, y: labelRise * 0.22 },
       ],
       labelMinDx * 0.72,
       labelMinDy * 0.7,
+      labelPlacementBounds,
     );
   }
 
@@ -1192,6 +1261,7 @@ export function buildSceneViewModel(
     ],
     labelMinDx * 0.8,
     labelMinDy * 0.76,
+    labelPlacementBounds,
   );
 
   if (terrainOverlay) {
@@ -1209,6 +1279,7 @@ export function buildSceneViewModel(
       ],
       labelMinDx * 0.72,
       labelMinDy * 0.7,
+      labelPlacementBounds,
       "full",
     );
   }

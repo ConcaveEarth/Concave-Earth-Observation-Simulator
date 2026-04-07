@@ -83,7 +83,7 @@ function createProjector(
   panX: number,
   panY: number,
 ): Projection {
-  const paddingX = 36;
+  const paddingX = 20;
   const paddingTop = 88;
   const paddingBottom = 36;
   const availableWidth = panel.width - paddingX * 2;
@@ -934,6 +934,7 @@ export function SceneSvg({
                         key={label.id}
                         x={point.x}
                         y={point.y}
+                        textAnchor={label.textAnchor ?? "start"}
                         fill={
                           isLabelActive
                             ? "#ffffff"

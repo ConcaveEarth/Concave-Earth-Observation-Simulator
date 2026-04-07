@@ -165,6 +165,7 @@ export interface SceneLabel {
   featureId: string;
   text: string;
   point: Vec2;
+  textAnchor?: "start" | "middle" | "end";
   density?: "adaptive" | "full";
 }
 

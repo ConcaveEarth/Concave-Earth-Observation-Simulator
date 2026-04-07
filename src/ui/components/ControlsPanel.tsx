@@ -40,6 +40,9 @@ interface ModelEditorProps {
   dispatch: Dispatch<AppAction>;
   sectionId?: string;
   language: LanguageMode;
+  collapsible?: boolean;
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
 }
 
 function formatInputValue(value: number, decimals: number): string {
@@ -243,6 +246,9 @@ function ModelEditor({
   dispatch,
   sectionId,
   language,
+  collapsible,
+  collapsed,
+  onToggleCollapsed,
 }: ModelEditorProps) {
   const isConcave = model.geometryMode === "concave";
 
@@ -251,6 +257,9 @@ function ModelEditor({
       title={title}
       eyebrow={t(language, "geometryOpticsAtmosphere")}
       sectionId={sectionId}
+      collapsible={collapsible}
+      collapsed={collapsed}
+      onToggleCollapsed={onToggleCollapsed}
     >
       <label className="field">
         <span>{t(language, "geometry")}</span>
@@ -361,6 +370,13 @@ export function ControlsPanel({
   onCopyLink,
   language,
 }: ControlsPanelProps) {
+  const [collapsedSections, setCollapsedSections] = useState({
+    view: false,
+    scenario: false,
+    model1: false,
+    model2: false,
+    export: false,
+  });
   const heightUnitOptions = [
     { label: "m", value: "m" },
     { label: "ft", value: "ft" },
@@ -376,8 +392,8 @@ export function ControlsPanel({
     { label: "mi", value: "mi" },
   ] as const;
   const controlSections = [
-    { label: t(language, "scenario"), target: "control-scenario" },
     { label: t(language, "view"), target: "control-view" },
+    { label: t(language, "scenario"), target: "control-scenario" },
     { label: t(language, "primary"), target: "control-primary-model" },
     { label: t(language, "compare"), target: "control-comparison-model" },
     { label: t(language, "export"), target: "control-export" },
@@ -389,6 +405,8 @@ export function ControlsPanel({
   ) => {
     dispatch({ type: "setScenarioField", key, value });
   };
+  const toggleSection = (key: keyof typeof collapsedSections) =>
+    setCollapsedSections((current) => ({ ...current, [key]: !current[key] }));
 
   return (
     <aside className="left-panel panel">
@@ -416,9 +434,128 @@ export function ControlsPanel({
         </div>
 
         <PanelSection
+          title={t(language, "view")}
+          eyebrow={t(language, "presentation")}
+          sectionId="control-view"
+          collapsible
+          collapsed={collapsedSections.view}
+          onToggleCollapsed={() => toggleSection("view")}
+        >
+          <ViewPills
+            value={state.viewMode}
+            options={[
+              { label: t(language, "crossSection"), value: "cross-section" },
+              { label: t(language, "splitCompare"), value: "compare" },
+            ]}
+            onChange={(value) =>
+              dispatch({ type: "setViewMode", value: value as ViewMode })
+            }
+          />
+
+          {state.viewMode === "cross-section" ? (
+            <>
+              <p className="field__hint">{t(language, "singlePanelModel")}</p>
+              <ViewPills
+                value={state.focusedModel}
+                options={[
+                  { label: t(language, "primaryModelShort"), value: "primary" },
+                  { label: t(language, "comparisonModelShort"), value: "comparison" },
+                ]}
+                onChange={(value) =>
+                  dispatch({ type: "setFocusedModel", value: value as FocusedModel })
+                }
+              />
+            </>
+          ) : (
+            <label className="field">
+              <span>{t(language, "compareLayout")}</span>
+              <select
+                value={state.sceneViewport.compareLayout}
+                onChange={(event) =>
+                  dispatch({
+                    type: "setViewportField",
+                    key: "compareLayout",
+                    value: event.target.value,
+                  })
+                }
+              >
+                <option value="auto">{t(language, "auto")}</option>
+                <option value="side-by-side">{t(language, "sideBySide")}</option>
+                <option value="stacked">{t(language, "stacked")}</option>
+              </select>
+            </label>
+          )}
+
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={state.fullWidthScene}
+              onChange={(event) =>
+                dispatch({ type: "setFullWidthScene", value: event.target.checked })
+              }
+            />
+            <span>{t(language, "fullWidthDiagrams")}</span>
+          </label>
+
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={state.annotated}
+              onChange={(event) =>
+                dispatch({ type: "setAnnotated", value: event.target.checked })
+              }
+            />
+            <span>{t(language, "annotatedMode")}</span>
+          </label>
+
+          <label className="field">
+            <span>{t(language, "labelDensity")}</span>
+            <select
+              value={state.labelDensity}
+              onChange={(event) =>
+                dispatch({
+                  type: "setLabelDensity",
+                  value: event.target.value as AppState["labelDensity"],
+                })
+              }
+            >
+              <option value="adaptive">{t(language, "adaptive")}</option>
+              <option value="full">{t(language, "full")}</option>
+            </select>
+          </label>
+
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={state.showScaleGuides}
+              onChange={(event) =>
+                dispatch({ type: "setShowScaleGuides", value: event.target.checked })
+              }
+            />
+            <span>{t(language, "scaleGuides")}</span>
+          </label>
+
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={state.showTerrainOverlay}
+              onChange={(event) =>
+                dispatch({ type: "setShowTerrainOverlay", value: event.target.checked })
+              }
+            />
+            <span>{t(language, "profileOverlay")}</span>
+          </label>
+
+          <p className="field__hint">{t(language, "centerLayoutHint")}</p>
+        </PanelSection>
+
+        <PanelSection
           title={t(language, "scenario")}
           eyebrow={t(language, "observationInputs")}
           sectionId="control-scenario"
+          collapsible
+          collapsed={collapsedSections.scenario}
+          onToggleCollapsed={() => toggleSection("scenario")}
         >
           <label className="field">
             <div className="field__label-row">
@@ -571,119 +708,6 @@ export function ControlsPanel({
           />
         </PanelSection>
 
-        <PanelSection
-          title={t(language, "view")}
-          eyebrow={t(language, "presentation")}
-          sectionId="control-view"
-        >
-          <ViewPills
-            value={state.viewMode}
-            options={[
-              { label: t(language, "crossSection"), value: "cross-section" },
-              { label: t(language, "splitCompare"), value: "compare" },
-            ]}
-            onChange={(value) =>
-              dispatch({ type: "setViewMode", value: value as ViewMode })
-            }
-          />
-
-          {state.viewMode === "cross-section" ? (
-            <>
-              <p className="field__hint">{t(language, "singlePanelModel")}</p>
-              <ViewPills
-                value={state.focusedModel}
-                options={[
-                  { label: t(language, "primaryModelShort"), value: "primary" },
-                  { label: t(language, "comparisonModelShort"), value: "comparison" },
-                ]}
-                onChange={(value) =>
-                  dispatch({ type: "setFocusedModel", value: value as FocusedModel })
-                }
-              />
-            </>
-          ) : (
-            <label className="field">
-              <span>{t(language, "compareLayout")}</span>
-              <select
-                value={state.sceneViewport.compareLayout}
-                onChange={(event) =>
-                  dispatch({
-                    type: "setViewportField",
-                    key: "compareLayout",
-                    value: event.target.value,
-                  })
-                }
-              >
-                <option value="auto">{t(language, "auto")}</option>
-                <option value="side-by-side">{t(language, "sideBySide")}</option>
-                <option value="stacked">{t(language, "stacked")}</option>
-              </select>
-            </label>
-          )}
-
-          <label className="switch">
-            <input
-              type="checkbox"
-              checked={state.fullWidthScene}
-              onChange={(event) =>
-                dispatch({ type: "setFullWidthScene", value: event.target.checked })
-              }
-            />
-            <span>{t(language, "fullWidthDiagrams")}</span>
-          </label>
-
-          <label className="switch">
-            <input
-              type="checkbox"
-              checked={state.annotated}
-              onChange={(event) =>
-                dispatch({ type: "setAnnotated", value: event.target.checked })
-              }
-            />
-            <span>{t(language, "annotatedMode")}</span>
-          </label>
-
-          <label className="field">
-            <span>{t(language, "labelDensity")}</span>
-            <select
-              value={state.labelDensity}
-              onChange={(event) =>
-                dispatch({
-                  type: "setLabelDensity",
-                  value: event.target.value as AppState["labelDensity"],
-                })
-              }
-            >
-              <option value="adaptive">{t(language, "adaptive")}</option>
-              <option value="full">{t(language, "full")}</option>
-            </select>
-          </label>
-
-          <label className="switch">
-            <input
-              type="checkbox"
-              checked={state.showScaleGuides}
-              onChange={(event) =>
-                dispatch({ type: "setShowScaleGuides", value: event.target.checked })
-              }
-            />
-            <span>{t(language, "scaleGuides")}</span>
-          </label>
-
-          <label className="switch">
-            <input
-              type="checkbox"
-              checked={state.showTerrainOverlay}
-              onChange={(event) =>
-                dispatch({ type: "setShowTerrainOverlay", value: event.target.checked })
-              }
-            />
-            <span>{t(language, "profileOverlay")}</span>
-          </label>
-
-          <p className="field__hint">{t(language, "centerLayoutHint")}</p>
-        </PanelSection>
-
         <ModelEditor
           title={t(language, "primaryModelTitle")}
           target="primary"
@@ -691,6 +715,9 @@ export function ControlsPanel({
           dispatch={dispatch}
           sectionId="control-primary-model"
           language={language}
+          collapsible
+          collapsed={collapsedSections.model1}
+          onToggleCollapsed={() => toggleSection("model1")}
         />
 
         <ModelEditor
@@ -700,12 +727,18 @@ export function ControlsPanel({
           dispatch={dispatch}
           sectionId="control-comparison-model"
           language={language}
+          collapsible
+          collapsed={collapsedSections.model2}
+          onToggleCollapsed={() => toggleSection("model2")}
         />
 
         <PanelSection
           title={t(language, "export")}
           eyebrow={t(language, "shareableState")}
           sectionId="control-export"
+          collapsible
+          collapsed={collapsedSections.export}
+          onToggleCollapsed={() => toggleSection("export")}
         >
           <div className="action-row">
             <button type="button" className="action-button" onClick={onExport}>
