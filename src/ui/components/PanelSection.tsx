@@ -4,16 +4,18 @@ interface PanelSectionProps extends PropsWithChildren {
   title: string;
   eyebrow?: string;
   actions?: ReactNode;
+  sectionId?: string;
 }
 
 export function PanelSection({
   title,
   eyebrow,
   actions,
+  sectionId,
   children,
 }: PanelSectionProps) {
   return (
-    <section className="panel-section">
+    <section id={sectionId} className="panel-section">
       <header className="panel-section__header">
         <div>
           {eyebrow ? <p className="panel-section__eyebrow">{eyebrow}</p> : null}
@@ -25,4 +27,3 @@ export function PanelSection({
     </section>
   );
 }
-

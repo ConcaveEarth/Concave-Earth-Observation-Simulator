@@ -22,6 +22,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  overflow: hidden;
 }
 
 button,
@@ -32,14 +33,15 @@ select {
 
 #root {
   min-height: 100vh;
+  height: 100vh;
 }
 
 .app-shell {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr) minmax(280px, 360px);
+  grid-template-columns: minmax(320px, 380px) minmax(0, 1fr) minmax(290px, 360px);
   gap: 20px;
-  min-height: 100vh;
+  height: 100vh;
   padding: 20px;
 }
 
@@ -72,12 +74,18 @@ select {
   flex-direction: column;
   gap: 16px;
   padding: 18px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
 }
 
 .center-panel {
   display: flex;
   flex-direction: column;
   gap: 18px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .panel__intro,
@@ -95,6 +103,7 @@ select {
   justify-content: space-between;
   gap: 24px;
   align-items: flex-end;
+  flex: 0 0 auto;
 }
 
 .hero-card__eyebrow,
@@ -129,11 +138,68 @@ select {
   color: rgba(228, 240, 255, 0.74);
 }
 
+.controls-dock {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.controls-dock__nav {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  padding: 12px 12px 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(164, 206, 255, 0.1);
+  background:
+    linear-gradient(180deg, rgba(8, 20, 30, 0.96), rgba(8, 20, 30, 0.86)),
+    radial-gradient(circle at top right, rgba(89, 165, 255, 0.12), transparent 42%);
+  backdrop-filter: blur(18px);
+}
+
+.controls-dock__eyebrow {
+  margin: 0 0 10px;
+  color: rgba(133, 191, 245, 0.86);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.controls-dock__nav-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.controls-dock__link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(162, 205, 255, 0.14);
+  background: rgba(9, 25, 39, 0.76);
+  color: #eef6ff;
+  text-decoration: none;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    background 180ms ease;
+}
+
+.controls-dock__link:hover {
+  transform: translateY(-1px);
+  border-color: rgba(188, 221, 255, 0.34);
+  background: rgba(17, 39, 59, 0.86);
+}
+
 .panel-section {
   padding: 16px 16px 18px;
   border-radius: 22px;
   background: rgba(8, 20, 31, 0.64);
   border: 1px solid rgba(164, 206, 255, 0.08);
+  scroll-margin-top: 94px;
 }
 
 .panel-section__header {
@@ -285,7 +351,9 @@ select {
 .scene-card {
   position: relative;
   padding: 18px;
-  min-height: 640px;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
 }
 
 .scene-toolbar {
@@ -352,7 +420,8 @@ select {
 
 .scene-svg {
   width: 100%;
-  height: min(74vh, 820px);
+  height: 100%;
+  min-height: 580px;
   display: block;
 }
 
@@ -468,12 +537,31 @@ select {
 }
 
 @media (max-width: 1280px) {
+  body {
+    overflow: auto;
+  }
+
+  #root {
+    height: auto;
+  }
+
   .app-shell {
+    height: auto;
     grid-template-columns: 1fr;
+  }
+
+  .left-panel,
+  .right-panel {
+    overflow: visible;
+  }
+
+  .center-panel {
+    overflow: visible;
   }
 
   .scene-card {
     order: -1;
+    min-height: 560px;
   }
 
   .hero-card {
@@ -493,6 +581,10 @@ select {
     min-height: 420px;
   }
 
+  .controls-dock__nav {
+    position: static;
+  }
+
   .scene-toolbar {
     position: static;
     margin-bottom: 10px;
@@ -502,6 +594,7 @@ select {
 
   .scene-svg {
     height: 58vh;
+    min-height: 420px;
   }
 
   .metrics-grid,

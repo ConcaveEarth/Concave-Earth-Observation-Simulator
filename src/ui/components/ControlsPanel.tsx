@@ -22,6 +22,7 @@ interface ModelEditorProps {
   target: FocusedModel;
   model: ModelConfig;
   dispatch: Dispatch<AppAction>;
+  sectionId?: string;
 }
 
 function NumberField({
@@ -110,11 +111,21 @@ function ViewPills({
   );
 }
 
-function ModelEditor({ title, target, model, dispatch }: ModelEditorProps) {
+function ModelEditor({
+  title,
+  target,
+  model,
+  dispatch,
+  sectionId,
+}: ModelEditorProps) {
   const isConcave = model.geometryMode === "concave";
 
   return (
-    <PanelSection title={title} eyebrow="Geometry / Optics / Atmosphere">
+    <PanelSection
+      title={title}
+      eyebrow="Geometry / Optics / Atmosphere"
+      sectionId={sectionId}
+    >
       <label className="field">
         <span>Geometry</span>
         <select
@@ -219,6 +230,13 @@ export function ControlsPanel({
   onExport,
   onCopyLink,
 }: ControlsPanelProps) {
+  const controlSections = [
+    { label: "Scenario", target: "control-scenario" },
+    { label: "View", target: "control-view" },
+    { label: "Primary", target: "control-primary-model" },
+    { label: "Compare", target: "control-comparison-model" },
+    { label: "Export", target: "control-export" },
+  ] as const;
   const presetDefaults = getPresetById(state.scenario.presetId).scenario;
   const setScenarioValue = <K extends keyof ScenarioInput>(
     key: K,
@@ -238,7 +256,30 @@ export function ControlsPanel({
         </p>
       </div>
 
-      <PanelSection title="Scenario" eyebrow="Observation inputs">
+      <div className="controls-dock">
+        <div className="controls-dock__nav">
+          <p className="controls-dock__eyebrow">Quick Jump</p>
+          <div className="controls-dock__nav-grid">
+            {controlSections.map((section) => (
+              <a
+                key={section.target}
+                className="controls-dock__link"
+                href={`#${section.target}`}
+              >
+                {section.label}
+              </a>
+            ))}
+          </div>
+          <p className="field__hint">
+            Scroll the controls dock independently while the main scene stays in view.
+          </p>
+        </div>
+
+      <PanelSection
+        title="Scenario"
+        eyebrow="Observation inputs"
+        sectionId="control-scenario"
+      >
         <label className="field">
           <div className="field__label-row">
             <span>Preset</span>
@@ -329,7 +370,7 @@ export function ControlsPanel({
         />
       </PanelSection>
 
-      <PanelSection title="View" eyebrow="Presentation">
+      <PanelSection title="View" eyebrow="Presentation" sectionId="control-view">
         <ViewPills
           value={state.viewMode}
           options={[
@@ -404,6 +445,7 @@ export function ControlsPanel({
         target="primary"
         model={state.primaryModel}
         dispatch={dispatch}
+        sectionId="control-primary-model"
       />
 
       <ModelEditor
@@ -411,9 +453,14 @@ export function ControlsPanel({
         target="comparison"
         model={state.comparisonModel}
         dispatch={dispatch}
+        sectionId="control-comparison-model"
       />
 
-      <PanelSection title="Export" eyebrow="Shareable state">
+      <PanelSection
+        title="Export"
+        eyebrow="Shareable state"
+        sectionId="control-export"
+      >
         <div className="action-row">
           <button type="button" className="action-button" onClick={onExport}>
             Export PNG
@@ -423,6 +470,7 @@ export function ControlsPanel({
           </button>
         </div>
       </PanelSection>
+      </div>
     </aside>
   );
 }
