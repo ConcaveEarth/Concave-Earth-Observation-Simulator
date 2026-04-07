@@ -10,6 +10,9 @@ interface RightPanelProps {
   activeResult: VisibilitySolveResult;
   activeScene: SceneViewModel;
   inspectedSceneKey: FocusedModel;
+  activeFeatureId: string | null;
+  isFeaturePinned: boolean;
+  onClearSelection: () => void;
   onExport: () => void;
   onCopyLink: () => void;
   message: string | null;
@@ -262,18 +265,21 @@ export function RightPanel({
   activeResult,
   activeScene,
   inspectedSceneKey,
+  activeFeatureId,
+  isFeaturePinned,
+  onClearSelection,
   onExport,
   onCopyLink,
   message,
 }: RightPanelProps) {
   const preset = getPresetById(state.scenario.presetId);
   const hoveredAnnotation = activeScene.annotations.find(
-    (annotation) => annotation.id === state.hoveredFeatureId,
+    (annotation) => annotation.id === activeFeatureId,
   );
   const featureDetails = getFeatureMetrics(
     activeResult,
     activeScene,
-    state.hoveredFeatureId,
+    activeFeatureId,
   );
 
   return (
@@ -347,22 +353,48 @@ export function RightPanel({
                   state.showTerrainOverlay || annotation.id !== "terrain-profile",
               )
               .map((annotation) => (
-              <div key={annotation.id} className="legend-item">
-                <span
-                  className="legend-swatch"
-                  style={{ backgroundColor: annotation.color }}
-                />
-                <span>{annotation.label}</span>
-              </div>
-            ))}
+                <div
+                  key={annotation.id}
+                  className={
+                    annotation.id === activeFeatureId
+                      ? "legend-item legend-item--active"
+                      : "legend-item"
+                  }
+                >
+                  <span
+                    className="legend-swatch"
+                    style={{ backgroundColor: annotation.color }}
+                  />
+                  <span>{annotation.label}</span>
+                </div>
+              ))}
           </div>
         </div>
       </PanelSection>
 
-      <PanelSection title="Hovered Feature" eyebrow="Inspection">
+      <PanelSection title="Feature Inspection" eyebrow="Inspection">
         <div className="detail-card">
-          <h4>{hoveredAnnotation?.label ?? featureDetails.title}</h4>
+          <div className="detail-card__toolbar">
+            <div>
+              <p className="detail-card__eyebrow">
+                {isFeaturePinned ? "Pinned feature" : activeFeatureId ? "Hovered feature" : "Scene summary"}
+              </p>
+              <h4>{hoveredAnnotation?.label ?? featureDetails.title}</h4>
+            </div>
+            {isFeaturePinned ? (
+              <button
+                type="button"
+                className="field__reset"
+                onClick={onClearSelection}
+              >
+                Clear pin
+              </button>
+            ) : null}
+          </div>
           <p>{hoveredAnnotation?.description ?? featureDetails.description}</p>
+          <p className="field__hint">
+            Hover a construction to inspect it. Click a line or marker in the scene to pin it here.
+          </p>
           <div className="feature-metrics">
             {featureDetails.metrics.map((metric) => (
               <div key={metric.label} className="feature-metrics__row">

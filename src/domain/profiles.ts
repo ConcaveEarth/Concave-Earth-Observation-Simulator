@@ -86,3 +86,35 @@ export function getTerrainProfileByPresetId(
   return terrainProfiles.find((profile) => profile.id === presetId) ?? null;
 }
 
+export function createGenericTargetProfile(
+  presetId: string,
+  surfaceDistanceM: number,
+  targetHeightM: number,
+): TerrainProfilePreset {
+  const widthM = Math.max(
+    Math.min(surfaceDistanceM * 0.12, 18_000),
+    Math.min(Math.max(targetHeightM * 190, 1_400), 7_500),
+  );
+  const halfWidthM = widthM / 2;
+  const startM = Math.max(surfaceDistanceM - halfWidthM, 0);
+  const peakM = surfaceDistanceM;
+  const endM = surfaceDistanceM + halfWidthM * 0.68;
+
+  return {
+    id: `${presetId}-generic-profile`,
+    name: "Target Profile Overlay",
+    description:
+      "A generated silhouette around the current target location so the scene can present a readable profile even without a preset-specific terrain mesh.",
+    strokeColor: "#dfb66d",
+    fillColor: "rgba(174, 132, 71, 0.24)",
+    samples: [
+      { distanceM: startM, heightM: 0 },
+      { distanceM: startM + widthM * 0.22, heightM: targetHeightM * 0.22 },
+      { distanceM: startM + widthM * 0.48, heightM: targetHeightM * 0.56 },
+      { distanceM: peakM, heightM: targetHeightM },
+      { distanceM: peakM + widthM * 0.16, heightM: targetHeightM * 0.72 },
+      { distanceM: peakM + widthM * 0.31, heightM: targetHeightM * 0.38 },
+      { distanceM: endM, heightM: 0 },
+    ],
+  };
+}

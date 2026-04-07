@@ -8,12 +8,20 @@ interface SceneSvgProps {
   annotated: boolean;
   showScaleGuides: boolean;
   showTerrainOverlay: boolean;
+  activeFeatureId: string | null;
+  activeSceneKey: SceneViewModel["sceneKey"] | null;
   hoveredFeatureId: string | null;
   hoveredSceneKey: SceneViewModel["sceneKey"] | null;
+  selectedFeatureId: string | null;
+  selectedSceneKey: SceneViewModel["sceneKey"] | null;
   framingMode: SceneFramingMode;
   zoom: number;
   verticalZoom: number;
   onHoverFeature: (
+    sceneKey: SceneViewModel["sceneKey"] | null,
+    featureId: string | null,
+  ) => void;
+  onSelectFeature: (
     sceneKey: SceneViewModel["sceneKey"] | null,
     featureId: string | null,
   ) => void;
@@ -61,30 +69,59 @@ function renderLine(
   line: SceneLine,
   sceneKey: SceneViewModel["sceneKey"],
   project: ReturnType<typeof createProjector>,
+  activeFeatureId: string | null,
+  activeSceneKey: SceneViewModel["sceneKey"] | null,
   hoveredFeatureId: string | null,
   hoveredSceneKey: SceneViewModel["sceneKey"] | null,
+  selectedFeatureId: string | null,
+  selectedSceneKey: SceneViewModel["sceneKey"] | null,
   onHoverFeature: (
+    sceneKey: SceneViewModel["sceneKey"] | null,
+    featureId: string | null,
+  ) => void,
+  onSelectFeature: (
     sceneKey: SceneViewModel["sceneKey"] | null,
     featureId: string | null,
   ) => void,
 ) {
   const isActive =
-    hoveredFeatureId === line.featureId && hoveredSceneKey === sceneKey;
+    activeFeatureId === line.featureId && activeSceneKey === sceneKey;
+  const isSelected =
+    selectedFeatureId === line.featureId && selectedSceneKey === sceneKey;
+  const showEmphasis = isActive || isSelected;
   return (
-    <polyline
-      key={line.id}
-      points={polygonPoints(line.points.map(project))}
-      fill="none"
-      stroke={line.color}
-      strokeWidth={isActive ? line.width + 1.2 : line.width}
-      strokeDasharray={line.dashed ? "12 12" : undefined}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      opacity={hoveredFeatureId !== null && !isActive ? 0.4 : 1}
-      filter={line.featureId === "actual-ray" ? "url(#glow)" : undefined}
-      onMouseEnter={() => onHoverFeature(sceneKey, line.featureId)}
-      onMouseLeave={() => onHoverFeature(null, null)}
-    />
+    <g key={line.id}>
+      {showEmphasis ? (
+        <polyline
+          points={polygonPoints(line.points.map(project))}
+          fill="none"
+          stroke={isActive ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.18)"}
+          strokeWidth={line.width + (isActive ? 7 : 5)}
+          strokeDasharray={line.dashed ? "12 12" : undefined}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity={isActive ? 0.92 : 0.75}
+        />
+      ) : null}
+      <polyline
+        points={polygonPoints(line.points.map(project))}
+        fill="none"
+        stroke={line.color}
+        strokeWidth={isActive ? line.width + 1.85 : isSelected ? line.width + 1.1 : line.width}
+        strokeDasharray={line.dashed ? "12 12" : undefined}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity={activeFeatureId !== null && !isActive ? 0.16 : isSelected ? 1 : 0.96}
+        filter={showEmphasis || (line.featureId === "actual-ray" && activeFeatureId == null) ? "url(#glow)" : undefined}
+        onMouseEnter={() => onHoverFeature(sceneKey, line.featureId)}
+        onMouseLeave={() => onHoverFeature(null, null)}
+        onClick={(event) => {
+          event.stopPropagation();
+          onSelectFeature(sceneKey, line.featureId);
+        }}
+        style={{ cursor: "pointer" }}
+      />
+    </g>
   );
 }
 
@@ -92,9 +129,17 @@ function renderSegment(
   segment: SceneSegment,
   sceneKey: SceneViewModel["sceneKey"],
   project: ReturnType<typeof createProjector>,
+  activeFeatureId: string | null,
+  activeSceneKey: SceneViewModel["sceneKey"] | null,
   hoveredFeatureId: string | null,
   hoveredSceneKey: SceneViewModel["sceneKey"] | null,
+  selectedFeatureId: string | null,
+  selectedSceneKey: SceneViewModel["sceneKey"] | null,
   onHoverFeature: (
+    sceneKey: SceneViewModel["sceneKey"] | null,
+    featureId: string | null,
+  ) => void,
+  onSelectFeature: (
     sceneKey: SceneViewModel["sceneKey"] | null,
     featureId: string | null,
   ) => void,
@@ -102,22 +147,46 @@ function renderSegment(
   const start = project(segment.from);
   const end = project(segment.to);
   const isActive =
-    hoveredFeatureId === segment.featureId && hoveredSceneKey === sceneKey;
+    activeFeatureId === segment.featureId && activeSceneKey === sceneKey;
+  const isSelected =
+    selectedFeatureId === segment.featureId && selectedSceneKey === sceneKey;
+  const showEmphasis = isActive || isSelected;
   return (
-    <line
-      key={segment.id}
-      x1={start.x}
-      y1={start.y}
-      x2={end.x}
-      y2={end.y}
-      stroke={segment.color}
-      strokeWidth={isActive ? segment.width + 1 : segment.width}
-      strokeDasharray={segment.dashed ? "10 10" : undefined}
-      strokeLinecap="round"
-      opacity={hoveredFeatureId !== null && !isActive ? 0.35 : 1}
-      onMouseEnter={() => onHoverFeature(sceneKey, segment.featureId)}
-      onMouseLeave={() => onHoverFeature(null, null)}
-    />
+    <g key={segment.id}>
+      {showEmphasis ? (
+        <line
+          x1={start.x}
+          y1={start.y}
+          x2={end.x}
+          y2={end.y}
+          stroke={isActive ? "rgba(255,255,255,0.26)" : "rgba(255,255,255,0.16)"}
+          strokeWidth={segment.width + (isActive ? 6 : 4.5)}
+          strokeDasharray={segment.dashed ? "10 10" : undefined}
+          strokeLinecap="round"
+          opacity={isActive ? 0.9 : 0.72}
+        />
+      ) : null}
+      <line
+        x1={start.x}
+        y1={start.y}
+        x2={end.x}
+        y2={end.y}
+        stroke={segment.color}
+        strokeWidth={
+          isActive ? segment.width + 1.5 : isSelected ? segment.width + 0.9 : segment.width
+        }
+        strokeDasharray={segment.dashed ? "10 10" : undefined}
+        strokeLinecap="round"
+        opacity={activeFeatureId !== null && !isActive ? 0.16 : isSelected ? 1 : 0.96}
+        onMouseEnter={() => onHoverFeature(sceneKey, segment.featureId)}
+        onMouseLeave={() => onHoverFeature(null, null)}
+        onClick={(event) => {
+          event.stopPropagation();
+          onSelectFeature(sceneKey, segment.featureId);
+        }}
+        style={{ cursor: "pointer" }}
+      />
+    </g>
   );
 }
 
@@ -325,12 +394,17 @@ export function SceneSvg({
   annotated,
   showScaleGuides,
   showTerrainOverlay,
+  activeFeatureId,
+  activeSceneKey,
   hoveredFeatureId,
   hoveredSceneKey,
+  selectedFeatureId,
+  selectedSceneKey,
   framingMode,
   zoom,
   verticalZoom,
   onHoverFeature,
+  onSelectFeature,
 }: SceneSvgProps) {
   const isCompare = scenes.length > 1;
   const markerFontSize = isCompare ? 13 : 16;
@@ -399,10 +473,14 @@ export function SceneSvg({
           verticalZoom,
         );
         const panelStyle: CSSProperties = {};
-        const shouldRenderDetailLabels = !isCompare || zoom > 1.15 || verticalZoom > 1.2;
+        const shouldRenderDetailLabels = annotated;
 
         return (
-          <g key={scene.title} style={panelStyle}>
+          <g
+            key={scene.title}
+            style={panelStyle}
+            onClick={() => onSelectFeature(null, null)}
+          >
             <rect
               x={panel.x}
               y={panel.y}
@@ -450,9 +528,14 @@ export function SceneSvg({
                   line,
                   scene.sceneKey,
                   project,
+                  activeFeatureId,
+                  activeSceneKey,
                   hoveredFeatureId,
                   hoveredSceneKey,
+                  selectedFeatureId,
+                  selectedSceneKey,
                   onHoverFeature,
+                  onSelectFeature,
                 ),
               )}
             {scene.segments.map((segment) =>
@@ -460,30 +543,44 @@ export function SceneSvg({
                 segment,
                 scene.sceneKey,
                 project,
+                activeFeatureId,
+                activeSceneKey,
                 hoveredFeatureId,
                 hoveredSceneKey,
+                selectedFeatureId,
+                selectedSceneKey,
                 onHoverFeature,
+                onSelectFeature,
               ),
             )}
 
             {scene.markers.map((marker) => {
               const point = project(marker.point);
               const isActive =
-                hoveredFeatureId === marker.featureId &&
-                hoveredSceneKey === scene.sceneKey;
+                activeFeatureId === marker.featureId &&
+                activeSceneKey === scene.sceneKey;
+              const isSelected =
+                selectedFeatureId === marker.featureId &&
+                selectedSceneKey === scene.sceneKey;
 
               return (
                 <g
                   key={marker.id}
                   onMouseEnter={() => onHoverFeature(scene.sceneKey, marker.featureId)}
                   onMouseLeave={() => onHoverFeature(null, null)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onSelectFeature(scene.sceneKey, marker.featureId);
+                  }}
+                  style={{ cursor: "pointer" }}
                 >
                   <circle
                     cx={point.x}
                     cy={point.y}
-                    r={isActive ? 8 : 6}
+                    r={isActive ? 8.8 : isSelected ? 7.6 : 6}
                     fill={marker.color}
                     stroke="rgba(255,255,255,0.7)"
+                    opacity={activeFeatureId !== null && !isActive ? 0.34 : 1}
                   />
                   {annotated && shouldRenderDetailLabels && !marker.hideLabel ? (
                     <text
@@ -527,19 +624,23 @@ export function SceneSvg({
                   )
                   .map((label) => {
                     const point = project(label.point);
+                    const isLabelActive =
+                      activeFeatureId === label.featureId &&
+                      activeSceneKey === scene.sceneKey;
                     return (
                       <text
                         key={label.id}
                         x={point.x}
                         y={point.y}
                         fill={
-                          hoveredFeatureId === label.featureId
+                          isLabelActive
                             ? "#ffffff"
                             : "rgba(230, 240, 255, 0.76)"
-                        }
-                        fontSize={labelFontSize}
-                        fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
-                      >
+                      }
+                      opacity={activeFeatureId !== null && !isLabelActive ? 0.45 : 1}
+                      fontSize={labelFontSize}
+                      fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
+                    >
                         {label.text}
                       </text>
                     );

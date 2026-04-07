@@ -4,7 +4,10 @@ import {
   pointAtSurfaceHeight,
   toObserverFrame,
 } from "./geometry";
-import { getTerrainProfileByPresetId } from "./profiles";
+import {
+  createGenericTargetProfile,
+  getTerrainProfileByPresetId,
+} from "./profiles";
 import {
   clamp,
   formatAngle,
@@ -24,6 +27,23 @@ import type {
   Vec2,
   VisibilitySolveResult,
 } from "./types";
+
+const featurePalette = {
+  surface: "#72c8ff",
+  observerHorizontal: "#9ca7ff",
+  observerAltitudeCurve: "#7fd3d8",
+  terrainProfile: "#dfb66d",
+  geometricSightline: "#d8ddd7",
+  actualRay: "#ffb347",
+  apparentLine: "#ff89c7",
+  opticalHorizon: "#68efb2",
+  geometricHorizon: "#7a8cff",
+  hiddenHeight: "#ff6e7d",
+  observerStem: "#d2ebff",
+  targetStem: "#f4d59f",
+  observerMarker: "#f3f7ff",
+  targetMarker: "#ffe4b2",
+};
 
 function collectBounds(points: Vec2[], paddingFactor = 0.06, minYPad = 180): SceneBounds {
   const xs = points.map((point) => point.x);
@@ -55,21 +75,21 @@ function buildAnnotationMap(
         result.model.geometryMode === "convex"
           ? "The physical convex surface used by the globe interpretation."
           : "The physical concave shell used by the endospherical interpretation.",
-      color: "#88d0ff",
+      color: featurePalette.surface,
     },
     {
       id: "observer-horizontal",
       label: "Observer Horizontal",
       description:
         "The straight local tangent through the observer. This is the geometric horizontal reference at the observation point.",
-      color: "#9ba7ff",
+      color: featurePalette.observerHorizontal,
     },
     {
       id: "observer-altitude-curve",
       label: "Observer Altitude Curve",
       description:
         "A constant-height reference curve carried along the active geometry at the observer's altitude. It bends with the model rather than remaining rectilinear.",
-      color: "#bcd7ff",
+      color: featurePalette.observerAltitudeCurve,
     },
     ...(terrainOverlay
       ? [
@@ -86,42 +106,42 @@ function buildAnnotationMap(
       label: "Direct Geometric Sightline",
       description:
         "The straight Euclidean line from observer to target top before any optical bending is applied.",
-      color: "#d7d9de",
+      color: featurePalette.geometricSightline,
     },
     {
       id: "actual-ray",
       label: "Actual Ray Path",
       description:
         "The traced optical path under the active atmosphere and intrinsic curvature assumptions.",
-      color: "#ffb85c",
+      color: featurePalette.actualRay,
     },
     {
       id: "apparent-line",
       label: "Apparent Line Of Sight",
       description:
         "The observer-facing straight line implied by the ray's tangent at the observation point.",
-      color: "#ffd1e1",
+      color: featurePalette.apparentLine,
     },
     {
       id: "horizon-optical",
       label: "Optical Horizon",
       description:
         "The traced grazing boundary under the current ray-curvature law.",
-      color: "#9df0c2",
+      color: featurePalette.opticalHorizon,
     },
     {
       id: "horizon-geometric",
       label: "Geometric Horizon",
       description:
         "The purely geometric tangent-to-surface horizon with no optical correction.",
-      color: "#8f9fff",
+      color: featurePalette.geometricHorizon,
     },
     {
       id: "hidden-height",
       label: "Hidden Height",
       description:
         "The obscured lower portion of the target under the active solve.",
-      color: "#ff7c8f",
+      color: featurePalette.hiddenHeight,
     },
   ];
 }
@@ -151,11 +171,13 @@ function buildTerrainOverlay(
   rawTransform: (point: Vec2) => Vec2,
   exaggerate: (point: Vec2) => Vec2,
 ): SceneTerrainOverlay | undefined {
-  const terrainProfile = getTerrainProfileByPresetId(result.scenario.presetId);
-
-  if (!terrainProfile) {
-    return undefined;
-  }
+  const terrainProfile =
+    getTerrainProfileByPresetId(result.scenario.presetId) ??
+    createGenericTargetProfile(
+      result.scenario.presetId,
+      result.scenario.surfaceDistanceM,
+      result.scenario.targetHeightM,
+    );
 
   const samples = terrainProfile.samples
     .filter((sample) => sample.distanceM >= 0)
@@ -202,7 +224,7 @@ function buildTerrainOverlay(
     line: makePolyline(
       "terrain-profile-line",
       "terrain-profile",
-      terrainProfile.strokeColor ?? "#f2d1a0",
+      terrainProfile.strokeColor ?? featurePalette.terrainProfile,
       profilePoints,
       2.3,
       false,
@@ -210,8 +232,8 @@ function buildTerrainOverlay(
     ),
     fill: {
       id: "terrain-profile-fill",
-      fill: terrainProfile.fillColor ?? "rgba(201, 163, 110, 0.24)",
-      opacity: 0.84,
+      fill: terrainProfile.fillColor ?? "rgba(174, 132, 71, 0.24)",
+      opacity: 0.94,
       points: [...profilePoints, ...baselinePoints.slice().reverse()],
     },
   };
@@ -388,22 +410,30 @@ export function buildSceneViewModel(
   const terrainOverlay = buildTerrainOverlay(result, rawTransform, exaggerate);
 
   const lines: SceneLine[] = [
-    makePolyline("surface-line", "surface", "#83c4ff", surfaceSamples, 2.4, false, "Surface"),
+    makePolyline(
+      "surface-line",
+      "surface",
+      featurePalette.surface,
+      surfaceSamples,
+      2.5,
+      false,
+      "Surface",
+    ),
     makePolyline(
       "observer-altitude-curve",
       "observer-altitude-curve",
-      "#bed6ff",
+      featurePalette.observerAltitudeCurve,
       observerAltitudeCurve,
-      1.4,
+      1.55,
       true,
       "Observer Altitude Curve",
     ),
     makePolyline(
       "geometric-sightline",
       "geometric-sightline",
-      "#d7d9de",
+      featurePalette.geometricSightline,
       geometricSightline,
-      1.3,
+      1.45,
       true,
       "Direct Geometric Sightline",
     ),
@@ -414,9 +444,9 @@ export function buildSceneViewModel(
       makePolyline(
         "primary-ray",
         "actual-ray",
-        "#ffb85c",
+        featurePalette.actualRay,
         result.primaryRay.points.map((point) => exaggerate(rawTransform(point))),
-        2.8,
+        3.05,
         false,
         "Actual Ray",
       ),
@@ -428,9 +458,9 @@ export function buildSceneViewModel(
       makePolyline(
         "optical-horizon-trace",
         "horizon-optical",
-        "#7fe8be",
+        featurePalette.opticalHorizon,
         result.opticalHorizon.trace.points.map((point) => exaggerate(rawTransform(point))),
-        1.9,
+        2,
         true,
         "Optical Horizon Ray",
       ),
@@ -450,8 +480,8 @@ export function buildSceneViewModel(
       id: "observer-horizontal",
       featureId: "observer-horizontal",
       label: "Observer Horizontal",
-      color: "#9ba7ff",
-      width: 1.35,
+      color: featurePalette.observerHorizontal,
+      width: 1.6,
       dashed: true,
       from: { x: -backDistanceM * 0.45, y: 0 },
       to: { x: forwardDistanceM, y: 0 },
@@ -459,7 +489,7 @@ export function buildSceneViewModel(
     {
       id: "observer-stem",
       featureId: "surface",
-      color: "#a8e1ff",
+      color: featurePalette.observerStem,
       width: 3,
       from: observerBase,
       to: { x: 0, y: 0 },
@@ -467,7 +497,7 @@ export function buildSceneViewModel(
     {
       id: "target-stem",
       featureId: "surface",
-      color: "#f4d7a1",
+      color: featurePalette.targetStem,
       width: 3,
       from: targetBase,
       to: targetTop,
@@ -479,7 +509,7 @@ export function buildSceneViewModel(
       id: "hidden-stem",
       featureId: "hidden-height",
       label: "Hidden Height",
-      color: "#ff7c8f",
+      color: featurePalette.hiddenHeight,
       width: 4,
       from: targetBase,
       to: targetVisibleStart,
@@ -491,8 +521,8 @@ export function buildSceneViewModel(
       id: "apparent-line",
       featureId: "apparent-line",
       label: "Apparent Line",
-      color: "#ffd1e1",
-      width: 1.5,
+      color: featurePalette.apparentLine,
+      width: 1.75,
       dashed: true,
       from: { x: 0, y: 0 },
       to: {
@@ -507,7 +537,7 @@ export function buildSceneViewModel(
       id: "optical-horizon-ray",
       featureId: "horizon-optical",
       label: "Optical Horizon",
-      color: "#7fe8be",
+      color: featurePalette.opticalHorizon,
       width: 1.8,
       dashed: true,
       from: { x: 0, y: 0 },
@@ -520,8 +550,8 @@ export function buildSceneViewModel(
       id: "geometric-horizon-ray",
       featureId: "horizon-geometric",
       label: "Geometric Horizon",
-      color: "#8392ff",
-      width: 1.5,
+      color: featurePalette.geometricHorizon,
+      width: 1.75,
       dashed: true,
       from: { x: 0, y: 0 },
       to: geometricHorizonPoint,
@@ -534,7 +564,7 @@ export function buildSceneViewModel(
       featureId: "observer-horizontal",
       point: { x: 0, y: 0 },
       label: "Observer",
-      color: "#d5e7ff",
+      color: featurePalette.observerMarker,
       labelOffset: { x: 10, y: -18 },
     },
     {
@@ -542,7 +572,7 @@ export function buildSceneViewModel(
       featureId: "geometric-sightline",
       point: targetTop,
       label: "Target",
-      color: "#ffdfa8",
+      color: featurePalette.targetMarker,
       labelOffset: { x: 12, y: -14 },
     },
   ];
@@ -553,7 +583,7 @@ export function buildSceneViewModel(
       featureId: "horizon-optical",
       point: opticalHorizonPoint,
       label: "Optical Horizon",
-      color: "#7fe8be",
+      color: featurePalette.opticalHorizon,
       labelOffset: { x: 14, y: -18 },
     });
   }
@@ -564,7 +594,7 @@ export function buildSceneViewModel(
       featureId: "horizon-geometric",
       point: geometricHorizonPoint,
       label: "Geometric Horizon",
-      color: "#8392ff",
+      color: featurePalette.geometricHorizon,
       labelOffset: { x: 14, y: 20 },
     });
   }

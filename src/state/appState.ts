@@ -33,6 +33,8 @@ export interface AppState {
   annotated: boolean;
   showScaleGuides: boolean;
   showTerrainOverlay: boolean;
+  selectedSceneKey: FocusedModel | null;
+  selectedFeatureId: string | null;
   hoveredSceneKey: FocusedModel | null;
   hoveredFeatureId: string | null;
 }
@@ -67,6 +69,8 @@ export type AppAction =
   | { type: "setAnnotated"; value: boolean }
   | { type: "setShowScaleGuides"; value: boolean }
   | { type: "setShowTerrainOverlay"; value: boolean }
+  | { type: "setSelectedFeature"; sceneKey: FocusedModel | null; value: string | null }
+  | { type: "clearSelectedFeature" }
   | { type: "setHoveredFeature"; sceneKey: FocusedModel | null; value: string | null }
   | { type: "applyPreset"; presetId: string };
 
@@ -85,6 +89,8 @@ export function createDefaultState(): AppState {
     annotated: true,
     showScaleGuides: true,
     showTerrainOverlay: true,
+    selectedSceneKey: null,
+    selectedFeatureId: null,
     hoveredSceneKey: null,
     hoveredFeatureId: null,
   };
@@ -215,6 +221,18 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, showScaleGuides: action.value };
     case "setShowTerrainOverlay":
       return { ...state, showTerrainOverlay: action.value };
+    case "setSelectedFeature":
+      return {
+        ...state,
+        selectedSceneKey: action.sceneKey,
+        selectedFeatureId: action.value,
+      };
+    case "clearSelectedFeature":
+      return {
+        ...state,
+        selectedSceneKey: null,
+        selectedFeatureId: null,
+      };
     case "setHoveredFeature":
       return {
         ...state,
@@ -232,6 +250,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           preset.comparisonModel,
         ),
         sceneViewport: createDefaultState().sceneViewport,
+        selectedSceneKey: null,
+        selectedFeatureId: null,
         hoveredSceneKey: null,
         hoveredFeatureId: null,
       };
@@ -363,6 +383,8 @@ export function hydrateStateFromSearch(search: string): AppState {
     annotated: params.get("annotated") !== "0",
     showScaleGuides: params.get("scales") !== "0",
     showTerrainOverlay: params.get("terrain") !== "0",
+    selectedSceneKey: null,
+    selectedFeatureId: null,
     hoveredSceneKey: null,
     hoveredFeatureId: null,
   };

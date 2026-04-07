@@ -49,13 +49,31 @@ export default function App() {
       ? [primaryScene, comparisonScene]
       : [deferredState.focusedModel === "primary" ? primaryScene : comparisonScene];
 
+  const visibleSceneKeys = new Set(scenes.map((scene) => scene.sceneKey));
+  const hoveredSceneVisible =
+    state.hoveredSceneKey !== null && visibleSceneKeys.has(state.hoveredSceneKey);
+  const selectedSceneVisible =
+    state.selectedSceneKey !== null && visibleSceneKeys.has(state.selectedSceneKey);
+  const activeFeatureId = hoveredSceneVisible
+    ? state.hoveredFeatureId
+    : selectedSceneVisible
+      ? state.selectedFeatureId
+      : null;
+  const activeSceneKey =
+    hoveredSceneVisible
+      ? state.hoveredSceneKey
+      : selectedSceneVisible
+        ? state.selectedSceneKey
+        : null;
   const inspectedSceneKey =
-    state.hoveredSceneKey ??
+    activeSceneKey ??
     (deferredState.viewMode === "compare" ? "primary" : deferredState.focusedModel);
   const inspectedResult =
     inspectedSceneKey === "primary" ? primaryResult : comparisonResult;
   const inspectedScene =
     inspectedSceneKey === "primary" ? primaryScene : comparisonScene;
+  const isFeaturePinned =
+    selectedSceneVisible && state.selectedFeatureId !== null && state.selectedSceneKey !== null;
   const displayedScenes = scenes;
   const suggestedVerticalScale =
     displayedScenes.reduce(
@@ -125,14 +143,26 @@ export default function App() {
             annotated={state.annotated}
             showScaleGuides={state.showScaleGuides}
             showTerrainOverlay={state.showTerrainOverlay}
+            activeFeatureId={activeFeatureId}
+            activeSceneKey={activeSceneKey}
             hoveredFeatureId={state.hoveredFeatureId}
             hoveredSceneKey={state.hoveredSceneKey}
+            selectedFeatureId={state.selectedFeatureId}
+            selectedSceneKey={state.selectedSceneKey}
             framingMode={state.sceneViewport.framingMode}
             zoom={state.sceneViewport.zoom}
             verticalZoom={state.sceneViewport.verticalZoom}
             onHoverFeature={(sceneKey, featureId) =>
               dispatch({ type: "setHoveredFeature", sceneKey, value: featureId })
             }
+            onSelectFeature={(sceneKey, featureId) => {
+              if (featureId == null || sceneKey == null) {
+                dispatch({ type: "clearSelectedFeature" });
+                return;
+              }
+
+              dispatch({ type: "setSelectedFeature", sceneKey, value: featureId });
+            }}
           />
         </div>
       </main>
@@ -142,6 +172,9 @@ export default function App() {
         activeResult={inspectedResult}
         activeScene={inspectedScene}
         inspectedSceneKey={inspectedSceneKey}
+        activeFeatureId={activeFeatureId}
+        isFeaturePinned={Boolean(isFeaturePinned)}
+        onClearSelection={() => dispatch({ type: "clearSelectedFeature" })}
         onExport={handleExport}
         onCopyLink={handleCopyLink}
         message={message}

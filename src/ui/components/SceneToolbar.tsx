@@ -95,6 +95,9 @@ export function SceneToolbar({
       </div>
 
       <div className="scene-toolbar__group scene-toolbar__group--meta">
+        <span className="scene-toolbar__meta scene-toolbar__meta--hint">
+          Hover to inspect, click to pin
+        </span>
         <span className="scene-toolbar__meta">
           Auto spread base {suggestedVerticalScale.toFixed(1)}x
         </span>
