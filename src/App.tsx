@@ -5,6 +5,7 @@ import { ControlsPanel } from "./ui/components/ControlsPanel";
 import { RightPanel } from "./ui/components/RightPanel";
 import { SceneSvg } from "./ui/components/SceneSvg";
 import { SceneToolbar } from "./ui/components/SceneToolbar";
+import { TopNav } from "./ui/components/TopNav";
 import { downloadSvgAsPng } from "./ui/exportSvg";
 
 function getSceneFilename(viewMode: string): string {
@@ -111,74 +112,78 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className="app-frame">
       <div className="background-noise" />
-      <ControlsPanel
-        state={state}
-        dispatch={dispatch}
-        onExport={handleExport}
-        onCopyLink={handleCopyLink}
-      />
+      <TopNav />
 
-      <main className="center-panel">
-        <header className="hero-card">
-          <div>
-            <p className="hero-card__eyebrow">Simulation-first / comparison-first</p>
-            <h2>Observation Geometry Lab</h2>
-          </div>
-          <p className="hero-card__text">
-            Shared geometry and ray-path outputs drive both the diagram and the numeric
-            comparison layer, so every panel reflects the same underlying solve.
-          </p>
-        </header>
+      <div className="app-shell">
+        <ControlsPanel
+          state={state}
+          dispatch={dispatch}
+          onExport={handleExport}
+          onCopyLink={handleCopyLink}
+        />
 
-        <div className="scene-card panel" ref={sceneHostRef}>
-          <SceneToolbar
-            state={state}
-            dispatch={dispatch}
-            suggestedVerticalScale={suggestedVerticalScale}
-          />
-          <SceneSvg
-            scenes={scenes}
-            annotated={state.annotated}
-            showScaleGuides={state.showScaleGuides}
-            showTerrainOverlay={state.showTerrainOverlay}
-            activeFeatureId={activeFeatureId}
-            activeSceneKey={activeSceneKey}
-            hoveredFeatureId={state.hoveredFeatureId}
-            hoveredSceneKey={state.hoveredSceneKey}
-            selectedFeatureId={state.selectedFeatureId}
-            selectedSceneKey={state.selectedSceneKey}
-            framingMode={state.sceneViewport.framingMode}
-            zoom={state.sceneViewport.zoom}
-            verticalZoom={state.sceneViewport.verticalZoom}
-            onHoverFeature={(sceneKey, featureId) =>
-              dispatch({ type: "setHoveredFeature", sceneKey, value: featureId })
-            }
-            onSelectFeature={(sceneKey, featureId) => {
-              if (featureId == null || sceneKey == null) {
-                dispatch({ type: "clearSelectedFeature" });
-                return;
+        <main className="center-panel">
+          <header className="hero-card">
+            <div>
+              <p className="hero-card__eyebrow">Simulation-first / comparison-first</p>
+              <h2>Observation Geometry Lab</h2>
+            </div>
+            <p className="hero-card__text">
+              Shared geometry and ray-path outputs drive both the diagram and the numeric
+              comparison layer, so every panel reflects the same underlying solve.
+            </p>
+          </header>
+
+          <div className="scene-card panel" ref={sceneHostRef}>
+            <SceneToolbar
+              state={state}
+              dispatch={dispatch}
+              suggestedVerticalScale={suggestedVerticalScale}
+            />
+            <SceneSvg
+              scenes={scenes}
+              annotated={state.annotated}
+              showScaleGuides={state.showScaleGuides}
+              showTerrainOverlay={state.showTerrainOverlay}
+              activeFeatureId={activeFeatureId}
+              activeSceneKey={activeSceneKey}
+              hoveredFeatureId={state.hoveredFeatureId}
+              hoveredSceneKey={state.hoveredSceneKey}
+              selectedFeatureId={state.selectedFeatureId}
+              selectedSceneKey={state.selectedSceneKey}
+              framingMode={state.sceneViewport.framingMode}
+              zoom={state.sceneViewport.zoom}
+              verticalZoom={state.sceneViewport.verticalZoom}
+              onHoverFeature={(sceneKey, featureId) =>
+                dispatch({ type: "setHoveredFeature", sceneKey, value: featureId })
               }
+              onSelectFeature={(sceneKey, featureId) => {
+                if (featureId == null || sceneKey == null) {
+                  dispatch({ type: "clearSelectedFeature" });
+                  return;
+                }
 
-              dispatch({ type: "setSelectedFeature", sceneKey, value: featureId });
-            }}
-          />
-        </div>
-      </main>
+                dispatch({ type: "setSelectedFeature", sceneKey, value: featureId });
+              }}
+            />
+          </div>
+        </main>
 
-      <RightPanel
-        state={state}
-        activeResult={inspectedResult}
-        activeScene={inspectedScene}
-        inspectedSceneKey={inspectedSceneKey}
-        activeFeatureId={activeFeatureId}
-        isFeaturePinned={Boolean(isFeaturePinned)}
-        onClearSelection={() => dispatch({ type: "clearSelectedFeature" })}
-        onExport={handleExport}
-        onCopyLink={handleCopyLink}
-        message={message}
-      />
+        <RightPanel
+          state={state}
+          activeResult={inspectedResult}
+          activeScene={inspectedScene}
+          inspectedSceneKey={inspectedSceneKey}
+          activeFeatureId={activeFeatureId}
+          isFeaturePinned={Boolean(isFeaturePinned)}
+          onClearSelection={() => dispatch({ type: "clearSelectedFeature" })}
+          onExport={handleExport}
+          onCopyLink={handleCopyLink}
+          message={message}
+        />
+      </div>
     </div>
   );
 }

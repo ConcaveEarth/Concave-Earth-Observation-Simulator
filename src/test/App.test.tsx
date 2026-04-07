@@ -9,6 +9,8 @@ describe("App", () => {
     expect(
       screen.getByText("Comparison-first observation simulator"),
     ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Home" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /More CE/i })).toBeInTheDocument();
     expect(screen.getAllByText("Export PNG").length).toBeGreaterThan(0);
     expect(screen.getByText("Model Transparency")).toBeInTheDocument();
   });
