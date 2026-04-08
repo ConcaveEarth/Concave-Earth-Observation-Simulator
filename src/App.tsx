@@ -397,47 +397,93 @@ export default function App() {
                 className={
                   shouldShowLegendOverlay
                     ? stackedCompareView
-                      ? "scene-card__viewport scene-card__viewport--with-legend scene-card__viewport--stacked"
+                      ? "scene-card__viewport scene-card__viewport--with-legend scene-card__viewport--stacked-list"
                       : "scene-card__viewport scene-card__viewport--with-legend"
                     : stackedCompareView
-                      ? "scene-card__viewport scene-card__viewport--stacked"
+                      ? "scene-card__viewport scene-card__viewport--stacked-list"
                       : "scene-card__viewport"
                 }
               >
-                <div className="scene-card__canvas">
-                  <SceneSvg
-                    scenes={scenes}
-                    annotated={state.annotated}
-                    labelDensity={state.labelDensity}
-                    showScaleGuides={state.showScaleGuides}
-                    showTerrainOverlay={state.showTerrainOverlay}
-                    activeFeatureId={activeFeatureId}
-                    activeSceneKey={activeSceneKey}
-                    hoveredFeatureId={state.hoveredFeatureId}
-                    hoveredSceneKey={state.hoveredSceneKey}
-                    selectedFeatureId={state.selectedFeatureId}
-                    selectedSceneKey={state.selectedSceneKey}
-                    framingMode={state.sceneViewport.framingMode}
-                    scaleMode={state.sceneViewport.scaleMode}
-                    compareLayout={resolvedCompareLayout}
-                    zoom={state.sceneViewport.zoom}
-                    verticalZoom={state.sceneViewport.verticalZoom}
-                    panX={state.sceneViewport.panX}
-                    panY={state.sceneViewport.panY}
-                    unitPreferences={state.unitPreferences}
-                    language={state.language}
-                    onHoverFeature={handleSceneHoverFeature}
-                    onSelectFeature={handleSceneSelectFeature}
-                    onPanBy={(deltaX, deltaY) =>
-                      dispatch({ type: "panViewport", deltaX, deltaY })
-                    }
-                    onAdjustZoom={(delta) =>
-                      dispatch({ type: "adjustViewportZoom", delta })
-                    }
-                    onAdjustVerticalZoom={(delta) =>
-                      dispatch({ type: "adjustViewportVerticalZoom", delta })
-                    }
-                  />
+                <div
+                  className={
+                    stackedCompareView
+                      ? "scene-stack-list"
+                      : "scene-card__canvas"
+                  }
+                >
+                  {stackedCompareView ? (
+                    scenes.map((scene) => (
+                      <div key={scene.sceneKey} className="scene-stack-item">
+                        <SceneSvg
+                          scenes={[scene]}
+                          annotated={state.annotated}
+                          labelDensity={state.labelDensity}
+                          showScaleGuides={state.showScaleGuides}
+                          showTerrainOverlay={state.showTerrainOverlay}
+                          activeFeatureId={activeFeatureId}
+                          activeSceneKey={activeSceneKey}
+                          hoveredFeatureId={state.hoveredFeatureId}
+                          hoveredSceneKey={state.hoveredSceneKey}
+                          selectedFeatureId={state.selectedFeatureId}
+                          selectedSceneKey={state.selectedSceneKey}
+                          framingMode={state.sceneViewport.framingMode}
+                          scaleMode={state.sceneViewport.scaleMode}
+                          compareLayout="side-by-side"
+                          zoom={state.sceneViewport.zoom}
+                          verticalZoom={state.sceneViewport.verticalZoom}
+                          panX={state.sceneViewport.panX}
+                          panY={state.sceneViewport.panY}
+                          unitPreferences={state.unitPreferences}
+                          language={state.language}
+                          onHoverFeature={handleSceneHoverFeature}
+                          onSelectFeature={handleSceneSelectFeature}
+                          onPanBy={(deltaX, deltaY) =>
+                            dispatch({ type: "panViewport", deltaX, deltaY })
+                          }
+                          onAdjustZoom={(delta) =>
+                            dispatch({ type: "adjustViewportZoom", delta })
+                          }
+                          onAdjustVerticalZoom={(delta) =>
+                            dispatch({ type: "adjustViewportVerticalZoom", delta })
+                          }
+                        />
+                      </div>
+                    ))
+                  ) : (
+                    <SceneSvg
+                      scenes={scenes}
+                      annotated={state.annotated}
+                      labelDensity={state.labelDensity}
+                      showScaleGuides={state.showScaleGuides}
+                      showTerrainOverlay={state.showTerrainOverlay}
+                      activeFeatureId={activeFeatureId}
+                      activeSceneKey={activeSceneKey}
+                      hoveredFeatureId={state.hoveredFeatureId}
+                      hoveredSceneKey={state.hoveredSceneKey}
+                      selectedFeatureId={state.selectedFeatureId}
+                      selectedSceneKey={state.selectedSceneKey}
+                      framingMode={state.sceneViewport.framingMode}
+                      scaleMode={state.sceneViewport.scaleMode}
+                      compareLayout={resolvedCompareLayout}
+                      zoom={state.sceneViewport.zoom}
+                      verticalZoom={state.sceneViewport.verticalZoom}
+                      panX={state.sceneViewport.panX}
+                      panY={state.sceneViewport.panY}
+                      unitPreferences={state.unitPreferences}
+                      language={state.language}
+                      onHoverFeature={handleSceneHoverFeature}
+                      onSelectFeature={handleSceneSelectFeature}
+                      onPanBy={(deltaX, deltaY) =>
+                        dispatch({ type: "panViewport", deltaX, deltaY })
+                      }
+                      onAdjustZoom={(delta) =>
+                        dispatch({ type: "adjustViewportZoom", delta })
+                      }
+                      onAdjustVerticalZoom={(delta) =>
+                        dispatch({ type: "adjustViewportVerticalZoom", delta })
+                      }
+                    />
+                  )}
                 </div>
                 <SceneLegendOverlay
                   annotations={inspectedScene.annotations}
@@ -456,17 +502,36 @@ export default function App() {
               <div
                 className={
                   stackedCompareView
-                    ? "scene-card__viewport scene-card__viewport--analysis scene-card__viewport--stacked"
+                    ? "scene-card__viewport scene-card__viewport--analysis scene-card__viewport--stacked-list"
                     : "scene-card__viewport scene-card__viewport--analysis"
                 }
               >
-                <div className="scene-card__canvas">
-                  <RayBundleView
-                    panels={bundlePanels}
-                    compareLayout={resolvedCompareLayout}
-                    unitPreferences={state.unitPreferences}
-                    showScaleGuides={state.showScaleGuides}
-                  />
+                <div
+                  className={
+                    stackedCompareView
+                      ? "scene-stack-list"
+                      : "scene-card__canvas"
+                  }
+                >
+                  {stackedCompareView ? (
+                    bundlePanels.map((panel) => (
+                      <div key={panel.sceneKey} className="scene-stack-item scene-stack-item--analysis">
+                        <RayBundleView
+                          panels={[panel]}
+                          compareLayout="side-by-side"
+                          unitPreferences={state.unitPreferences}
+                          showScaleGuides={state.showScaleGuides}
+                        />
+                      </div>
+                    ))
+                  ) : (
+                    <RayBundleView
+                      panels={bundlePanels}
+                      compareLayout={resolvedCompareLayout}
+                      unitPreferences={state.unitPreferences}
+                      showScaleGuides={state.showScaleGuides}
+                    />
+                  )}
                 </div>
               </div>
             ) : (

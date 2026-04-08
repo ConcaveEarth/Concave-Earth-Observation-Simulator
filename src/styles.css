@@ -814,6 +814,12 @@ select {
   scrollbar-gutter: stable both-edges;
 }
 
+.scene-card__viewport--stacked-list {
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable both-edges;
+}
+
 .analysis-tabs {
   display: inline-flex;
   flex-wrap: wrap;
@@ -859,6 +865,25 @@ select {
   display: flex;
 }
 
+.scene-stack-list {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  align-content: start;
+}
+
+.scene-stack-item {
+  min-width: 0;
+  min-height: clamp(420px, 48vh, 820px);
+  display: flex;
+}
+
+.scene-stack-item--analysis {
+  min-height: clamp(420px, 52vh, 900px);
+}
+
 .app-shell--fullwidth-scene .scene-card__viewport,
 .app-shell--fullwidth-scene .scene-svg {
   min-height: min(82vh, 1040px);
@@ -869,7 +894,7 @@ select {
   min-height: min(92vh, 1320px);
 }
 
-.app-shell--fullwidth-scene .scene-card__viewport--stacked {
+.app-shell--fullwidth-scene .scene-card__viewport--stacked-list {
   min-height: min(110vh, 1780px);
 }
 
@@ -1289,6 +1314,11 @@ select {
 
   .scene-svg {
     height: 58vh;
+    min-height: 360px;
+  }
+
+  .scene-stack-item,
+  .scene-stack-item--analysis {
     min-height: 360px;
   }
 
