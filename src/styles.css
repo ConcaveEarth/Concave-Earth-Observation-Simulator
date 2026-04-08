@@ -364,6 +364,80 @@ select {
   order: 6;
 }
 
+.app-frame--adaptive-viewport {
+  min-height: 100vh;
+  height: auto;
+}
+
+.app-frame--adaptive-viewport .app-shell {
+  min-height: auto;
+}
+
+.app-shell--adaptive-viewport {
+  grid-template-rows: auto auto;
+}
+
+.app-shell--adaptive-viewport .left-panel,
+.app-shell--adaptive-viewport .center-panel,
+.app-shell--adaptive-viewport .right-panel {
+  overflow: visible;
+}
+
+.app-shell--adaptive-viewport .right-panel {
+  max-height: none;
+}
+
+.app-shell--adaptive-viewport .scene-card__viewport {
+  overflow: auto;
+}
+
+.app-shell--adaptive-viewport .scene-card__viewport--analysis {
+  min-height: clamp(500px, 68vh, 980px);
+}
+
+.app-shell--adaptive-viewport .scene-card__viewport--stacked-list {
+  min-height: clamp(920px, 132vh, 1800px);
+}
+
+.app-shell--adaptive-viewport .scene-card__viewport--with-legend {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.app-shell--adaptive-viewport .scene-legend-overlay {
+  max-height: none;
+}
+
+.app-shell--adaptive-viewport .scene-card__canvas,
+.app-shell--adaptive-viewport .scene-stack-list {
+  min-height: 0;
+}
+
+.app-shell--adaptive-viewport .scene-stack-item {
+  height: clamp(440px, 54vh, 760px);
+}
+
+.app-shell--adaptive-viewport .scene-stack-item--analysis {
+  height: clamp(460px, 58vh, 820px);
+}
+
+.app-shell--adaptive-viewport .scene-svg {
+  min-height: clamp(500px, 68vh, 980px);
+}
+
+.app-shell--adaptive-viewport .scene-card--ray-bundle .scene-card__viewport,
+.app-shell--adaptive-viewport .scene-card--ray-bundle .scene-svg,
+.app-shell--adaptive-viewport .scene-card--profile-visibility .scene-card__viewport,
+.app-shell--adaptive-viewport .scene-card--profile-visibility .scene-svg,
+.app-shell--adaptive-viewport .scene-card--observer-view .scene-card__viewport,
+.app-shell--adaptive-viewport .scene-card--observer-view .scene-svg {
+  min-height: clamp(540px, 74vh, 1060px);
+}
+
+.app-shell--adaptive-viewport .scene-card--sweep .scene-card__viewport,
+.app-shell--adaptive-viewport .scene-card--sweep .scene-svg {
+  min-height: clamp(520px, 70vh, 960px);
+}
+
 .panel__intro,
 .hero-card {
   padding: 22px 24px;
@@ -1291,6 +1365,22 @@ select {
   .hero-card {
     flex-direction: column;
     align-items: flex-start;
+  }
+}
+
+@media (max-height: 1100px) {
+  body {
+    overflow: auto;
+  }
+
+  #root {
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .app-frame {
+    height: auto;
+    min-height: 100vh;
   }
 }
 

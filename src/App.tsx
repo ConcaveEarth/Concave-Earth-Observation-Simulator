@@ -41,6 +41,7 @@ export default function App() {
   const [isSceneFullscreen, setIsSceneFullscreen] = useState(false);
   const [showLegendOverlay, setShowLegendOverlay] = useState(true);
   const [windowWidth, setWindowWidth] = useState(() => window.innerWidth);
+  const [windowHeight, setWindowHeight] = useState(() => window.innerHeight);
 
   useEffect(() => {
     const search = serializeStateToSearch(state);
@@ -67,6 +68,7 @@ export default function App() {
   useEffect(() => {
     function handleResize() {
       setWindowWidth(window.innerWidth);
+      setWindowHeight(window.innerHeight);
     }
 
     window.addEventListener("resize", handleResize);
@@ -258,11 +260,36 @@ export default function App() {
       : state.sceneViewport.compareLayout;
   const stackedCompareView =
     state.viewMode === "compare" && resolvedCompareLayout === "stacked";
+  const adaptiveViewportMode =
+    state.workspaceMode === "professional" &&
+    (windowWidth < 1680 || windowHeight < 1100);
   const shouldShowLegendOverlay =
     deferredState.analysisTab === "cross-section" &&
     state.workspaceMode === "professional" &&
     useSceneFirstLayout &&
     showLegendOverlay;
+
+  useEffect(() => {
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousRootHeight = document.documentElement.style.height;
+    const previousBodyHeight = document.body.style.height;
+
+    if (adaptiveViewportMode) {
+      document.documentElement.style.height = "auto";
+      document.body.style.height = "auto";
+      document.body.style.overflow = "auto";
+    } else {
+      document.documentElement.style.height = "";
+      document.body.style.height = "";
+      document.body.style.overflow = "";
+    }
+
+    return () => {
+      document.documentElement.style.height = previousRootHeight;
+      document.body.style.height = previousBodyHeight;
+      document.body.style.overflow = previousBodyOverflow;
+    };
+  }, [adaptiveViewportMode]);
 
   async function handleExport() {
     const svg = sceneHostRef.current?.querySelector("svg");
@@ -352,7 +379,9 @@ export default function App() {
 
   return (
     <div
-      className={`app-frame theme-${state.theme} workspace-${state.workspaceMode}`}
+      className={`app-frame theme-${state.theme} workspace-${state.workspaceMode}${
+        adaptiveViewportMode ? " app-frame--adaptive-viewport" : ""
+      }`}
     >
       <div className="background-noise" />
       <TopNav
@@ -368,7 +397,11 @@ export default function App() {
 
       <div
         className={
-          useSceneFirstLayout ? "app-shell app-shell--fullwidth-scene" : "app-shell"
+          useSceneFirstLayout
+            ? `app-shell app-shell--fullwidth-scene${
+                adaptiveViewportMode ? " app-shell--adaptive-viewport" : ""
+              }`
+            : "app-shell"
         }
       >
         <ControlsPanel
