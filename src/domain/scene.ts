@@ -475,10 +475,10 @@ function createFocusBounds(result: VisibilitySolveResult, points: Vec2[]): Scene
   return collectBounds(filtered.length ? filtered : points, {
     xPaddingFactor: 0.1,
     minXPad: Math.max(1_100, result.scenario.surfaceDistanceM * 0.016),
-    topPaddingFactor: 0.2,
-    bottomPaddingFactor: 0.32,
-    minTopPad: Math.max(260, result.scenario.targetHeightM * 0.18),
-    minBottomPad: Math.max(320, result.scenario.targetHeightM * 0.28),
+    topPaddingFactor: 0.24,
+    bottomPaddingFactor: 0.24,
+    minTopPad: Math.max(260, result.scenario.targetHeightM * 0.22),
+    minBottomPad: Math.max(260, result.scenario.targetHeightM * 0.22),
   });
 }
 

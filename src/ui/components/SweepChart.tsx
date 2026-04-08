@@ -12,6 +12,7 @@ import type { UnitPreferences } from "../../domain/units";
 interface SweepChartProps {
   data: SweepChartData;
   units: UnitPreferences;
+  fitContentHeight: boolean;
   zoom: number;
   verticalZoom: number;
   panX: number;
@@ -81,6 +82,7 @@ function niceScaleStep(value: number): number {
 export function SweepChart({
   data,
   units,
+  fitContentHeight,
   zoom,
   verticalZoom,
   panX,
@@ -216,7 +218,7 @@ export function SweepChart({
       return;
     }
 
-    if (event.ctrlKey || event.metaKey) {
+    if (fitContentHeight || event.ctrlKey || event.metaKey) {
       event.preventDefault();
       onAdjustZoom(delta);
     }

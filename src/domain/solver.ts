@@ -240,56 +240,65 @@ function solveOpticalHorizon(
     );
   }
 
-  const minLaunch = -0.4;
-  const maxLaunch = 0.18;
   const attempts = 72;
-  let best: { result: HorizonResult; forwardX: number } | null = null;
+  const maxArcLengthM = getDefaultMaxArcLengthM(scenario);
+  const stepM = getDefaultStepM(scenario);
 
-  for (let index = 0; index < attempts; index += 1) {
-    const launchAngleRad = lerp(minLaunch, maxLaunch, index / (attempts - 1));
-    const trace = traceRay({
-      scenario,
-      model,
-      launchAngleRad,
-      targetAngleRad: null,
-      maxArcLengthM: getDefaultMaxArcLengthM(scenario),
-      stepM: getDefaultStepM(scenario),
-    });
+  function searchRange(minLaunch: number, maxLaunch: number) {
+    let best: { result: HorizonResult; forwardX: number } | null = null;
 
-    if (!trace.firstSurfaceIntersection) {
-      continue;
+    for (let index = 0; index < attempts; index += 1) {
+      const launchAngleRad = lerp(minLaunch, maxLaunch, index / (attempts - 1));
+      const trace = traceRay({
+        scenario,
+        model,
+        launchAngleRad,
+        targetAngleRad: null,
+        maxArcLengthM,
+        stepM,
+      });
+
+      if (!trace.firstSurfaceIntersection) {
+        continue;
+      }
+
+      const localIntersection = toObserverFrame(
+        trace.firstSurfaceIntersection,
+        observerPoint,
+        observerTangent,
+        observerUp,
+      );
+
+      if (localIntersection.x <= 0) {
+        continue;
+      }
+
+      const result: HorizonResult = {
+        point: trace.firstSurfaceIntersection,
+        surfaceAngleRad: Math.atan2(
+          trace.firstSurfaceIntersection.y,
+          trace.firstSurfaceIntersection.x,
+        ),
+        trace,
+        distanceM:
+          scenario.radiusM *
+          Math.atan2(trace.firstSurfaceIntersection.y, trace.firstSurfaceIntersection.x),
+        apparentElevationRad: Math.min(launchAngleRad, 0),
+      };
+
+      if (!best || localIntersection.x > best.forwardX) {
+        best = { result, forwardX: localIntersection.x };
+      }
     }
 
-    const localIntersection = toObserverFrame(
-      trace.firstSurfaceIntersection,
-      observerPoint,
-      observerTangent,
-      observerUp,
-    );
-
-    if (localIntersection.x <= 0) {
-      continue;
-    }
-
-    const result: HorizonResult = {
-      point: trace.firstSurfaceIntersection,
-      surfaceAngleRad: Math.atan2(
-        trace.firstSurfaceIntersection.y,
-        trace.firstSurfaceIntersection.x,
-      ),
-      trace,
-      distanceM:
-        scenario.radiusM *
-        Math.atan2(trace.firstSurfaceIntersection.y, trace.firstSurfaceIntersection.x),
-      apparentElevationRad: launchAngleRad,
-    };
-
-    if (!best || localIntersection.x > best.forwardX) {
-      best = { result, forwardX: localIntersection.x };
-    }
+    return best;
   }
 
-  return best?.result ?? null;
+  return (
+    searchRange(-0.48, 0)?.result ??
+    searchRange(-0.48, 0.12)?.result ??
+    null
+  );
 }
 
 export function solveVisibility(

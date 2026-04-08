@@ -1,7 +1,7 @@
 import { useMemo, useRef } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from "react";
 import type { SceneLine, SceneSegment, SceneViewModel, Vec2 } from "../../domain/types";
-import { formatDistance } from "../../domain/units";
+import { clamp, formatDistance } from "../../domain/units";
 import type { UnitPreferences } from "../../domain/units";
 import { t, type LanguageMode } from "../../i18n";
 import type {
@@ -26,6 +26,7 @@ interface SceneSvgProps {
   framingMode: SceneFramingMode;
   scaleMode: SceneScaleMode;
   compareLayout: Exclude<CompareLayoutMode, "auto">;
+  fitContentHeight: boolean;
   zoom: number;
   verticalZoom: number;
   panX: number;
@@ -83,9 +84,9 @@ function createProjector(
   panX: number,
   panY: number,
 ): Projection {
-  const paddingX = 20;
-  const paddingTop = 80;
-  const paddingBottom = 84;
+  const paddingX = clamp(panel.width * 0.024, 18, 40);
+  const paddingTop = clamp(panel.height * 0.12, 58, 100);
+  const paddingBottom = clamp(panel.height * 0.14, 72, 132);
   const availableWidth = panel.width - paddingX * 2;
   const availableHeight = panel.height - paddingTop - paddingBottom;
   const spanX = Math.max(bounds.maxX - bounds.minX, 1);
@@ -489,6 +490,7 @@ export function SceneSvg({
   framingMode,
   scaleMode,
   compareLayout,
+  fitContentHeight,
   zoom,
   verticalZoom,
   panX,
@@ -682,7 +684,7 @@ export function SceneSvg({
       return;
     }
 
-    if (event.ctrlKey || event.metaKey) {
+    if (fitContentHeight || event.ctrlKey || event.metaKey) {
       event.preventDefault();
       onAdjustZoom(delta);
     }

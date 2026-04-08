@@ -508,6 +508,7 @@ export default function App() {
                           framingMode={state.sceneViewport.framingMode}
                           scaleMode={state.sceneViewport.scaleMode}
                           compareLayout="side-by-side"
+                          fitContentHeight={state.fitContentHeight}
                           zoom={state.sceneViewport.zoom}
                           verticalZoom={state.sceneViewport.verticalZoom}
                           panX={state.sceneViewport.panX}
@@ -544,6 +545,7 @@ export default function App() {
                       framingMode={state.sceneViewport.framingMode}
                       scaleMode={state.sceneViewport.scaleMode}
                       compareLayout={resolvedCompareLayout}
+                      fitContentHeight={state.fitContentHeight}
                       zoom={state.sceneViewport.zoom}
                       verticalZoom={state.sceneViewport.verticalZoom}
                       panX={state.sceneViewport.panX}
@@ -600,6 +602,7 @@ export default function App() {
                           compareLayout="side-by-side"
                           unitPreferences={state.unitPreferences}
                           showScaleGuides={state.showScaleGuides}
+                          fitContentHeight={state.fitContentHeight}
                           zoom={state.sceneViewport.zoom}
                           verticalZoom={state.sceneViewport.verticalZoom}
                           panX={state.sceneViewport.panX}
@@ -622,6 +625,7 @@ export default function App() {
                       compareLayout={resolvedCompareLayout}
                       unitPreferences={state.unitPreferences}
                       showScaleGuides={state.showScaleGuides}
+                      fitContentHeight={state.fitContentHeight}
                       zoom={state.sceneViewport.zoom}
                       verticalZoom={state.sceneViewport.verticalZoom}
                       panX={state.sceneViewport.panX}
@@ -645,6 +649,7 @@ export default function App() {
                   <SweepChart
                     data={sweepData}
                     units={state.unitPreferences}
+                    fitContentHeight={state.fitContentHeight}
                     zoom={state.sceneViewport.zoom}
                     verticalZoom={state.sceneViewport.verticalZoom}
                     panX={state.sceneViewport.panX}

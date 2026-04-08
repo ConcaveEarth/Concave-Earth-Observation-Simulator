@@ -134,4 +134,11 @@ describe("visibility solver", () => {
       upwardResult.opticalHorizon!.distanceM,
     );
   });
+
+  it("keeps the concave apparent horizon direction non-positive for the default low-horizon case", () => {
+    const result = solveVisibility(defaultScenario, defaultComparisonModel);
+
+    expect(result.opticalHorizon).not.toBeNull();
+    expect(result.opticalHorizon!.apparentElevationRad).toBeLessThanOrEqual(0);
+  });
 });

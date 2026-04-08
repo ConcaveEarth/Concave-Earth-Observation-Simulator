@@ -10,6 +10,7 @@ interface RayBundleViewProps {
   compareLayout: Exclude<CompareLayoutMode, "auto">;
   unitPreferences: UnitPreferences;
   showScaleGuides: boolean;
+  fitContentHeight: boolean;
   zoom: number;
   verticalZoom: number;
   panX: number;
@@ -44,9 +45,9 @@ function createProjector(
   panX: number,
   panY: number,
 ) {
-  const paddingX = 28;
-  const paddingTop = 72;
-  const paddingBottom = 168;
+  const paddingX = Math.min(Math.max(panel.width * 0.024, 24), 42);
+  const paddingTop = Math.min(Math.max(panel.height * 0.11, 62), 96);
+  const paddingBottom = Math.min(Math.max(panel.height * 0.16, 110), 184);
   const availableWidth = panel.width - paddingX * 2;
   const availableHeight = panel.height - paddingTop - paddingBottom;
   const spanX = Math.max(bounds.maxX - bounds.minX, 1);
@@ -153,6 +154,7 @@ export function RayBundleView({
   compareLayout,
   unitPreferences,
   showScaleGuides,
+  fitContentHeight,
   zoom,
   verticalZoom,
   panX,
@@ -311,7 +313,7 @@ export function RayBundleView({
       return;
     }
 
-    if (event.ctrlKey || event.metaKey) {
+    if (fitContentHeight || event.ctrlKey || event.metaKey) {
       event.preventDefault();
       onAdjustZoom(delta);
     }
