@@ -127,6 +127,7 @@ export default function App() {
         focusedModel: deferredState.focusedModel,
         compareMode: deferredState.viewMode === "compare",
         config: deferredState.sweepConfig,
+        language: deferredState.language,
       }),
     [
       deferredState.scenario,
@@ -135,6 +136,7 @@ export default function App() {
       deferredState.focusedModel,
       deferredState.viewMode,
       deferredState.sweepConfig,
+      deferredState.language,
     ],
   );
 

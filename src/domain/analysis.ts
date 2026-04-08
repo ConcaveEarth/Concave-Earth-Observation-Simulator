@@ -9,6 +9,7 @@ import { solveVisibility } from "./solver";
 import { clamp, formatAngle, formatDistance, formatFraction, formatHeight, lerp } from "./units";
 import type { FocusedModel, ModelConfig, ScenarioInput, VisibilitySolveResult, Vec2 } from "./types";
 import type { UnitPreferences } from "./units";
+import { getModelLabel, type LanguageMode } from "../i18n";
 
 export type AnalysisTab = "cross-section" | "ray-bundle" | "sweep";
 export type SweepParameter =
@@ -315,28 +316,32 @@ export function buildSweepChartData(args: {
   focusedModel: FocusedModel;
   compareMode: boolean;
   config: SweepConfig;
+  language?: LanguageMode;
 }): SweepChartData {
   const baseRange = getSweepRange(args.scenario, args.config, args.primaryModel);
+  const language = args.language ?? "en";
   const targets = args.compareMode
     ? ([
         {
           id: "primary" as const,
-          label: args.primaryModel.label,
+          label: getModelLabel(language, args.primaryModel),
           model: args.primaryModel,
         },
         {
           id: "comparison" as const,
-          label: args.comparisonModel.label,
+          label: getModelLabel(language, args.comparisonModel),
           model: args.comparisonModel,
         },
       ] as const)
     : ([
         {
           id: args.focusedModel,
-          label:
+          label: getModelLabel(
+            language,
             args.focusedModel === "primary"
-              ? args.primaryModel.label
-              : args.comparisonModel.label,
+              ? args.primaryModel
+              : args.comparisonModel,
+          ),
           model:
             args.focusedModel === "primary"
               ? args.primaryModel

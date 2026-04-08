@@ -54,7 +54,7 @@ interface PanelRect {
 
 const SINGLE_SVG_WIDTH = 1820;
 const COMPARE_SVG_WIDTH = 2360;
-const SVG_HEIGHT = 900;
+const SVG_HEIGHT = 980;
 const STACKED_SVG_WIDTH = 1820;
 const textHalo = {
   stroke: "rgba(5, 12, 18, 0.96)",
@@ -84,8 +84,8 @@ function createProjector(
   panY: number,
 ): Projection {
   const paddingX = 20;
-  const paddingTop = 88;
-  const paddingBottom = 36;
+  const paddingTop = 80;
+  const paddingBottom = 84;
   const availableWidth = panel.width - paddingX * 2;
   const availableHeight = panel.height - paddingTop - paddingBottom;
   const spanX = Math.max(bounds.maxX - bounds.minX, 1);
@@ -515,7 +515,7 @@ export function SceneSvg({
       ? STACKED_SVG_WIDTH
       : COMPARE_SVG_WIDTH
     : SINGLE_SVG_WIDTH;
-  const svgHeight = isStacked ? 1320 : SVG_HEIGHT;
+  const svgHeight = isStacked ? 1560 : SVG_HEIGHT;
   const markerFontSize = expandedLabels ? 16 : isCompare ? 13 : 16;
   const titleFontSize = expandedLabels ? 22 : isCompare ? 20 : 22;
   const subtitleFontSize = expandedLabels ? 15 : isCompare ? 13 : 15;

@@ -13,7 +13,7 @@ interface SweepChartProps {
 }
 
 const SVG_WIDTH = 1880;
-const SVG_HEIGHT = 920;
+const SVG_HEIGHT = 1040;
 
 function getParameterLabel(parameter: SweepParameter) {
   switch (parameter) {
@@ -72,8 +72,8 @@ function niceScaleStep(value: number): number {
 export function SweepChart({ data, units }: SweepChartProps) {
   const paddingLeft = 94;
   const paddingRight = 42;
-  const paddingTop = 74;
-  const paddingBottom = 82;
+  const paddingTop = 82;
+  const paddingBottom = 118;
   const plotWidth = SVG_WIDTH - paddingLeft - paddingRight;
   const plotHeight = SVG_HEIGHT - paddingTop - paddingBottom;
   const xMin = data.range.min;

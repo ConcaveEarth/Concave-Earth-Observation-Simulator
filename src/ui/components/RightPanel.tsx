@@ -89,6 +89,7 @@ function getFeatureMetrics(
   activeScene: SceneViewModel,
   state: AppState,
   featureId: string | null,
+  language: LanguageMode,
 ): { title: string; description: string; metrics: FeatureMetric[] } {
   const units = state.unitPreferences;
   const targetBaseLocal = getLocalPoint(result, result.targetBasePoint);
@@ -451,7 +452,7 @@ function getFeatureMetrics(
               (result.apparentElevationRad ?? 0) - result.actualElevationRad,
             ),
           },
-          { label: "Model", value: result.model.label },
+          { label: "Model", value: getModelLabel(language, result.model) },
           {
             label: "Reference role",
             value: "Straight apparent direction seen at the observer",
@@ -527,11 +528,11 @@ function getFeatureMetrics(
       };
     default:
       return {
-        title: result.model.label,
+        title: getModelLabel(language, result.model),
         description:
           "Hover a line, curve, or construction in the scene to inspect its angular and geodetic values here.",
         metrics: [
-          { label: "Scene", value: result.model.label },
+          { label: "Scene", value: getModelLabel(language, result.model) },
           {
             label: "Surface distance",
             value: formatDistance(result.scenario.surfaceDistanceM, units.distance),
@@ -599,6 +600,7 @@ export function RightPanel({
     activeScene,
     state,
     activeFeatureId,
+    language,
   );
 
   return (
@@ -662,10 +664,12 @@ export function RightPanel({
             <strong>Model:</strong> {getModelLabel(language, activeResult.model)}
           </p>
           <p>
-            <strong>Atmosphere:</strong> {activeResult.model.atmosphere.mode}
+            <strong>{t(language, "atmosphericRefraction")}:</strong>{" "}
             {activeResult.model.atmosphere.mode === "simpleCoefficient"
-              ? ` (k = ${activeResult.model.atmosphere.coefficient.toFixed(2)})`
-              : ""}
+              ? t(language, "atmosphericRefractionWithK", {
+                  value: activeResult.model.atmosphere.coefficient.toFixed(2),
+                })
+              : t(language, "none")}
           </p>
           <p>
             <strong>Curvature law:</strong>{" "}

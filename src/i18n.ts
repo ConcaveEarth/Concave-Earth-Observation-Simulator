@@ -93,6 +93,9 @@ const en: TranslationDictionary = {
   none: "None",
   customConstant: "Custom constant",
   atmosphere: "Atmosphere",
+  atmosphericRefraction: "Atmospheric Refraction",
+  atmosphericRefractionWithK: "Atmospheric Refraction (k = {value})",
+  intrinsicShort: "Intrinsic",
   simpleCoefficient: "Simple coefficient",
   atmosphericCoefficient: "Atmospheric coefficient",
   atmosphereHint:
@@ -741,26 +744,29 @@ export function getPresetDescription(
 }
 
 export function getModelLabel(language: LanguageMode, model: ModelConfig): string {
+  const atmosphereLabel =
+    model.atmosphere.mode === "simpleCoefficient"
+      ? t(language, "atmosphericRefractionWithK", {
+          value: model.atmosphere.coefficient.toFixed(2),
+        })
+      : null;
+
   if (model.geometryMode === "convex") {
-    return model.atmosphere.mode === "simpleCoefficient"
-      ? t(language, "modelConvexSphereAtmosphere")
-      : t(language, "modelConvexSphere");
+    return atmosphereLabel
+      ? `${t(language, "convexSphere")} + ${atmosphereLabel}`
+      : t(language, "convexSphere");
   }
 
   const hasIntrinsic = model.intrinsicCurvatureMode !== "none";
-  const hasAtmosphere = model.atmosphere.mode === "simpleCoefficient";
-
-  if (hasIntrinsic && hasAtmosphere) {
-    return t(language, "modelConcaveShellIntrinsicAtmosphere");
-  }
+  const parts = [t(language, "concaveShell")];
 
   if (hasIntrinsic) {
-    return t(language, "modelConcaveShellIntrinsic");
+    parts.push(t(language, "intrinsicShort"));
   }
 
-  if (hasAtmosphere) {
-    return t(language, "modelConcaveShellAtmosphere");
+  if (atmosphereLabel) {
+    parts.push(atmosphereLabel);
   }
 
-  return t(language, "modelConcaveShell");
+  return parts.join(" + ");
 }
