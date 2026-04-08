@@ -11,6 +11,7 @@ export function AnalysisTabs({ value, onChange, language }: AnalysisTabsProps) {
   const tabOptions: Array<{ value: AnalysisTab; label: string }> = [
     { value: "cross-section", label: t(language, "crossSection") },
     { value: "ray-bundle", label: t(language, "rayBundle") },
+    { value: "observer-view", label: t(language, "observerView") },
     { value: "profile-visibility", label: t(language, "profileVisibility") },
     { value: "sweep", label: t(language, "sweep") },
   ];

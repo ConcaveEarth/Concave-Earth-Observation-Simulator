@@ -17,10 +17,11 @@ comparison-first observation lab milestone:
   switching
 - Interactive legend, feature inspection, fullscreen scene workspace, and
   solver-backed terrain/profile overlays
+- Observer-eye reconstruction tab that converts solved apparent elevations into
+  a perceptual horizon-and-silhouette view
 
 This milestone is the baseline we can safely build on before deeper analytical
-features such as observer-eye reconstruction, terrain-aware obstruction, and
-map workflows.
+features such as full terrain-aware obstruction and map workflows.
 
 ## Included Now
 
@@ -33,6 +34,8 @@ map workflows.
 - Ray Bundle analysis view driven by sampled target-point visibility solutions
 - Profile Visibility analysis view that samples terrain/profile silhouettes through
   the shared solver instead of treating them as pure decoration
+- Observer View analysis tab that reconstructs the apparent horizon and visible
+  silhouette from solved sample elevations
 - Sweep analysis view for parameter-vs-output comparison curves
 - URL-serializable state plus PNG export
 - Domain, state, and UI separation with Vitest coverage
@@ -44,7 +47,7 @@ map workflows.
 - Expand sweep metrics and scenario controls
 - Deepen terrain/profile obstruction from profile-sampled solver participation into
   more complete obstruction handling along the path
-- Add observer-eye reconstruction and later sky-wrap / celestial views
+- Refine observer-eye reconstruction and later add sky-wrap / celestial views
 
 ## Scripts
 

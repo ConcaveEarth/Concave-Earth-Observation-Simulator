@@ -1,5 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import {
+  buildObserverViewPanelData,
   buildProfileVisibilityPanelData,
   buildRayBundlePanelData,
   buildSceneViewModel,
@@ -10,6 +11,7 @@ import {
 import { hydrateStateFromSearch, appReducer, serializeStateToSearch } from "./state/appState";
 import { AnalysisTabs } from "./ui/components/AnalysisTabs";
 import { ControlsPanel } from "./ui/components/ControlsPanel";
+import { ObserverView } from "./ui/components/ObserverView";
 import { PresentationToolbar } from "./ui/components/PresentationToolbar";
 import { ProfileVisibilityView } from "./ui/components/ProfileVisibilityView";
 import { RayBundleView } from "./ui/components/RayBundleView";
@@ -138,6 +140,24 @@ export default function App() {
       ),
     [comparisonResult, deferredState.language],
   );
+  const primaryObserverView = useMemo(
+    () =>
+      buildObserverViewPanelData(
+        primaryResult,
+        t(deferredState.language, "primaryModelTitle"),
+        "primary",
+      ),
+    [primaryResult, deferredState.language],
+  );
+  const comparisonObserverView = useMemo(
+    () =>
+      buildObserverViewPanelData(
+        comparisonResult,
+        t(deferredState.language, "comparisonModelTitle"),
+        "comparison",
+      ),
+    [comparisonResult, deferredState.language],
+  );
   const sweepData = useMemo(
     () =>
       buildSweepChartData({
@@ -175,6 +195,14 @@ export default function App() {
           deferredState.focusedModel === "primary"
             ? primaryProfileVisibility
             : comparisonProfileVisibility,
+        ];
+  const observerPanels =
+    deferredState.viewMode === "compare"
+      ? [primaryObserverView, comparisonObserverView]
+      : [
+          deferredState.focusedModel === "primary"
+            ? primaryObserverView
+            : comparisonObserverView,
         ];
 
   const visibleSceneKeys = new Set(scenes.map((scene) => scene.sceneKey));
@@ -401,6 +429,8 @@ export default function App() {
                       <span className="scene-toolbar__meta scene-toolbar__meta--hint">
                         {state.analysisTab === "ray-bundle"
                           ? t(state.language, "rayBundleIntro")
+                          : state.analysisTab === "observer-view"
+                            ? t(state.language, "observerViewIntro")
                           : state.analysisTab === "profile-visibility"
                             ? t(state.language, "profileVisibilityIntro")
                           : `${t(state.language, "sweepIntro")} ${formatSweepParameterValue(
@@ -659,6 +689,72 @@ export default function App() {
                       compareLayout={resolvedCompareLayout}
                       unitPreferences={state.unitPreferences}
                       showScaleGuides={state.showScaleGuides}
+                      fitContentHeight={state.fitContentHeight}
+                      zoom={state.sceneViewport.zoom}
+                      verticalZoom={state.sceneViewport.verticalZoom}
+                      panX={state.sceneViewport.panX}
+                      panY={state.sceneViewport.panY}
+                      onPanBy={(deltaX, deltaY) =>
+                        dispatch({ type: "panViewport", deltaX, deltaY })
+                      }
+                      onAdjustZoom={(delta) =>
+                        dispatch({ type: "adjustViewportZoom", delta })
+                      }
+                      onAdjustVerticalZoom={(delta) =>
+                        dispatch({ type: "adjustViewportVerticalZoom", delta })
+                      }
+                    />
+                  )}
+                </div>
+              </div>
+            ) : state.analysisTab === "observer-view" ? (
+              <div
+                className={
+                  stackedCompareView
+                    ? "scene-card__viewport scene-card__viewport--analysis scene-card__viewport--stacked-list"
+                    : "scene-card__viewport scene-card__viewport--analysis"
+                }
+              >
+                <div
+                  className={
+                    stackedCompareView
+                      ? "scene-stack-list"
+                      : "scene-card__canvas"
+                  }
+                >
+                  {stackedCompareView ? (
+                    observerPanels.map((panel) => (
+                      <div key={panel.sceneKey} className="scene-stack-item scene-stack-item--analysis">
+                        <ObserverView
+                          panels={[panel]}
+                          compareLayout="side-by-side"
+                          unitPreferences={state.unitPreferences}
+                          showScaleGuides={state.showScaleGuides}
+                          annotated={state.annotated}
+                          fitContentHeight={state.fitContentHeight}
+                          zoom={state.sceneViewport.zoom}
+                          verticalZoom={state.sceneViewport.verticalZoom}
+                          panX={state.sceneViewport.panX}
+                          panY={state.sceneViewport.panY}
+                          onPanBy={(deltaX, deltaY) =>
+                            dispatch({ type: "panViewport", deltaX, deltaY })
+                          }
+                          onAdjustZoom={(delta) =>
+                            dispatch({ type: "adjustViewportZoom", delta })
+                          }
+                          onAdjustVerticalZoom={(delta) =>
+                            dispatch({ type: "adjustViewportVerticalZoom", delta })
+                          }
+                        />
+                      </div>
+                    ))
+                  ) : (
+                    <ObserverView
+                      panels={observerPanels}
+                      compareLayout={resolvedCompareLayout}
+                      unitPreferences={state.unitPreferences}
+                      showScaleGuides={state.showScaleGuides}
+                      annotated={state.annotated}
                       fitContentHeight={state.fitContentHeight}
                       zoom={state.sceneViewport.zoom}
                       verticalZoom={state.sceneViewport.verticalZoom}

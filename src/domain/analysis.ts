@@ -13,11 +13,23 @@ import {
 import { getTerrainProfileByPresetId, createGenericTargetProfile } from "./profiles";
 import { solveTargetPointVisibility, solveVisibility } from "./solver";
 import { clamp, formatAngle, formatDistance, formatFraction, formatHeight, lerp } from "./units";
-import type { FocusedModel, ModelConfig, ScenarioInput, VisibilitySolveResult, Vec2 } from "./types";
+import type {
+  FocusedModel,
+  ModelConfig,
+  ScenarioInput,
+  VisibilitySample,
+  VisibilitySolveResult,
+  Vec2,
+} from "./types";
 import type { UnitPreferences } from "./units";
 import { getModelLabel, type LanguageMode } from "../i18n";
 
-export type AnalysisTab = "cross-section" | "ray-bundle" | "sweep" | "profile-visibility";
+export type AnalysisTab =
+  | "cross-section"
+  | "ray-bundle"
+  | "observer-view"
+  | "sweep"
+  | "profile-visibility";
 export type SweepParameter =
   | "distance"
   | "observerHeight"
@@ -164,6 +176,45 @@ export interface ProfileVisibilityPanelData {
     blockedSamples: number;
     visibilityFractionLabel: string;
     visibleSpanM: number;
+  };
+}
+
+export interface ObserverViewMarker {
+  id: string;
+  point: Vec2;
+  color: string;
+  label: string;
+}
+
+export interface ObserverViewPanelData {
+  sceneKey: FocusedModel;
+  title: string;
+  subtitle: string;
+  bounds: {
+    minX: number;
+    maxX: number;
+    minY: number;
+    maxY: number;
+  };
+  horizonElevationRad: number;
+  eyeLevelElevationRad: number;
+  visibleSilhouette: Vec2[];
+  ghostSilhouette: Vec2[];
+  samplePoints: Array<{
+    id: string;
+    point: Vec2;
+    visible: boolean;
+    distanceM: number;
+    heightM: number;
+    apparentElevationRad: number | null;
+    actualElevationRad: number;
+  }>;
+  markers: ObserverViewMarker[];
+  stats: {
+    visibleSamples: number;
+    blockedSamples: number;
+    visibilityFractionLabel: string;
+    horizonDipLabel: string;
   };
 }
 
@@ -741,6 +792,41 @@ function sampleProfileForAnalysis(result: VisibilitySolveResult) {
   };
 }
 
+interface SolvedProfileAnalysisSample {
+  distanceM: number;
+  heightM: number;
+  solve: VisibilitySample;
+  observerFramePoint: Vec2;
+}
+
+function solveProfileSamplesForAnalysis(result: VisibilitySolveResult) {
+  const { profile, minDistanceM, maxDistanceM, analysisSamples } =
+    sampleProfileForAnalysis(result);
+
+  const solvedSamples: SolvedProfileAnalysisSample[] = analysisSamples.map((sample) => {
+    const solve = solveTargetPointVisibility(
+      result.scenario,
+      result.model,
+      sample.distanceM,
+      sample.heightM,
+    );
+
+    return {
+      distanceM: sample.distanceM,
+      heightM: sample.heightM,
+      solve,
+      observerFramePoint: transformToObserverFrame(result, solve.targetPoint),
+    };
+  });
+
+  return {
+    profile,
+    minDistanceM,
+    maxDistanceM,
+    solvedSamples,
+  };
+}
+
 function buildProfileVisibilitySegments(
   samplePoints: ProfileVisibilitySamplePoint[],
 ): ProfileVisibilityTrace[] {
@@ -768,8 +854,8 @@ export function buildProfileVisibilityPanelData(
   title: string,
   sceneKey: FocusedModel,
 ): ProfileVisibilityPanelData {
-  const { profile, minDistanceM, maxDistanceM, analysisSamples } =
-    sampleProfileForAnalysis(result);
+  const { profile, maxDistanceM, solvedSamples } =
+    solveProfileSamplesForAnalysis(result);
   const maxDistanceAngleRad = getTargetAngle(maxDistanceM, result.scenario.radiusM);
   const rawSurfaceSamples = Array.from({ length: 180 }, (_, index) => {
     const angle = lerp(
@@ -787,17 +873,7 @@ export function buildProfileVisibilityPanelData(
   });
   const observerBase = transformToObserverFrame(result, result.observerSurfacePoint);
   const observerTop = { x: 0, y: 0 };
-  const rawProfilePoints = analysisSamples.map((sample) =>
-    transformToObserverFrame(
-      result,
-      pointAtSurfaceHeight(
-        result.scenario.radiusM,
-        getTargetAngle(sample.distanceM, result.scenario.radiusM),
-        result.model.geometryMode,
-        sample.heightM,
-      ),
-    ),
-  );
+  const rawProfilePoints = solvedSamples.map((sample) => sample.observerFramePoint);
   const verticalScale = getVerticalExaggeration(maxDistanceM, [
     ...rawSurfaceSamples,
     ...rawProfilePoints,
@@ -812,17 +888,14 @@ export function buildProfileVisibilityPanelData(
   let visibleSamples = 0;
   let blockedSamples = 0;
 
-  const rayStride = Math.max(1, Math.floor(analysisSamples.length / 10));
+  const rayStride = Math.max(1, Math.floor(solvedSamples.length / 10));
 
-  analysisSamples.forEach((sample, index) => {
-    const solve = solveTargetPointVisibility(
-      result.scenario,
-      result.model,
-      sample.distanceM,
-      sample.heightM,
-    );
-    const localTarget = transformToObserverFrame(result, solve.targetPoint);
-    const point = { x: localTarget.x, y: localTarget.y * verticalScale };
+  solvedSamples.forEach((sample, index) => {
+    const solve = sample.solve;
+    const point = {
+      x: sample.observerFramePoint.x,
+      y: sample.observerFramePoint.y * verticalScale,
+    };
 
     samplePoints.push({
       id: `profile-sample-${index}`,
@@ -840,7 +913,7 @@ export function buildProfileVisibilityPanelData(
     }
 
     const shouldDrawRay =
-      index % rayStride === 0 || index === analysisSamples.length - 1 || index === 0;
+      index % rayStride === 0 || index === solvedSamples.length - 1 || index === 0;
 
     if (!shouldDrawRay) {
       return;
@@ -907,14 +980,14 @@ export function buildProfileVisibilityPanelData(
         label: "Observer",
       },
       {
-        id: "profile-peak",
-        point:
-          samplePoints.reduce((highest, sample) =>
-            sample.point.y > highest.point.y ? sample : highest,
-          ).point,
-        color: "#ffd07e",
-        label: "Profile peak",
-      },
+      id: "profile-peak",
+      point:
+        samplePoints.reduce((highest, sample) =>
+          sample.point.y > highest.point.y ? sample : highest,
+        ).point,
+      color: "#ffd07e",
+      label: "Profile peak",
+    },
     ],
     samplePoints,
     stats: {
@@ -924,6 +997,130 @@ export function buildProfileVisibilityPanelData(
         samplePoints.length ? visibleSamples / samplePoints.length : 0,
       ),
       visibleSpanM,
+    },
+  };
+}
+
+function createObserverViewPoints(
+  solvedSamples: SolvedProfileAnalysisSample[],
+  minDistanceM: number,
+) {
+  return solvedSamples.map((sample) => ({
+    id: `observer-sample-${sample.distanceM}`,
+    x: sample.distanceM - minDistanceM,
+    actualY: sample.solve.actualElevationRad,
+    apparentY: sample.solve.apparentElevationRad ?? null,
+    visible: sample.solve.visible,
+    distanceM: sample.distanceM,
+    heightM: sample.heightM,
+  }));
+}
+
+export function buildObserverViewPanelData(
+  result: VisibilitySolveResult,
+  title: string,
+  sceneKey: FocusedModel,
+): ObserverViewPanelData {
+  const { profile, minDistanceM, maxDistanceM, solvedSamples } =
+    solveProfileSamplesForAnalysis(result);
+  const observerViewPoints = createObserverViewPoints(solvedSamples, minDistanceM);
+  const spanX = Math.max(maxDistanceM - minDistanceM, 1);
+  const horizonElevationRad =
+    result.opticalHorizon?.apparentElevationRad ??
+    result.geometricHorizon?.apparentElevationRad ??
+    0;
+  const visibleSilhouette = observerViewPoints
+    .filter((point) => point.visible && point.apparentY != null)
+    .map((point) => ({
+      x: point.x,
+      y: point.apparentY as number,
+    }));
+  const ghostSilhouette = observerViewPoints.map((point) => ({
+    x: point.x,
+    y: point.actualY,
+  }));
+  const allPoints = [
+    ...visibleSilhouette,
+    ...ghostSilhouette,
+    { x: 0, y: horizonElevationRad },
+    { x: spanX, y: horizonElevationRad },
+    { x: 0, y: 0 },
+    { x: spanX, y: 0 },
+  ];
+  const bounds = collectBounds(allPoints, {
+    xPaddingFactor: 0.12,
+    minXPad: Math.max(120, spanX * 0.12),
+    topPaddingFactor: 0.24,
+    bottomPaddingFactor: 0.26,
+    minTopPad: 0.02,
+    minBottomPad: 0.03,
+  });
+  const topVisiblePoint =
+    visibleSilhouette.length > 0
+      ? visibleSilhouette.reduce((highest, point) =>
+          point.y > highest.y ? point : highest,
+        )
+      : null;
+  const topGhostPoint = ghostSilhouette.reduce((highest, point) =>
+    point.y > highest.y ? point : highest,
+  );
+
+  return {
+    sceneKey,
+    title,
+    subtitle: `${profile.name} reconstructed into apparent elevation space`,
+    bounds,
+    horizonElevationRad,
+    eyeLevelElevationRad: 0,
+    visibleSilhouette,
+    ghostSilhouette,
+    samplePoints: observerViewPoints.map((point) => ({
+      id: point.id,
+      point: {
+        x: point.x,
+        y: point.apparentY ?? point.actualY,
+      },
+      visible: point.visible,
+      distanceM: point.distanceM,
+      heightM: point.heightM,
+      apparentElevationRad: point.apparentY,
+      actualElevationRad: point.actualY,
+    })),
+    markers: [
+      {
+        id: "observer-view-horizon",
+        point: { x: spanX * 0.08, y: horizonElevationRad },
+        color: "#8dffcb",
+        label: "Apparent horizon",
+      },
+      {
+        id: "observer-view-eye-level",
+        point: { x: spanX * 0.08, y: 0 },
+        color: "#a8b2ff",
+        label: "Observer horizontal",
+      },
+      ...(topVisiblePoint
+        ? [
+            {
+              id: "observer-view-top-visible",
+              point: topVisiblePoint,
+              color: "#ffd07e",
+              label: "Visible silhouette",
+            },
+          ]
+        : []),
+      {
+        id: "observer-view-geometric-ghost",
+        point: topGhostPoint,
+        color: "#dce7f2",
+        label: "Geometric ghost",
+      },
+    ],
+    stats: {
+      visibleSamples: solvedSamples.filter((sample) => sample.solve.visible).length,
+      blockedSamples: solvedSamples.filter((sample) => !sample.solve.visible).length,
+      visibilityFractionLabel: formatFraction(result.visibilityFraction),
+      horizonDipLabel: formatAngle(Math.abs(horizonElevationRad)),
     },
   };
 }

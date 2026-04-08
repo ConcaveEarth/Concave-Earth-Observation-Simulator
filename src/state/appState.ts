@@ -234,6 +234,7 @@ function normalizeWorkspaceMode(value: string): WorkspaceMode {
 function normalizeAnalysisTab(value: string): AnalysisTab {
   switch (value) {
     case "ray-bundle":
+    case "observer-view":
     case "profile-visibility":
     case "sweep":
       return value;

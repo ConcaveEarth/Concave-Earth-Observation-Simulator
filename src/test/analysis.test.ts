@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildObserverViewPanelData,
   buildProfileVisibilityPanelData,
   buildRayBundlePanelData,
   buildSweepChartData,
@@ -52,6 +53,16 @@ describe("analysis helpers", () => {
     expect(panel.stats.visibleSamples + panel.stats.blockedSamples).toBe(
       panel.samplePoints.length,
     );
+    expect(panel.bounds.maxY).toBeGreaterThan(panel.bounds.minY);
+  });
+
+  it("builds an observer-eye reconstruction panel from shared solver outputs", () => {
+    const result = solveVisibility(defaultScenario, defaultComparisonModel);
+    const panel = buildObserverViewPanelData(result, "Model 2", "comparison");
+
+    expect(panel.ghostSilhouette.length).toBeGreaterThan(10);
+    expect(panel.samplePoints.length).toBeGreaterThan(10);
+    expect(panel.bounds.maxX).toBeGreaterThan(panel.bounds.minX);
     expect(panel.bounds.maxY).toBeGreaterThan(panel.bounds.minY);
   });
 });

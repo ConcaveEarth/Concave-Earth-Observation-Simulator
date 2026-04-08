@@ -159,6 +159,27 @@ export function PresentationToolbar({
             }
           />
         </div>
+      ) : state.analysisTab === "observer-view" ? (
+        <>
+          <div className="scene-toolbar__group">
+            <span className="scene-toolbar__label">{t(language, "annotations")}</span>
+            <ControlButton
+              label={t(language, "annotatedMode")}
+              active={state.annotated}
+              onClick={() => dispatch({ type: "setAnnotated", value: !state.annotated })}
+            />
+          </div>
+          <div className="scene-toolbar__group">
+            <span className="scene-toolbar__label">{t(language, "guides")}</span>
+            <ControlButton
+              label={t(language, "scaleGuides")}
+              active={state.showScaleGuides}
+              onClick={() =>
+                dispatch({ type: "setShowScaleGuides", value: !state.showScaleGuides })
+              }
+            />
+          </div>
+        </>
       ) : state.analysisTab === "profile-visibility" ? (
         <div className="scene-toolbar__group">
           <span className="scene-toolbar__label">{t(language, "guides")}</span>

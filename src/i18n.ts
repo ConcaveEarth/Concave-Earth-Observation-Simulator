@@ -41,6 +41,7 @@ const en: TranslationDictionary = {
   dragMicrocopy: "Drag for sweep, use +/- for fine adjustment.",
   crossSection: "Cross-section",
   rayBundle: "Ray Bundle",
+  observerView: "Observer View",
   profileVisibility: "Profile Visibility",
   sweep: "Sweep",
   splitCompare: "Split Compare",
@@ -73,6 +74,8 @@ const en: TranslationDictionary = {
   analysisView: "Analysis view",
   rayBundleIntro:
     "Multiple sampled target heights traced through the shared ray solver to show the visible/blocked envelope.",
+  observerViewIntro:
+    "A perceptual reconstruction built from solved apparent elevations, showing the apparent horizon and the visible silhouette the observer would actually receive.",
   profileVisibilityIntro:
     "Terrain/profile samples are now solved through the shared visibility engine so shoreline, skyline, and mountain silhouettes can participate in the analysis rather than remain purely illustrative.",
   sweepIntro:
