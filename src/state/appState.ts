@@ -59,6 +59,7 @@ export interface AppState {
   language: LanguageMode;
   workspaceMode: WorkspaceMode;
   fullWidthScene: boolean;
+  fitContentHeight: boolean;
   showScaleGuides: boolean;
   showTerrainOverlay: boolean;
   selectedSceneKey: FocusedModel | null;
@@ -112,6 +113,7 @@ export type AppAction =
   | { type: "setLanguage"; value: LanguageMode }
   | { type: "setWorkspaceMode"; value: WorkspaceMode }
   | { type: "setFullWidthScene"; value: boolean }
+  | { type: "setFitContentHeight"; value: boolean }
   | { type: "setShowScaleGuides"; value: boolean }
   | { type: "setShowTerrainOverlay"; value: boolean }
   | { type: "setSelectedFeature"; sceneKey: FocusedModel | null; value: string | null }
@@ -144,6 +146,7 @@ export function createDefaultState(): AppState {
     language: "en",
     workspaceMode: "professional",
     fullWidthScene: true,
+    fitContentHeight: false,
     showScaleGuides: true,
     showTerrainOverlay: true,
     selectedSceneKey: null,
@@ -453,6 +456,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, workspaceMode: normalizeWorkspaceMode(action.value) };
     case "setFullWidthScene":
       return { ...state, fullWidthScene: action.value };
+    case "setFitContentHeight":
+      return { ...state, fitContentHeight: action.value };
     case "setShowScaleGuides":
       return { ...state, showScaleGuides: action.value };
     case "setShowTerrainOverlay":
@@ -575,6 +580,7 @@ export function serializeStateToSearch(state: AppState): string {
   params.set("language", state.language);
   params.set("workspace", state.workspaceMode);
   params.set("fullWidth", state.fullWidthScene ? "1" : "0");
+  params.set("fitHeight", state.fitContentHeight ? "1" : "0");
   params.set("scales", state.showScaleGuides ? "1" : "0");
   params.set("terrain", state.showTerrainOverlay ? "1" : "0");
   params.set("observer", String(state.scenario.observerHeightM));
@@ -679,6 +685,7 @@ export function hydrateStateFromSearch(search: string): AppState {
       params.get("workspace") ?? defaults.workspaceMode,
     ),
     fullWidthScene: params.get("fullWidth") !== "0",
+    fitContentHeight: params.get("fitHeight") === "1",
     showScaleGuides: params.get("scales") !== "0",
     showTerrainOverlay: params.get("terrain") !== "0",
     selectedSceneKey: null,

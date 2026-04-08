@@ -316,16 +316,20 @@ export default function App() {
         />
 
         <main className="center-panel">
-          <div
-            className={
-              deferredState.analysisTab === "ray-bundle"
-                ? "scene-card scene-card--ray-bundle panel"
-                : deferredState.analysisTab === "sweep"
-                  ? "scene-card scene-card--sweep panel"
-                  : "scene-card panel"
-            }
-            ref={sceneHostRef}
-          >
+            <div
+              className={
+                deferredState.analysisTab === "ray-bundle"
+                  ? `scene-card scene-card--ray-bundle panel${
+                      state.fitContentHeight ? " scene-card--fit-content" : ""
+                    }`
+                  : deferredState.analysisTab === "sweep"
+                    ? `scene-card scene-card--sweep panel${
+                        state.fitContentHeight ? " scene-card--fit-content" : ""
+                      }`
+                    : `scene-card panel${state.fitContentHeight ? " scene-card--fit-content" : ""}`
+              }
+              ref={sceneHostRef}
+            >
             <div className="scene-card__header">
               <div className="scene-card__intro">
                 <p className="scene-card__eyebrow">{t(state.language, "simulationFirst")}</p>
@@ -375,6 +379,25 @@ export default function App() {
                               state.unitPreferences,
                             )} • ${state.sweepConfig.sampleCount} solves`}
                       </span>
+                    </div>
+                    <div className="scene-toolbar__group">
+                      <span className="scene-toolbar__label">{t(state.language, "heightMode")}</span>
+                      <button
+                        type="button"
+                        className={
+                          state.fitContentHeight
+                            ? "scene-toolbar__button scene-toolbar__button--active"
+                            : "scene-toolbar__button"
+                        }
+                        onClick={() =>
+                          dispatch({
+                            type: "setFitContentHeight",
+                            value: !state.fitContentHeight,
+                          })
+                        }
+                      >
+                        {t(state.language, "fitContent")}
+                      </button>
                     </div>
                     <div className="scene-toolbar__group">
                       <span className="scene-toolbar__label">{t(state.language, "zoom")}</span>

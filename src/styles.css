@@ -860,12 +860,32 @@ select {
   align-items: stretch;
 }
 
+.scene-card--fit-content .scene-card__viewport {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
+
+.scene-card--fit-content .scene-card__viewport--analysis,
+.scene-card--fit-content .scene-card__viewport--stacked-list {
+  min-height: 0;
+}
+
+.scene-card--fit-content .scene-card__viewport--with-legend {
+  align-items: start;
+}
+
 .scene-card__canvas {
   min-width: 0;
   min-height: 0;
   height: 100%;
   display: flex;
   align-items: stretch;
+}
+
+.scene-card--fit-content .scene-card__canvas {
+  height: auto;
+  align-items: flex-start;
 }
 
 .scene-stack-list {
@@ -889,6 +909,12 @@ select {
 .scene-stack-item--analysis {
   height: clamp(430px, 50vh, 760px);
   min-height: 430px;
+}
+
+.scene-card--fit-content .scene-stack-item,
+.scene-card--fit-content .scene-stack-item--analysis {
+  height: auto;
+  min-height: 0;
 }
 
 .app-shell--fullwidth-scene .scene-card__viewport,
@@ -1035,6 +1061,13 @@ select {
 .scene-card__viewport--analysis .scene-svg {
   min-height: 100%;
   height: 100%;
+}
+
+.scene-card--fit-content .scene-svg,
+.scene-card--fit-content .scene-stack-item .scene-svg,
+.scene-card--fit-content .scene-card__viewport--analysis .scene-svg {
+  height: auto;
+  min-height: 0;
 }
 
 .sweep-chart {

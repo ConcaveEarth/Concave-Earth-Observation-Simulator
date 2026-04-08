@@ -143,6 +143,17 @@ export function SceneToolbar({
       </div>
 
       <div className="scene-toolbar__group">
+        <span className="scene-toolbar__label">{t(language, "heightMode")}</span>
+        <ControlButton
+          label={t(language, "fitContent")}
+          active={state.fitContentHeight}
+          onClick={() =>
+            dispatch({ type: "setFitContentHeight", value: !state.fitContentHeight })
+          }
+        />
+      </div>
+
+      <div className="scene-toolbar__group">
         <span className="scene-toolbar__label">{t(language, "zoom")}</span>
         <ControlButton
           label="-"
