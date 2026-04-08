@@ -101,8 +101,26 @@ function getFeatureDefinitions(
   terrainOverlay?: SceneTerrainOverlay,
   language: LanguageMode = "en",
 ): Record<string, FeatureDefinition> {
+  const resolvedReferenceConstruction =
+    result.model.lineBehavior.referenceConstruction === "auto"
+      ? result.model.geometryMode === "convex"
+        ? "curved-altitude"
+        : "curvilinear-tangent"
+      : result.model.lineBehavior.referenceConstruction;
+  const resolvedObjectLightPathMode =
+    result.model.lineBehavior.objectLightPath === "auto"
+      ? "traced"
+      : result.model.lineBehavior.objectLightPath;
+  const resolvedApparentDirectionMode =
+    result.model.lineBehavior.apparentDirection === "auto"
+      ? result.visible
+        ? "target"
+        : "horizon"
+      : result.model.lineBehavior.apparentDirection;
   const apparentLabel = result.visible
-    ? t(language, "featureApparentLineOfSight")
+    ? resolvedApparentDirectionMode === "horizon"
+      ? t(language, "featureApparentHorizonDirection")
+      : t(language, "featureApparentLineOfSight")
     : t(language, "featureApparentHorizonDirection");
   const actualRayLabel =
     result.primaryRay?.targetCrossing != null
@@ -117,9 +135,17 @@ function getFeatureDefinitions(
         : "The physical observation ray. Under the concave model this is the endospherical sight path, bending toward the shell center under the active curvature law."
       : "No target-reaching ray is currently solved, so this line is the grazing horizon reference ray under the active curvature law.";
   const curvedReferenceRole =
-    result.model.geometryMode === "convex"
+    resolvedReferenceConstruction === "straight-horizontal"
+      ? "A straight Euclidean horizontal carried as the alternate reference construction through the observer."
+      : result.model.geometryMode === "convex"
       ? "A curved constant-altitude reference carried along the convex surface at the observer height. It stays tied to the geometry instead of remaining rectilinear."
       : "The concave model's curvilinear tangent-style reference carried along the shell at the observer height. It curves upward toward the shell center rather than staying straight.";
+  const referenceLabel =
+    resolvedReferenceConstruction === "straight-horizontal"
+      ? t(language, "featureStraightHorizontalReference")
+      : result.model.geometryMode === "convex"
+        ? t(language, "featureCurvedAltitudeReference")
+        : t(language, "featureCurvilinearTangent");
 
   return {
     surface: {
@@ -138,10 +164,7 @@ function getFeatureDefinitions(
         "The straight local tangent through the observer. This is the Euclidean horizontal reference construction at the observation point.",
     },
     "observer-altitude-curve": {
-      label:
-        result.model.geometryMode === "convex"
-          ? t(language, "featureCurvedAltitudeReference")
-          : t(language, "featureCurvilinearTangent"),
+      label: referenceLabel,
       description: curvedReferenceRole,
     },
     "observer-height": {
@@ -177,7 +200,9 @@ function getFeatureDefinitions(
     "source-light-path": {
       label: t(language, "featureObjectToObserverLightPath"),
       description:
-        result.model.geometryMode === "convex"
+        resolvedObjectLightPathMode === "straight"
+          ? "A straight chord construction from the referenced source point on the object to the observer, used as an alternate comparison against the traced optical path."
+          : result.model.geometryMode === "convex"
           ? "The curved physical light path from the referenced source point on the object to the observer under the active atmospheric bending."
           : "The curved physical light path from the referenced source point on the object to the observer under the intrinsic concave bending law plus any atmospheric modification.",
     },
@@ -614,6 +639,8 @@ export function buildSceneViewModel(
   const rawOpticalHorizon = result.opticalHorizon
     ? rawTransform(result.opticalHorizon.point)
     : null;
+  const rawOpticalHorizonTrace =
+    result.opticalHorizon?.trace?.points.map(rawTransform) ?? [];
   const rawGeometricHorizon = result.geometricHorizon
     ? rawTransform(result.geometricHorizon.point)
     : null;
@@ -649,6 +676,27 @@ export function buildSceneViewModel(
     ),
   );
   const rawRayPoints = result.primaryRay?.points.map(rawTransform) ?? [];
+  const highestVisibleSample = visibleSamples[visibleSamples.length - 1] ?? null;
+  const resolvedReferenceConstruction =
+    result.model.lineBehavior.referenceConstruction === "auto"
+      ? result.model.geometryMode === "convex"
+        ? "curved-altitude"
+        : "curvilinear-tangent"
+      : result.model.lineBehavior.referenceConstruction;
+  const resolvedObjectLightPathMode =
+    result.model.lineBehavior.objectLightPath === "auto"
+      ? "traced"
+      : result.model.lineBehavior.objectLightPath;
+  const resolvedOpticalHorizonRayMode =
+    result.model.lineBehavior.opticalHorizonRay === "auto"
+      ? "traced"
+      : result.model.lineBehavior.opticalHorizonRay;
+  const resolvedApparentDirectionMode =
+    result.model.lineBehavior.apparentDirection === "auto"
+      ? result.visible
+        ? "target"
+        : "horizon"
+      : result.model.lineBehavior.apparentDirection;
 
   const verticalExaggeration = getVerticalExaggeration(forwardDistanceM + backDistanceM, [
     ...rawSurfaceSamples,
@@ -660,6 +708,7 @@ export function buildSceneViewModel(
     ...(rawReferenceTargetPoint ? [rawReferenceTargetPoint] : []),
     ...rawGeometricSightline,
     ...(rawOpticalHorizon ? [rawOpticalHorizon] : []),
+    ...rawOpticalHorizonTrace,
     ...(rawGeometricHorizon ? [rawGeometricHorizon] : []),
     ...rawRayPoints,
     ...rawReferenceLightPath,
@@ -680,6 +729,7 @@ export function buildSceneViewModel(
     ? exaggerate(rawReferenceTargetPoint)
     : null;
   const referenceLightPath = rawReferenceLightPath.map(exaggerate);
+  const opticalHorizonTrace = rawOpticalHorizonTrace.map(exaggerate);
   const opticalHorizonPoint = rawOpticalHorizon ? exaggerate(rawOpticalHorizon) : null;
   const geometricHorizonPoint = rawGeometricHorizon ? exaggerate(rawGeometricHorizon) : null;
   const geometricSightline = rawGeometricSightline.map(exaggerate);
@@ -727,6 +777,28 @@ export function buildSceneViewModel(
 
   const terrainOverlay = buildTerrainOverlay(result, rawTransform, exaggerate);
   const featureDefinitions = getFeatureDefinitions(result, terrainOverlay, language);
+  const referenceConstructionLabel = featureDefinitions["observer-altitude-curve"].label;
+  const referenceConstructionPoints =
+    resolvedReferenceConstruction === "straight-horizontal"
+      ? [
+          { x: -backDistanceM * 0.45, y: 0 },
+          { x: forwardDistanceM, y: 0 },
+        ]
+      : observerAltitudeCurve;
+  const sourceLightPathPoints =
+    resolvedObjectLightPathMode === "straight" && referenceTargetPoint
+      ? [referenceTargetPoint, { x: 0, y: 0 }]
+      : referenceLightPath.length > 1
+        ? referenceLightPath.slice().reverse()
+        : [];
+  const apparentElevationForDisplay =
+    resolvedApparentDirectionMode === "hidden"
+      ? null
+      : resolvedApparentDirectionMode === "horizon"
+        ? result.opticalHorizon?.apparentElevationRad ?? result.apparentElevationRad
+        : resolvedApparentDirectionMode === "target"
+          ? highestVisibleSample?.apparentElevationRad ?? result.apparentElevationRad
+          : result.apparentElevationRad;
 
   const lines: SceneLine[] = [
     makePolyline(
@@ -739,15 +811,6 @@ export function buildSceneViewModel(
       featureDefinitions.surface.label,
     ),
     makePolyline(
-      "observer-altitude-curve",
-      "observer-altitude-curve",
-      featurePalette.observerAltitudeCurve,
-      observerAltitudeCurve,
-      1.55,
-      true,
-      featureDefinitions["observer-altitude-curve"].label,
-    ),
-    makePolyline(
       "geometric-sightline",
       "geometric-sightline",
       featurePalette.geometricSightline,
@@ -758,7 +821,23 @@ export function buildSceneViewModel(
     ),
   ];
 
-  if (referenceTargetPoint) {
+  if (resolvedReferenceConstruction !== "hidden") {
+    lines.splice(
+      1,
+      0,
+      makePolyline(
+        "observer-altitude-curve",
+        "observer-altitude-curve",
+        featurePalette.observerAltitudeCurve,
+        referenceConstructionPoints,
+        1.55,
+        true,
+        referenceConstructionLabel,
+      ),
+    );
+  }
+
+  if (referenceTargetPoint && result.model.lineBehavior.showSourceGeometricPath) {
     lines.push(
       makePolyline(
         "source-geometric-path",
@@ -772,13 +851,13 @@ export function buildSceneViewModel(
     );
   }
 
-  if (referenceLightPath.length > 1) {
+  if (sourceLightPathPoints.length > 1 && resolvedObjectLightPathMode !== "hidden") {
     lines.push(
       makePolyline(
         "source-light-path",
         "source-light-path",
         featurePalette.sourceLightPath,
-        referenceLightPath.slice().reverse(),
+        sourceLightPathPoints,
         3.05,
         false,
         featureDefinitions["source-light-path"].label,
@@ -800,13 +879,13 @@ export function buildSceneViewModel(
     );
   }
 
-  if (result.opticalHorizon?.trace) {
+  if (resolvedOpticalHorizonRayMode === "traced" && opticalHorizonTrace.length > 1) {
     lines.push(
       makePolyline(
         "optical-horizon-trace",
         "horizon-optical",
         featurePalette.opticalHorizon,
-        result.opticalHorizon.trace.points.map((point) => exaggerate(rawTransform(point))),
+        opticalHorizonTrace,
         2,
         true,
         `${featureDefinitions["horizon-optical"].label} Ray`,
@@ -823,16 +902,6 @@ export function buildSceneViewModel(
   }
 
   const segments: SceneSegment[] = [
-    {
-      id: "observer-horizontal",
-      featureId: "observer-horizontal",
-      label: featureDefinitions["observer-horizontal"].label,
-      color: featurePalette.observerHorizontal,
-      width: 1.6,
-      dashed: true,
-      from: { x: -backDistanceM * 0.45, y: 0 },
-      to: { x: forwardDistanceM, y: 0 },
-    },
     {
       id: "observer-stem",
       featureId: "observer-height",
@@ -865,7 +934,20 @@ export function buildSceneViewModel(
     });
   }
 
-  if (result.apparentElevationRad != null) {
+  if (result.model.lineBehavior.showObserverHorizontal) {
+    segments.unshift({
+      id: "observer-horizontal",
+      featureId: "observer-horizontal",
+      label: featureDefinitions["observer-horizontal"].label,
+      color: featurePalette.observerHorizontal,
+      width: 1.6,
+      dashed: true,
+      from: { x: -backDistanceM * 0.45, y: 0 },
+      to: { x: forwardDistanceM, y: 0 },
+    });
+  }
+
+  if (apparentElevationForDisplay != null) {
     segments.push({
       id: "apparent-line",
       featureId: "apparent-line",
@@ -875,13 +957,17 @@ export function buildSceneViewModel(
       dashed: true,
       from: { x: 0, y: 0 },
       to: {
-        x: Math.cos(result.apparentElevationRad) * forwardDistanceM,
-        y: Math.sin(result.apparentElevationRad) * forwardDistanceM * verticalExaggeration,
+        x: Math.cos(apparentElevationForDisplay) * forwardDistanceM,
+        y: Math.sin(apparentElevationForDisplay) * forwardDistanceM * verticalExaggeration,
       },
     });
   }
 
-  if (opticalHorizonPoint && !result.opticalHorizon?.trace) {
+  if (
+    opticalHorizonPoint &&
+    resolvedOpticalHorizonRayMode === "straight" &&
+    result.opticalHorizon
+  ) {
     segments.push({
       id: "optical-horizon-ray",
       featureId: "horizon-optical",
@@ -894,7 +980,7 @@ export function buildSceneViewModel(
     });
   }
 
-  if (geometricHorizonPoint) {
+  if (geometricHorizonPoint && result.model.lineBehavior.showGeometricHorizon) {
     segments.push({
       id: "geometric-horizon-ray",
       featureId: "horizon-geometric",
@@ -926,7 +1012,7 @@ export function buildSceneViewModel(
     },
   ];
 
-  if (referenceTargetPoint) {
+  if (referenceTargetPoint && resolvedObjectLightPathMode !== "hidden") {
     markers.push({
       id: "source-point",
       featureId: "source-light-path",
@@ -949,7 +1035,7 @@ export function buildSceneViewModel(
     });
   }
 
-  if (geometricHorizonPoint) {
+  if (geometricHorizonPoint && result.model.lineBehavior.showGeometricHorizon) {
     markers.push({
       id: "geometric-horizon",
       featureId: "horizon-geometric",
@@ -962,7 +1048,7 @@ export function buildSceneViewModel(
 
   const labelPlacementBounds = collectBounds([
     ...surfaceSamples,
-    ...observerAltitudeCurve,
+    ...referenceConstructionPoints,
     ...geometricSightline,
     ...segments.flatMap((segment) => [segment.from, segment.to]),
     ...lines.flatMap((line) => line.points),
@@ -993,40 +1079,48 @@ export function buildSceneViewModel(
     labelPlacementBounds,
   );
 
-  placeLabel(
-    labels,
-    "observer-horizontal-label",
-    "observer-horizontal",
-    featureDefinitions["observer-horizontal"].label,
-    pointAlongSegment({ x: -backDistanceM * 0.45, y: 0 }, { x: forwardDistanceM, y: 0 }, 0.66),
-    [
-      { x: 0, y: labelRise * 1.18 },
-      { x: mediumOffsetX * 0.22, y: labelRise * 1.12 },
-      { x: -mediumOffsetX * 0.16, y: labelRise * 1.04 },
-    ],
-    labelMinDx,
-    labelMinDy,
-    labelPlacementBounds,
-  );
+  if (result.model.lineBehavior.showObserverHorizontal) {
+    placeLabel(
+      labels,
+      "observer-horizontal-label",
+      "observer-horizontal",
+      featureDefinitions["observer-horizontal"].label,
+      pointAlongSegment({ x: -backDistanceM * 0.45, y: 0 }, { x: forwardDistanceM, y: 0 }, 0.66),
+      [
+        { x: 0, y: labelRise * 1.18 },
+        { x: mediumOffsetX * 0.22, y: labelRise * 1.12 },
+        { x: -mediumOffsetX * 0.16, y: labelRise * 1.04 },
+      ],
+      labelMinDx,
+      labelMinDy,
+      labelPlacementBounds,
+    );
+  }
 
-  placeLabel(
-    labels,
-    "observer-altitude-curve-label",
-    "observer-altitude-curve",
-    featureDefinitions["observer-altitude-curve"].label,
-    pointOnPolyline(
-      observerAltitudeCurve,
-      result.model.geometryMode === "convex" ? 0.7 : 0.74,
-    ),
-    [
-      { x: shortOffsetX * 0.12, y: labelRise * 0.78 },
-      { x: mediumOffsetX * 0.24, y: labelRise * 0.66 },
-      { x: -mediumOffsetX * 0.12, y: labelDrop * 0.88 },
-    ],
-    labelMinDx,
-    labelMinDy,
-    labelPlacementBounds,
-  );
+  if (resolvedReferenceConstruction !== "hidden") {
+    placeLabel(
+      labels,
+      "observer-altitude-curve-label",
+      "observer-altitude-curve",
+      referenceConstructionLabel,
+      pointOnPolyline(
+        referenceConstructionPoints,
+        resolvedReferenceConstruction === "straight-horizontal"
+          ? 0.58
+          : result.model.geometryMode === "convex"
+            ? 0.7
+            : 0.74,
+      ),
+      [
+        { x: shortOffsetX * 0.12, y: labelRise * 0.78 },
+        { x: mediumOffsetX * 0.24, y: labelRise * 0.66 },
+        { x: -mediumOffsetX * 0.12, y: labelDrop * 0.88 },
+      ],
+      labelMinDx,
+      labelMinDy,
+      labelPlacementBounds,
+    );
+  }
 
   placeLabel(
     labels,
@@ -1044,7 +1138,7 @@ export function buildSceneViewModel(
     labelPlacementBounds,
   );
 
-  if (referenceTargetPoint) {
+  if (referenceTargetPoint && result.model.lineBehavior.showSourceGeometricPath) {
     placeLabel(
       labels,
       "source-geometric-path-label",
@@ -1062,13 +1156,20 @@ export function buildSceneViewModel(
     );
   }
 
-  if (referenceLightPath.length > 1) {
+  if (sourceLightPathPoints.length > 1 && resolvedObjectLightPathMode !== "hidden") {
     placeLabel(
       labels,
       "source-light-path-label",
       "source-light-path",
       featureDefinitions["source-light-path"].label,
-      pointOnPolyline(referenceLightPath, result.model.geometryMode === "convex" ? 0.66 : 0.74),
+      pointOnPolyline(
+        sourceLightPathPoints,
+        resolvedObjectLightPathMode === "straight"
+          ? 0.56
+          : result.model.geometryMode === "convex"
+            ? 0.66
+            : 0.74,
+      ),
       [
         { x: shortOffsetX * 0.12, y: labelRise * 0.82 },
         { x: mediumOffsetX * 0.24, y: labelRise * 0.94 },
@@ -1085,8 +1186,8 @@ export function buildSceneViewModel(
       exaggerate(rawTransform(point)),
     );
     const curvedPathForLabel =
-      result.primaryRay.targetCrossing && referenceLightPath.length > 1
-        ? referenceLightPath
+      result.primaryRay.targetCrossing && sourceLightPathPoints.length > 1
+        ? sourceLightPathPoints
         : primaryRayPoints;
 
     if (!result.primaryRay.targetCrossing) {
@@ -1107,32 +1208,34 @@ export function buildSceneViewModel(
       );
     }
 
-    placeLabel(
-      labels,
-      "ray-bend",
-      result.primaryRay.targetCrossing ? "source-light-path" : "actual-ray",
-      t(language, "rayBend", {
-        value: formatAngle(result.primaryRay.totalBendRad),
-      }),
-      pointOnPolyline(
-        curvedPathForLabel,
-        result.model.geometryMode === "convex" ? 0.34 : 0.4,
-      ),
-      [
-        { x: shortOffsetX * 0.08, y: labelRise * 0.46 },
-        { x: mediumOffsetX * 0.12, y: labelRise * 0.46 },
-      ],
-      labelMinDx * 0.7,
-      labelMinDy * 0.72,
-      labelPlacementBounds,
-      "full",
-    );
+    if (!result.primaryRay.targetCrossing || resolvedObjectLightPathMode !== "hidden") {
+      placeLabel(
+        labels,
+        "ray-bend",
+        result.primaryRay.targetCrossing ? "source-light-path" : "actual-ray",
+        t(language, "rayBend", {
+          value: formatAngle(result.primaryRay.totalBendRad),
+        }),
+        pointOnPolyline(
+          curvedPathForLabel,
+          result.model.geometryMode === "convex" ? 0.34 : 0.4,
+        ),
+        [
+          { x: shortOffsetX * 0.08, y: labelRise * 0.46 },
+          { x: mediumOffsetX * 0.12, y: labelRise * 0.46 },
+        ],
+        labelMinDx * 0.7,
+        labelMinDy * 0.72,
+        labelPlacementBounds,
+        "full",
+      );
+    }
   }
 
-  if (result.apparentElevationRad != null) {
+  if (apparentElevationForDisplay != null) {
     const apparentLineEnd = {
-      x: Math.cos(result.apparentElevationRad) * forwardDistanceM,
-      y: Math.sin(result.apparentElevationRad) * forwardDistanceM * verticalExaggeration,
+      x: Math.cos(apparentElevationForDisplay) * forwardDistanceM,
+      y: Math.sin(apparentElevationForDisplay) * forwardDistanceM * verticalExaggeration,
     };
 
     placeLabel(
@@ -1152,7 +1255,7 @@ export function buildSceneViewModel(
     );
   }
 
-  if (geometricHorizonPoint) {
+  if (geometricHorizonPoint && result.model.lineBehavior.showGeometricHorizon) {
     placeLabel(
       labels,
       "geometric-horizon-line-label",
@@ -1170,15 +1273,10 @@ export function buildSceneViewModel(
     );
   }
 
-  if (opticalHorizonPoint) {
+  if (opticalHorizonPoint && resolvedOpticalHorizonRayMode !== "hidden") {
     const opticalAnchor =
-      result.opticalHorizon?.trace && result.opticalHorizon.trace.points.length > 1
-        ? pointOnPolyline(
-            result.opticalHorizon.trace.points.map((point) =>
-              exaggerate(rawTransform(point)),
-            ),
-            0.72,
-          )
+      resolvedOpticalHorizonRayMode === "traced" && opticalHorizonTrace.length > 1
+        ? pointOnPolyline(opticalHorizonTrace, 0.72)
         : pointAlongSegment({ x: 0, y: 0 }, opticalHorizonPoint, 0.7);
 
     placeLabel(
@@ -1311,7 +1409,7 @@ export function buildSceneViewModel(
 
   const geometryPoints = [
     ...surfaceSamples,
-    ...observerAltitudeCurve,
+    ...referenceConstructionPoints,
     ...geometricSightline,
     ...segments.flatMap((segment) => [segment.from, segment.to]),
     ...markers.map((marker) => marker.point),
@@ -1326,6 +1424,10 @@ export function buildSceneViewModel(
     minBottomPad: Math.max(260, result.scenario.targetHeightM * 0.2),
   });
   const focusBounds = createFocusBounds(result, geometryPoints);
+  const visibleFeatureIds = new Set<string>([
+    ...lines.map((line) => line.featureId),
+    ...segments.map((segment) => segment.featureId),
+  ]);
 
   return {
     sceneKey,
@@ -1333,7 +1435,7 @@ export function buildSceneViewModel(
     subtitle: `${getModelLabel(language, result.model)} | ${t(language, "hiddenShort", {
       value: formatHeight(result.hiddenHeightM, unitPreferences.height),
     })} | ${t(language, "apparentShort", {
-      value: formatAngle(result.apparentElevationRad),
+      value: formatAngle(apparentElevationForDisplay),
     })}`,
     bounds,
     focusBounds,
@@ -1349,6 +1451,8 @@ export function buildSceneViewModel(
     labels,
     lines,
     segments,
-    annotations: buildAnnotationMap(result, terrainOverlay, language),
+    annotations: buildAnnotationMap(result, terrainOverlay, language).filter((annotation) =>
+      visibleFeatureIds.has(annotation.id),
+    ),
   };
 }

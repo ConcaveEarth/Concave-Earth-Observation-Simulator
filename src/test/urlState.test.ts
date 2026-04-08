@@ -1,4 +1,5 @@
 import {
+  type AppState,
   createDefaultState,
   hydrateStateFromSearch,
   serializeStateToSearch,
@@ -6,7 +7,7 @@ import {
 
 describe("URL state round-tripping", () => {
   it("serializes and hydrates scenario and view selections", () => {
-    const state = {
+    const state: AppState = {
       ...createDefaultState(),
       viewMode: "compare" as const,
       focusedModel: "comparison" as const,
@@ -39,6 +40,15 @@ describe("URL state round-tripping", () => {
         targetHeightM: 93,
         surfaceDistanceM: 77_000,
       },
+      primaryModel: {
+        ...createDefaultState().primaryModel,
+        lineBehavior: {
+          ...createDefaultState().primaryModel.lineBehavior,
+          referenceConstruction: "straight-horizontal",
+          objectLightPath: "straight",
+          showSourceGeometricPath: false,
+        },
+      },
     };
 
     const hydrated = hydrateStateFromSearch(serializeStateToSearch(state));
@@ -66,5 +76,10 @@ describe("URL state round-tripping", () => {
     expect(hydrated.scenario.observerHeightM).toBe(34);
     expect(hydrated.scenario.targetHeightM).toBe(93);
     expect(hydrated.scenario.surfaceDistanceM).toBe(77_000);
+    expect(hydrated.primaryModel.lineBehavior.referenceConstruction).toBe(
+      "straight-horizontal",
+    );
+    expect(hydrated.primaryModel.lineBehavior.objectLightPath).toBe("straight");
+    expect(hydrated.primaryModel.lineBehavior.showSourceGeometricPath).toBe(false);
   });
 });

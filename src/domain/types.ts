@@ -3,6 +3,14 @@ export type IntrinsicCurvatureMode = "none" | "1/R" | "2/R" | "constant";
 export type AtmosphereMode = "none" | "simpleCoefficient";
 export type ViewMode = "cross-section" | "compare";
 export type FocusedModel = "primary" | "comparison";
+export type ReferenceConstructionMode =
+  | "auto"
+  | "straight-horizontal"
+  | "curved-altitude"
+  | "curvilinear-tangent"
+  | "hidden";
+export type PathDisplayMode = "auto" | "traced" | "straight" | "hidden";
+export type ApparentDirectionMode = "auto" | "target" | "horizon" | "hidden";
 
 export interface Vec2 {
   x: number;
@@ -24,6 +32,16 @@ export interface AtmosphereConfig {
   coefficient: number;
 }
 
+export interface LineBehaviorConfig {
+  referenceConstruction: ReferenceConstructionMode;
+  opticalHorizonRay: PathDisplayMode;
+  objectLightPath: PathDisplayMode;
+  apparentDirection: ApparentDirectionMode;
+  showSourceGeometricPath: boolean;
+  showObserverHorizontal: boolean;
+  showGeometricHorizon: boolean;
+}
+
 export interface ModelConfig {
   id: string;
   label: string;
@@ -31,6 +49,7 @@ export interface ModelConfig {
   intrinsicCurvatureMode: IntrinsicCurvatureMode;
   intrinsicCurvaturePerM: number;
   atmosphere: AtmosphereConfig;
+  lineBehavior: LineBehaviorConfig;
 }
 
 export interface RayPoint extends Vec2 {

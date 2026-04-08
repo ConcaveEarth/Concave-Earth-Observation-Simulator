@@ -29,6 +29,12 @@ interface SolvedRay {
   missHeightM: number;
 }
 
+interface HorizonSearchCandidate {
+  result: HorizonResult;
+  forwardX: number;
+  launchAngleRad: number;
+}
+
 function getObserverPoint(scenario: ScenarioInput, model: ModelConfig): Vec2 {
   return pointAtSurfaceHeight(
     scenario.radiusM,
@@ -79,9 +85,9 @@ function solveGeometricHorizon(
 function solveConvexOpticalHorizon(
   scenario: ScenarioInput,
   model: ModelConfig,
-  _observerPoint: Vec2,
-  _observerTangent: Vec2,
-  _observerUp: Vec2,
+  observerPoint: Vec2,
+  observerTangent: Vec2,
+  observerUp: Vec2,
 ): HorizonResult | null {
   if (model.geometryMode !== "convex") {
     return null;
@@ -104,10 +110,89 @@ function solveConvexOpticalHorizon(
     model.geometryMode,
     0,
   );
+  const launchCenter = -effectiveHorizonAngle;
+  const maxArcLengthM = getDefaultMaxArcLengthM(scenario);
+  const stepM = getDefaultStepM(scenario);
+
+  const searchRange = (
+    minLaunch: number,
+    maxLaunch: number,
+    attempts: number,
+  ): HorizonSearchCandidate | null => {
+    let best: HorizonSearchCandidate | null = null;
+
+    for (let index = 0; index < attempts; index += 1) {
+      const launchAngleRad = lerp(minLaunch, maxLaunch, index / (attempts - 1));
+      const trace = traceRay({
+        scenario,
+        model,
+        launchAngleRad,
+        targetAngleRad: null,
+        maxArcLengthM,
+        stepM,
+      });
+
+      if (!trace.firstSurfaceIntersection) {
+        continue;
+      }
+
+      const localIntersection = toObserverFrame(
+        trace.firstSurfaceIntersection,
+        observerPoint,
+        observerTangent,
+        observerUp,
+      );
+
+      if (localIntersection.x <= 0) {
+        continue;
+      }
+
+      const surfaceAngleRad = Math.atan2(
+        trace.firstSurfaceIntersection.y,
+        trace.firstSurfaceIntersection.x,
+      );
+      const result: HorizonResult = {
+        point: trace.firstSurfaceIntersection,
+        surfaceAngleRad,
+        trace,
+        distanceM: Math.abs(scenario.radiusM * surfaceAngleRad),
+        apparentElevationRad: launchAngleRad,
+      };
+
+      if (!best || localIntersection.x > best.forwardX) {
+        best = { result, forwardX: localIntersection.x, launchAngleRad };
+      }
+    }
+
+    return best;
+  };
+
+  let tracedBest =
+    searchRange(
+      clamp(launchCenter - 0.16, -0.9, 0.04),
+      clamp(launchCenter + 0.06, -0.9, 0.04),
+      96,
+    ) ??
+    searchRange(-0.48, 0, 96);
+
+  if (tracedBest) {
+    for (const windowSize of [0.05, 0.018] as const) {
+      const refined = searchRange(
+        clamp(tracedBest.launchAngleRad - windowSize, -0.9, 0.04),
+        clamp(tracedBest.launchAngleRad + windowSize, -0.9, 0.04),
+        72,
+      );
+
+      if (refined) {
+        tracedBest = refined;
+      }
+    }
+  }
 
   return {
     point,
     surfaceAngleRad: actualSurfaceAngle,
+    trace: tracedBest?.result.trace,
     distanceM: surfaceDistanceM,
     apparentElevationRad: -effectiveHorizonAngle,
   };

@@ -106,4 +106,46 @@ describe("scene view model", () => {
       ),
     ).toBe(true);
   });
+
+  it("respects advanced line behavior overrides for scene construction", () => {
+    const result = solveVisibility(
+      {
+        observerHeightM: 45,
+        targetHeightM: 35,
+        surfaceDistanceM: 58_000,
+        radiusM: 6_371_000,
+        targetSampleCount: 18,
+        presetId: "elevated-observer",
+        units: "metric",
+      },
+      {
+        ...defaultPrimaryModel,
+        lineBehavior: {
+          ...defaultPrimaryModel.lineBehavior,
+          referenceConstruction: "straight-horizontal",
+          objectLightPath: "straight",
+          showSourceGeometricPath: false,
+          showObserverHorizontal: false,
+        },
+      },
+    );
+
+    const scene = buildSceneViewModel(
+      result,
+      "Primary Model",
+      "primary",
+      defaultUnitPreferences,
+    );
+
+    expect(scene.lines.some((line) => line.featureId === "source-geometric-path")).toBe(
+      false,
+    );
+    expect(scene.segments.some((segment) => segment.featureId === "observer-horizontal")).toBe(
+      false,
+    );
+    expect(
+      scene.annotations.find((annotation) => annotation.id === "observer-altitude-curve")
+        ?.label,
+    ).toBe("Straight Horizontal Reference");
+  });
 });

@@ -1,4 +1,5 @@
 :root {
+  font-size: clamp(13px, 0.16vw + 12.5px, 16px);
   font-family: "Segoe UI Variable Text", "Segoe UI", "Trebuchet MS", sans-serif;
   color-scheme: dark;
   line-height: 1.4;
@@ -88,6 +89,7 @@ body {
   min-width: 320px;
   min-height: 100vh;
   overflow: auto;
+  font-size: 1rem;
   color: var(--text-primary);
   background: var(--app-background);
 }
@@ -599,6 +601,13 @@ select {
   scroll-margin-top: 94px;
 }
 
+.panel-section--nested {
+  margin-top: 4px;
+  padding: 12px 12px 14px;
+  border-radius: 18px;
+  background: rgba(8, 18, 28, 0.44);
+}
+
 .panel-section__header {
   display: flex;
   justify-content: space-between;
@@ -798,8 +807,8 @@ select {
 }
 
 .field__value input {
-  min-width: 9ch;
-  width: clamp(112px, 16ch, 220px);
+  min-width: 11ch;
+  width: clamp(128px, 19ch, 280px);
   max-width: 100%;
   padding: 9px 10px;
   border-radius: 12px;

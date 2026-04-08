@@ -30,6 +30,15 @@ export const defaultPrimaryModel: ModelConfig = {
     mode: "simpleCoefficient",
     coefficient: ATMOSPHERE_COEFFICIENT_DEFAULT,
   },
+  lineBehavior: {
+    referenceConstruction: "curved-altitude",
+    opticalHorizonRay: "traced",
+    objectLightPath: "traced",
+    apparentDirection: "auto",
+    showSourceGeometricPath: true,
+    showObserverHorizontal: true,
+    showGeometricHorizon: true,
+  },
 };
 
 export const defaultComparisonModel: ModelConfig = {
@@ -41,6 +50,15 @@ export const defaultComparisonModel: ModelConfig = {
   atmosphere: {
     mode: "simpleCoefficient",
     coefficient: ATMOSPHERE_COEFFICIENT_DEFAULT,
+  },
+  lineBehavior: {
+    referenceConstruction: "curvilinear-tangent",
+    opticalHorizonRay: "traced",
+    objectLightPath: "traced",
+    apparentDirection: "auto",
+    showSourceGeometricPath: true,
+    showObserverHorizontal: true,
+    showGeometricHorizon: true,
   },
 };
 
@@ -235,5 +253,8 @@ export function applyPresetToModel(
     atmosphere: override.atmosphere
       ? { ...baseModel.atmosphere, ...override.atmosphere }
       : baseModel.atmosphere,
+    lineBehavior: override.lineBehavior
+      ? { ...baseModel.lineBehavior, ...override.lineBehavior }
+      : baseModel.lineBehavior,
   };
 }

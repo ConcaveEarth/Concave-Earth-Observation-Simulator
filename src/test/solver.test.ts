@@ -133,6 +133,7 @@ describe("visibility solver", () => {
     expect(downwardResult.opticalHorizon!.distanceM).toBeGreaterThan(
       upwardResult.opticalHorizon!.distanceM,
     );
+    expect(downwardResult.opticalHorizon!.trace).not.toBeNull();
   });
 
   it("keeps the concave apparent horizon direction non-positive for the default low-horizon case", () => {
@@ -140,5 +141,17 @@ describe("visibility solver", () => {
 
     expect(result.opticalHorizon).not.toBeNull();
     expect(result.opticalHorizon!.apparentElevationRad).toBeLessThanOrEqual(0);
+  });
+
+  it("builds a traced convex optical horizon ray under atmospheric refraction", () => {
+    const result = solveVisibility(defaultScenario, {
+      ...defaultPrimaryModel,
+      atmosphere: { mode: "simpleCoefficient", coefficient: 0.15 },
+    });
+
+    expect(result.opticalHorizon).not.toBeNull();
+    expect(result.opticalHorizon!.trace).not.toBeNull();
+    expect(result.opticalHorizon!.trace!.points.length).toBeGreaterThan(4);
+    expect(result.opticalHorizon!.distanceM).toBeGreaterThan(0);
   });
 });

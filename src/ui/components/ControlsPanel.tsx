@@ -112,7 +112,13 @@ function NumberField({
           ? 2
           : 3;
   const inputDecimals =
-    unit === "pts" ? 0 : displayedStep >= 10 ? 0 : displayedStep >= 1 ? 2 : 3;
+    unit === "pts"
+      ? 0
+      : unit === "ft" || unit === "m"
+        ? 2
+        : unit === "mi" || unit === "km"
+          ? 3
+          : 2;
   const formattedDisplayedValue = useMemo(
     () => formatInputValue(displayedValue, inputDecimals),
     [displayedValue, inputDecimals],
@@ -230,6 +236,7 @@ function ModelEditor({
   onToggleCollapsed,
 }: ModelEditorProps) {
   const isConcave = model.geometryMode === "concave";
+  const [advancedCollapsed, setAdvancedCollapsed] = useState(true);
 
   return (
     <PanelSection
@@ -338,6 +345,146 @@ function ModelEditor({
           <p className="field__hint">{t(language, "atmosphereHint")}</p>
         </>
       ) : null}
+
+      <PanelSection
+        title={t(language, "advancedLineBehavior")}
+        sectionId={`${sectionId}-advanced-lines`}
+        className="panel-section--nested"
+        collapsible
+        collapsed={advancedCollapsed}
+        onToggleCollapsed={() => setAdvancedCollapsed((current) => !current)}
+      >
+        <label className="field">
+          <span>{t(language, "referenceConstruction")}</span>
+          <select
+            value={model.lineBehavior.referenceConstruction}
+            onChange={(event) =>
+              dispatch({
+                type: "setLineBehaviorField",
+                target,
+                key: "referenceConstruction",
+                value: event.target.value,
+              })
+            }
+          >
+            <option value="auto">{t(language, "auto")}</option>
+            <option value="straight-horizontal">{t(language, "straightHorizontal")}</option>
+            <option value="curved-altitude">{t(language, "curvedAltitude")}</option>
+            <option value="curvilinear-tangent">{t(language, "curvilinearTangentOption")}</option>
+            <option value="hidden">{t(language, "hidden")}</option>
+          </select>
+        </label>
+
+        <label className="field">
+          <span>{t(language, "objectLightPath")}</span>
+          <select
+            value={model.lineBehavior.objectLightPath}
+            onChange={(event) =>
+              dispatch({
+                type: "setLineBehaviorField",
+                target,
+                key: "objectLightPath",
+                value: event.target.value,
+              })
+            }
+          >
+            <option value="auto">{t(language, "auto")}</option>
+            <option value="traced">{t(language, "tracedCurve")}</option>
+            <option value="straight">{t(language, "straightChord")}</option>
+            <option value="hidden">{t(language, "hidden")}</option>
+          </select>
+        </label>
+
+        <label className="field">
+          <span>{t(language, "opticalHorizonRay")}</span>
+          <select
+            value={model.lineBehavior.opticalHorizonRay}
+            onChange={(event) =>
+              dispatch({
+                type: "setLineBehaviorField",
+                target,
+                key: "opticalHorizonRay",
+                value: event.target.value,
+              })
+            }
+          >
+            <option value="auto">{t(language, "auto")}</option>
+            <option value="traced">{t(language, "tracedCurve")}</option>
+            <option value="straight">{t(language, "straightChord")}</option>
+            <option value="hidden">{t(language, "hidden")}</option>
+          </select>
+        </label>
+
+        <label className="field">
+          <span>{t(language, "apparentDirectionSource")}</span>
+          <select
+            value={model.lineBehavior.apparentDirection}
+            onChange={(event) =>
+              dispatch({
+                type: "setLineBehaviorField",
+                target,
+                key: "apparentDirection",
+                value: event.target.value,
+              })
+            }
+          >
+            <option value="auto">{t(language, "auto")}</option>
+            <option value="target">{t(language, "targetApparentDirection")}</option>
+            <option value="horizon">{t(language, "horizonApparentDirection")}</option>
+            <option value="hidden">{t(language, "hidden")}</option>
+          </select>
+        </label>
+
+        <label className="switch">
+          <input
+            type="checkbox"
+            checked={model.lineBehavior.showObserverHorizontal}
+            onChange={(event) =>
+              dispatch({
+                type: "setLineBehaviorField",
+                target,
+                key: "showObserverHorizontal",
+                value: event.target.checked,
+              })
+            }
+          />
+          <span>{t(language, "showObserverHorizontal")}</span>
+        </label>
+
+        <label className="switch">
+          <input
+            type="checkbox"
+            checked={model.lineBehavior.showSourceGeometricPath}
+            onChange={(event) =>
+              dispatch({
+                type: "setLineBehaviorField",
+                target,
+                key: "showSourceGeometricPath",
+                value: event.target.checked,
+              })
+            }
+          />
+          <span>{t(language, "showSourceGeometricPath")}</span>
+        </label>
+
+        <label className="switch">
+          <input
+            type="checkbox"
+            checked={model.lineBehavior.showGeometricHorizon}
+            onChange={(event) =>
+              dispatch({
+                type: "setLineBehaviorField",
+                target,
+                key: "showGeometricHorizon",
+                value: event.target.checked,
+              })
+            }
+          />
+          <span>{t(language, "showGeometricHorizon")}</span>
+        </label>
+
+        <p className="field__hint">{t(language, "advancedLineBehaviorHint")}</p>
+      </PanelSection>
     </PanelSection>
   );
 }

@@ -10,10 +10,14 @@ import { clampAtmosphereCoefficient } from "../domain/curvature";
 import type { LanguageMode } from "../i18n";
 import { clamp, defaultUnitPreferences } from "../domain/units";
 import type {
+  ApparentDirectionMode,
   FocusedModel,
   GeometryMode,
   IntrinsicCurvatureMode,
+  LineBehaviorConfig,
   ModelConfig,
+  PathDisplayMode,
+  ReferenceConstructionMode,
   ScenarioInput,
   ViewMode,
 } from "../domain/types";
@@ -84,6 +88,12 @@ export type AppAction =
       target: FocusedModel;
       key: "mode" | "coefficient";
       value: number | string;
+    }
+  | {
+      type: "setLineBehaviorField";
+      target: FocusedModel;
+      key: keyof LineBehaviorConfig;
+      value: boolean | string;
     }
   | { type: "setViewMode"; value: ViewMode }
   | { type: "setAnalysisTab"; value: AnalysisTab }
@@ -169,6 +179,40 @@ function normalizeIntrinsicMode(value: string): IntrinsicCurvatureMode {
     case "none":
     default:
       return "none";
+  }
+}
+
+function normalizeReferenceConstructionMode(value: string): ReferenceConstructionMode {
+  switch (value) {
+    case "straight-horizontal":
+    case "curved-altitude":
+    case "curvilinear-tangent":
+    case "hidden":
+      return value;
+    default:
+      return "auto";
+  }
+}
+
+function normalizePathDisplayMode(value: string): PathDisplayMode {
+  switch (value) {
+    case "traced":
+    case "straight":
+    case "hidden":
+      return value;
+    default:
+      return "auto";
+  }
+}
+
+function normalizeApparentDirectionMode(value: string): ApparentDirectionMode {
+  switch (value) {
+    case "target":
+    case "horizon":
+    case "hidden":
+      return value;
+    default:
+      return "auto";
   }
 }
 
@@ -330,6 +374,30 @@ function updateAtmosphere(
   };
 }
 
+function updateLineBehavior(
+  model: ModelConfig,
+  action: Extract<AppAction, { type: "setLineBehaviorField" }>,
+): ModelConfig {
+  const normalizedValue =
+    action.key === "showSourceGeometricPath" ||
+    action.key === "showObserverHorizontal" ||
+    action.key === "showGeometricHorizon"
+      ? Boolean(action.value)
+      : action.key === "referenceConstruction"
+        ? normalizeReferenceConstructionMode(String(action.value))
+        : action.key === "apparentDirection"
+          ? normalizeApparentDirectionMode(String(action.value))
+          : normalizePathDisplayMode(String(action.value));
+
+  return {
+    ...model,
+    lineBehavior: {
+      ...model.lineBehavior,
+      [action.key]: normalizedValue,
+    },
+  };
+}
+
 export function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
     case "setScenarioField":
@@ -353,6 +421,13 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         : {
             ...state,
             comparisonModel: updateAtmosphere(state.comparisonModel, action),
+          };
+    case "setLineBehaviorField":
+      return action.target === "primary"
+        ? { ...state, primaryModel: updateLineBehavior(state.primaryModel, action) }
+        : {
+            ...state,
+            comparisonModel: updateLineBehavior(state.comparisonModel, action),
           };
     case "setViewMode":
       return { ...state, viewMode: action.value };
@@ -510,6 +585,25 @@ function serializeModel(prefix: string, model: ModelConfig, params: URLSearchPar
   params.set(`${prefix}IntrinsicValue`, String(model.intrinsicCurvaturePerM));
   params.set(`${prefix}AtmosphereMode`, model.atmosphere.mode);
   params.set(`${prefix}AtmosphereK`, String(model.atmosphere.coefficient));
+  params.set(
+    `${prefix}ReferenceConstruction`,
+    model.lineBehavior.referenceConstruction,
+  );
+  params.set(`${prefix}OpticalHorizonRay`, model.lineBehavior.opticalHorizonRay);
+  params.set(`${prefix}ObjectLightPath`, model.lineBehavior.objectLightPath);
+  params.set(`${prefix}ApparentDirection`, model.lineBehavior.apparentDirection);
+  params.set(
+    `${prefix}ShowSourceGeometricPath`,
+    model.lineBehavior.showSourceGeometricPath ? "1" : "0",
+  );
+  params.set(
+    `${prefix}ShowObserverHorizontal`,
+    model.lineBehavior.showObserverHorizontal ? "1" : "0",
+  );
+  params.set(
+    `${prefix}ShowGeometricHorizon`,
+    model.lineBehavior.showGeometricHorizon ? "1" : "0",
+  );
 }
 
 function parseNumber(
@@ -552,6 +646,36 @@ function hydrateModel(
           fallback.atmosphere.coefficient,
         ),
       ),
+    },
+    lineBehavior: {
+      referenceConstruction: normalizeReferenceConstructionMode(
+        params.get(`${prefix}ReferenceConstruction`) ??
+          fallback.lineBehavior.referenceConstruction,
+      ),
+      opticalHorizonRay: normalizePathDisplayMode(
+        params.get(`${prefix}OpticalHorizonRay`) ??
+          fallback.lineBehavior.opticalHorizonRay,
+      ),
+      objectLightPath: normalizePathDisplayMode(
+        params.get(`${prefix}ObjectLightPath`) ??
+          fallback.lineBehavior.objectLightPath,
+      ),
+      apparentDirection: normalizeApparentDirectionMode(
+        params.get(`${prefix}ApparentDirection`) ??
+          fallback.lineBehavior.apparentDirection,
+      ),
+      showSourceGeometricPath:
+        params.get(`${prefix}ShowSourceGeometricPath`) == null
+          ? fallback.lineBehavior.showSourceGeometricPath
+          : params.get(`${prefix}ShowSourceGeometricPath`) !== "0",
+      showObserverHorizontal:
+        params.get(`${prefix}ShowObserverHorizontal`) == null
+          ? fallback.lineBehavior.showObserverHorizontal
+          : params.get(`${prefix}ShowObserverHorizontal`) !== "0",
+      showGeometricHorizon:
+        params.get(`${prefix}ShowGeometricHorizon`) == null
+          ? fallback.lineBehavior.showGeometricHorizon
+          : params.get(`${prefix}ShowGeometricHorizon`) !== "0",
     },
   };
 }
