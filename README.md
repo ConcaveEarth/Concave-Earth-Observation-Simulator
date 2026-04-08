@@ -1,5 +1,7 @@
 # Concave-Earth-Observation-Simulator
 
+Demo : https://concaveearth.github.io/Concave-Earth-Observation-Simulator/
+
 Observation Geometry Lab is a Vite + React + TypeScript web app for comparing
 long-range observation scenarios across convex-sphere and concave-shell models
 with one shared 2D ray-path engine.
