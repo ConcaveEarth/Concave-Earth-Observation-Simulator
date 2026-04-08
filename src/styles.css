@@ -656,9 +656,10 @@ select {
 
 .field__value-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .field__value {
@@ -667,11 +668,12 @@ select {
   gap: 8px;
   min-width: 0;
   flex-wrap: nowrap;
+  flex: 1 1 170px;
 }
 
 .field__value input {
   min-width: 9ch;
-  width: clamp(96px, 12ch, 156px);
+  width: clamp(112px, 16ch, 220px);
   max-width: 100%;
   padding: 9px 10px;
   border-radius: 12px;
@@ -695,6 +697,7 @@ select {
   color: var(--text-subtle);
   font-size: 0.76rem;
   text-align: right;
+  flex: 1 1 140px;
 }
 
 .pill-group {

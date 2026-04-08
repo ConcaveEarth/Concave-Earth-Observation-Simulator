@@ -5,6 +5,11 @@ import {
   pointAtSurfaceHeight,
   toObserverFrame,
 } from "./geometry";
+import {
+  getDefaultMaxArcLengthM,
+  getDefaultStepM,
+  traceRay,
+} from "./raytrace";
 import { solveVisibility } from "./solver";
 import { clamp, formatAngle, formatDistance, formatFraction, formatHeight, lerp } from "./units";
 import type { FocusedModel, ModelConfig, ScenarioInput, VisibilitySolveResult, Vec2 } from "./types";
@@ -514,16 +519,31 @@ export function buildRayBundlePanelData(
       });
     } else {
       blockedSamples += 1;
+      const blockedTrace = traceRay({
+        scenario: result.scenario,
+        model: result.model,
+        launchAngleRad: sample.actualElevationRad,
+        targetAngleRad,
+        maxArcLengthM: getDefaultMaxArcLengthM(result.scenario),
+        stepM: getDefaultStepM(result.scenario),
+      });
+      const blockedTracePoints = blockedTrace.points.map((point) => {
+        const local = transformToObserverFrame(result, point);
+        return { x: local.x, y: local.y * verticalScale };
+      });
       traces.push({
         id: `bundle-hidden-${index}`,
         featureId: "bundle-blocked-rays",
         color: `rgba(222, 231, 242, ${0.22 + index / Math.max(result.targetSamples.length * 3.2, 1)})`,
         width: 1.2,
         dashed: true,
-        points: [
-          { x: 0, y: 0 },
-          exTargetPoint,
-        ],
+        points:
+          blockedTracePoints.length > 1
+            ? blockedTracePoints
+            : [
+                { x: 0, y: 0 },
+                exTargetPoint,
+              ],
       });
     }
   });
