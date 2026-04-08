@@ -328,6 +328,7 @@ export function RayBundleView({
       ref={svgRef}
       className="scene-svg"
       viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+      preserveAspectRatio="xMidYMid meet"
       role="img"
       aria-label={t(language, "rayBundle")}
       onPointerDown={handlePointerDown}

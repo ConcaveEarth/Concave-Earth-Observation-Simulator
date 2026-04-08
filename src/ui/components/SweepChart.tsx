@@ -232,6 +232,7 @@ export function SweepChart({
       ref={svgRef}
       className="scene-svg sweep-chart"
       viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
+      preserveAspectRatio="xMidYMid meet"
       role="img"
       aria-label={t(language, "parameterSweepTitle")}
       onPointerDown={handlePointerDown}

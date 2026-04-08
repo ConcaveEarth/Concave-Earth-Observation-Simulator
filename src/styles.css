@@ -87,7 +87,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  overflow: hidden;
+  overflow: auto;
   color: var(--text-primary);
   background: var(--app-background);
 }
@@ -100,14 +100,15 @@ select {
 
 #root {
   min-height: 100vh;
-  height: 100vh;
+  height: auto;
 }
 
 .app-frame {
   position: relative;
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  min-height: 100vh;
+  height: auto;
   padding: 20px;
   gap: 16px;
 }
@@ -124,7 +125,7 @@ select {
 
 .app-shell--fullwidth-scene {
   grid-template-columns: minmax(290px, 340px) minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) clamp(280px, 35vh, 420px);
+  grid-template-rows: auto auto;
   grid-template-areas:
     "left center"
     "left right";
@@ -325,7 +326,7 @@ select {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  overflow: auto;
+  overflow: visible;
   overscroll-behavior: contain;
   padding-right: 2px;
 }
@@ -335,8 +336,8 @@ select {
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   grid-auto-flow: dense;
   align-content: start;
-  overflow-y: auto;
-  max-height: clamp(280px, 35vh, 420px);
+  overflow: visible;
+  max-height: none;
 }
 
 .app-shell--fullwidth-scene .right-panel__section--inspection {
@@ -831,7 +832,7 @@ select {
   gap: 16px;
   padding: 14px;
   min-height: 0;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   overflow: visible;
 }
 
@@ -884,7 +885,7 @@ select {
 
 .scene-card__viewport {
   position: relative;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
@@ -892,11 +893,11 @@ select {
 }
 
 .scene-card__viewport--analysis {
-  min-height: clamp(460px, 58vh, 920px);
+  min-height: clamp(520px, 60vh, 980px);
 }
 
 .scene-card__viewport--stacked-list {
-  min-height: clamp(760px, 88vh, 1480px);
+  min-height: clamp(900px, 100vh, 1680px);
 }
 
 .analysis-tabs {
@@ -955,7 +956,7 @@ select {
 .scene-card__canvas {
   min-width: 0;
   min-height: 0;
-  height: 100%;
+  height: auto;
   display: flex;
   align-items: stretch;
 }
@@ -977,14 +978,14 @@ select {
 
 .scene-stack-item {
   min-width: 0;
-  height: clamp(420px, 46vh, 680px);
+  height: clamp(460px, 52vh, 760px);
   min-height: 420px;
   display: flex;
   flex: 0 0 auto;
 }
 
 .scene-stack-item--analysis {
-  height: clamp(430px, 50vh, 760px);
+  height: clamp(480px, 56vh, 840px);
   min-height: 430px;
 }
 
@@ -996,21 +997,21 @@ select {
 
 .app-shell--fullwidth-scene .scene-card__viewport,
 .app-shell--fullwidth-scene .scene-svg {
-  min-height: min(80vh, 980px);
+  min-height: clamp(560px, 66vh, 1120px);
 }
 
 .app-shell--fullwidth-scene .scene-card--ray-bundle .scene-card__viewport,
 .app-shell--fullwidth-scene .scene-card--ray-bundle .scene-svg {
-  min-height: min(84vh, 1080px);
+  min-height: clamp(620px, 72vh, 1180px);
 }
 
 .app-shell--fullwidth-scene .scene-card__viewport--stacked-list {
-  min-height: min(96vh, 1420px);
+  min-height: clamp(980px, 116vh, 1820px);
 }
 
 .app-shell--fullwidth-scene .scene-card--sweep .scene-card__viewport,
 .app-shell--fullwidth-scene .scene-card--sweep .scene-svg {
-  min-height: min(74vh, 860px);
+  min-height: clamp(560px, 66vh, 980px);
 }
 
 .scene-legend-overlay {
@@ -1127,8 +1128,8 @@ select {
 
 .scene-svg {
   width: 100%;
-  height: 100%;
-  min-height: min(72vh, 820px);
+  height: auto;
+  min-height: clamp(520px, 62vh, 960px);
   display: block;
   touch-action: none;
   cursor: grab;
@@ -1137,7 +1138,6 @@ select {
 .scene-stack-item .scene-svg,
 .scene-card__viewport--analysis .scene-svg {
   min-height: 100%;
-  height: 100%;
 }
 
 .scene-card--fit-content .scene-svg,

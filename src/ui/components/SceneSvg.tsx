@@ -695,6 +695,7 @@ export function SceneSvg({
       ref={svgRef}
       className="scene-svg"
       viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+      preserveAspectRatio="xMidYMid meet"
       role="img"
       aria-label="Observation geometry visualization"
       onPointerDown={handlePointerDown}
