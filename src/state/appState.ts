@@ -5,6 +5,7 @@ import {
   defaultScenario,
   getPresetById,
 } from "../domain/presets";
+import { defaultSweepConfig } from "../domain/analysis";
 import { clampAtmosphereCoefficient } from "../domain/curvature";
 import type { LanguageMode } from "../i18n";
 import { clamp, defaultUnitPreferences } from "../domain/units";
@@ -16,6 +17,13 @@ import type {
   ScenarioInput,
   ViewMode,
 } from "../domain/types";
+import type {
+  AnalysisTab,
+  SweepConfig,
+  SweepMetric,
+  SweepParameter,
+  SweepRangeMode,
+} from "../domain/analysis";
 import type { DistanceUnit, HeightUnit, RadiusUnit, UnitPreferences } from "../domain/units";
 
 export type SceneFramingMode = "auto" | "full";
@@ -39,9 +47,11 @@ export interface AppState {
   scenario: ScenarioInput;
   primaryModel: ModelConfig;
   comparisonModel: ModelConfig;
+  analysisTab: AnalysisTab;
   viewMode: ViewMode;
   focusedModel: FocusedModel;
   sceneViewport: SceneViewportState;
+  sweepConfig: SweepConfig;
   unitPreferences: UnitPreferences;
   annotated: boolean;
   labelDensity: LabelDensityMode;
@@ -75,7 +85,13 @@ export type AppAction =
       value: number | string;
     }
   | { type: "setViewMode"; value: ViewMode }
+  | { type: "setAnalysisTab"; value: AnalysisTab }
   | { type: "setFocusedModel"; value: FocusedModel }
+  | {
+      type: "setSweepField";
+      key: keyof SweepConfig;
+      value: SweepParameter | SweepMetric | SweepRangeMode | number;
+    }
   | {
       type: "setViewportField";
       key: keyof SceneViewportState;
@@ -108,6 +124,7 @@ export function createDefaultState(): AppState {
     scenario: defaultScenario,
     primaryModel: defaultPrimaryModel,
     comparisonModel: defaultComparisonModel,
+    analysisTab: "cross-section",
     viewMode: "compare",
     focusedModel: "primary",
     sceneViewport: {
@@ -119,6 +136,7 @@ export function createDefaultState(): AppState {
       panX: 0,
       panY: 0,
     },
+    sweepConfig: defaultSweepConfig,
     unitPreferences: defaultUnitPreferences,
     annotated: true,
     labelDensity: "adaptive",
@@ -210,6 +228,48 @@ function normalizeWorkspaceMode(value: string): WorkspaceMode {
   return value === "simple" ? "simple" : "professional";
 }
 
+function normalizeAnalysisTab(value: string): AnalysisTab {
+  switch (value) {
+    case "ray-bundle":
+    case "sweep":
+      return value;
+    default:
+      return "cross-section";
+  }
+}
+
+function normalizeSweepParameter(value: string): SweepParameter {
+  switch (value) {
+    case "observerHeight":
+    case "targetHeight":
+    case "atmosphere":
+      return value;
+    default:
+      return "distance";
+  }
+}
+
+function normalizeSweepMetric(value: string): SweepMetric {
+  switch (value) {
+    case "visibilityFraction":
+    case "apparentElevation":
+    case "opticalHorizon":
+      return value;
+    default:
+      return "hiddenHeight";
+  }
+}
+
+function normalizeSweepRangeMode(value: string): SweepRangeMode {
+  switch (value) {
+    case "focused":
+    case "wide":
+      return value;
+    default:
+      return "operational";
+  }
+}
+
 function normalizeLanguageMode(value: string): LanguageMode {
   switch (value) {
     case "es":
@@ -291,8 +351,32 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           };
     case "setViewMode":
       return { ...state, viewMode: action.value };
+    case "setAnalysisTab":
+      return {
+        ...state,
+        analysisTab: action.value,
+        selectedSceneKey: null,
+        selectedFeatureId: null,
+        hoveredSceneKey: null,
+        hoveredFeatureId: null,
+      };
     case "setFocusedModel":
       return { ...state, focusedModel: action.value };
+    case "setSweepField":
+      return {
+        ...state,
+        sweepConfig: {
+          ...state.sweepConfig,
+          [action.key]:
+            action.key === "parameter"
+              ? normalizeSweepParameter(String(action.value))
+              : action.key === "metric"
+                ? normalizeSweepMetric(String(action.value))
+                : action.key === "rangeMode"
+                  ? normalizeSweepRangeMode(String(action.value))
+                  : clamp(Number(action.value), 8, 80),
+        },
+      };
     case "setViewportField":
       return {
         ...state,
@@ -468,6 +552,7 @@ function hydrateModel(
 export function serializeStateToSearch(state: AppState): string {
   const params = new URLSearchParams();
   params.set("preset", state.scenario.presetId);
+  params.set("tab", state.analysisTab);
   params.set("view", state.viewMode);
   params.set("focus", state.focusedModel);
   params.set("frame", state.sceneViewport.framingMode);
@@ -477,6 +562,10 @@ export function serializeStateToSearch(state: AppState): string {
   params.set("vzoom", String(state.sceneViewport.verticalZoom));
   params.set("panX", String(state.sceneViewport.panX));
   params.set("panY", String(state.sceneViewport.panY));
+  params.set("sweepParameter", state.sweepConfig.parameter);
+  params.set("sweepMetric", state.sweepConfig.metric);
+  params.set("sweepRange", state.sweepConfig.rangeMode);
+  params.set("sweepSamples", String(state.sweepConfig.sampleCount));
   params.set("heightUnit", state.unitPreferences.height);
   params.set("distanceUnit", state.unitPreferences.distance);
   params.set("radiusUnit", state.unitPreferences.radius);
@@ -535,6 +624,7 @@ export function hydrateStateFromSearch(search: string): AppState {
     },
     primaryModel,
     comparisonModel,
+    analysisTab: normalizeAnalysisTab(params.get("tab") ?? defaults.analysisTab),
     viewMode: params.get("view") === "compare" ? "compare" : "cross-section",
     focusedModel: params.get("focus") === "comparison" ? "comparison" : "primary",
     sceneViewport: {
@@ -551,6 +641,22 @@ export function hydrateStateFromSearch(search: string): AppState {
       ),
       panX: parseNumber(params, "panX", defaults.sceneViewport.panX),
       panY: parseNumber(params, "panY", defaults.sceneViewport.panY),
+    },
+    sweepConfig: {
+      parameter: normalizeSweepParameter(
+        params.get("sweepParameter") ?? defaults.sweepConfig.parameter,
+      ),
+      metric: normalizeSweepMetric(
+        params.get("sweepMetric") ?? defaults.sweepConfig.metric,
+      ),
+      rangeMode: normalizeSweepRangeMode(
+        params.get("sweepRange") ?? defaults.sweepConfig.rangeMode,
+      ),
+      sampleCount: clamp(
+        parseNumber(params, "sweepSamples", defaults.sweepConfig.sampleCount),
+        8,
+        80,
+      ),
     },
     unitPreferences: {
       height: normalizeHeightUnit(

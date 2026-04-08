@@ -4,16 +4,44 @@ Observation Geometry Lab is a Vite + React + TypeScript web app for comparing
 long-range observation scenarios across convex-sphere and concave-shell models
 with one shared 2D ray-path engine.
 
-## Included in this V1 scaffold
+## Current Milestone
+
+The app has moved beyond a bare scaffold and now functions as a professional
+comparison-first observation lab milestone:
+
+- Shared convex/concave solver with one scenario driving both model outputs
+- Cross-section view with labeled constructions, horizons, actual vs apparent
+  lines, hidden height, and model transparency outputs
+- Split compare workspace with scene-first professional layout
+- Export/share workflow, presets, multilingual UI foundation, themes, and unit
+  switching
+- Interactive legend, feature inspection, fullscreen scene workspace, and
+  solver-backed terrain/profile overlays
+
+This milestone is the baseline we can safely build on before deeper analytical
+features such as observer-eye reconstruction, terrain-aware obstruction, and
+map workflows.
+
+## Included Now
 
 - Cross-section visualization driven by a shared simulation result object
-- Side-by-side compare mode for primary vs comparison models
+- Side-by-side or stacked compare mode for Model 1 vs Model 2
 - Convex and concave geometry support
 - Intrinsic concave curvature presets: `none`, `1/R`, `2/R`, `constant`
-- Simple additive atmosphere coefficient
+- Signed atmospheric coefficient range from `-0.99` to `+0.99`
 - Hidden-height, visibility-fraction, apparent-angle, and horizon outputs
+- Ray Bundle analysis view driven by sampled target-point visibility solutions
+- Sweep analysis view for parameter-vs-output comparison curves
 - URL-serializable state plus PNG export
 - Domain, state, and UI separation with Vitest coverage
+
+## Near-Term Roadmap
+
+- Tighten remaining line/path fidelity in the cross-section constructions
+- Deepen ray-bundle analytics and visibility-envelope explanations
+- Expand sweep metrics and scenario controls
+- Upgrade terrain/profile obstruction from illustrative overlay to solver input
+- Add observer-eye reconstruction and later sky-wrap / celestial views
 
 ## Scripts
 
@@ -29,7 +57,7 @@ npm run build
 
 - `src/domain`: pure geometry, curvature, ray tracing, solver, presets, scene model
 - `src/state`: centralized app state and URL serialization
-- `src/ui`: controls, renderer, right-rail analytics, export helpers
+- `src/ui`: controls, analysis tabs, renderers, analytics panels, export helpers
 - `src/test`: domain, state, and UI tests
 
 ## GitHub Pages

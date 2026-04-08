@@ -22,6 +22,7 @@ import type {
   ScenarioInput,
   ViewMode,
 } from "../../domain/types";
+import type { AnalysisTab, SweepMetric, SweepParameter, SweepRangeMode } from "../../domain/analysis";
 import type { AppAction, AppState } from "../../state/appState";
 import { PanelSection } from "./PanelSection";
 
@@ -441,16 +442,123 @@ export function ControlsPanel({
           collapsed={collapsedSections.view}
           onToggleCollapsed={() => toggleSection("view")}
         >
-          <ViewPills
-            value={state.viewMode}
-            options={[
-              { label: t(language, "crossSection"), value: "cross-section" },
-              { label: t(language, "splitCompare"), value: "compare" },
-            ]}
-            onChange={(value) =>
-              dispatch({ type: "setViewMode", value: value as ViewMode })
-            }
-          />
+          <label className="field">
+            <span>{t(language, "analysisView")}</span>
+            <ViewPills
+              value={state.analysisTab}
+              options={[
+                { label: t(language, "crossSection"), value: "cross-section" },
+                { label: t(language, "rayBundle"), value: "ray-bundle" },
+                { label: t(language, "sweep"), value: "sweep" },
+              ]}
+              onChange={(value) =>
+                dispatch({ type: "setAnalysisTab", value: value as AnalysisTab })
+              }
+            />
+          </label>
+
+          <label className="field">
+            <span>{t(language, "panelLayout")}</span>
+            <ViewPills
+              value={state.viewMode}
+              options={[
+                { label: t(language, "singlePanel"), value: "cross-section" },
+                { label: t(language, "splitCompare"), value: "compare" },
+              ]}
+              onChange={(value) =>
+                dispatch({ type: "setViewMode", value: value as ViewMode })
+              }
+            />
+          </label>
+
+          {state.analysisTab === "cross-section" ? (
+            <p className="field__hint">{t(language, "centerLayoutHint")}</p>
+          ) : state.analysisTab === "ray-bundle" ? (
+            <p className="field__hint">{t(language, "rayBundleIntro")}</p>
+          ) : (
+            <p className="field__hint">{t(language, "sweepIntro")}</p>
+          )}
+
+          {state.analysisTab === "sweep" ? (
+            <>
+              <label className="field">
+                <span>{t(language, "sweepParameter")}</span>
+                <select
+                  value={state.sweepConfig.parameter}
+                  onChange={(event) =>
+                    dispatch({
+                      type: "setSweepField",
+                      key: "parameter",
+                      value: event.target.value as SweepParameter,
+                    })
+                  }
+                >
+                  <option value="distance">{t(language, "distanceParameter")}</option>
+                  <option value="observerHeight">{t(language, "observerHeightParameter")}</option>
+                  <option value="targetHeight">{t(language, "targetHeightParameter")}</option>
+                  <option value="atmosphere">{t(language, "atmosphereParameter")}</option>
+                </select>
+              </label>
+
+              <label className="field">
+                <span>{t(language, "sweepMetric")}</span>
+                <select
+                  value={state.sweepConfig.metric}
+                  onChange={(event) =>
+                    dispatch({
+                      type: "setSweepField",
+                      key: "metric",
+                      value: event.target.value as SweepMetric,
+                    })
+                  }
+                >
+                  <option value="hiddenHeight">{t(language, "hiddenHeightMetric")}</option>
+                  <option value="visibilityFraction">
+                    {t(language, "visibilityFractionMetric")}
+                  </option>
+                  <option value="apparentElevation">
+                    {t(language, "apparentElevationMetric")}
+                  </option>
+                  <option value="opticalHorizon">{t(language, "opticalHorizonMetric")}</option>
+                </select>
+              </label>
+
+              <label className="field">
+                <span>{t(language, "sweepRange")}</span>
+                <select
+                  value={state.sweepConfig.rangeMode}
+                  onChange={(event) =>
+                    dispatch({
+                      type: "setSweepField",
+                      key: "rangeMode",
+                      value: event.target.value as SweepRangeMode,
+                    })
+                  }
+                >
+                  <option value="focused">{t(language, "focused")}</option>
+                  <option value="operational">{t(language, "operational")}</option>
+                  <option value="wide">{t(language, "wide")}</option>
+                </select>
+              </label>
+
+              <NumberField
+                label={t(language, "sweepResolution")}
+                value={state.sweepConfig.sampleCount}
+                min={8}
+                max={80}
+                step={1}
+                unit="pts"
+                language={language}
+                onChange={(value) =>
+                  dispatch({
+                    type: "setSweepField",
+                    key: "sampleCount",
+                    value: Math.round(value),
+                  })
+                }
+              />
+            </>
+          ) : null}
 
           {state.viewMode === "cross-section" ? (
             <>
@@ -497,54 +605,62 @@ export function ControlsPanel({
             <span>{t(language, "fullWidthDiagrams")}</span>
           </label>
 
-          <label className="switch">
-            <input
-              type="checkbox"
-              checked={state.annotated}
-              onChange={(event) =>
-                dispatch({ type: "setAnnotated", value: event.target.checked })
-              }
-            />
-            <span>{t(language, "annotatedMode")}</span>
-          </label>
+          {state.analysisTab === "cross-section" ? (
+            <>
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  checked={state.annotated}
+                  onChange={(event) =>
+                    dispatch({ type: "setAnnotated", value: event.target.checked })
+                  }
+                />
+                <span>{t(language, "annotatedMode")}</span>
+              </label>
 
-          <label className="field">
-            <span>{t(language, "labelDensity")}</span>
-            <select
-              value={state.labelDensity}
-              onChange={(event) =>
-                dispatch({
-                  type: "setLabelDensity",
-                  value: event.target.value as AppState["labelDensity"],
-                })
-              }
-            >
-              <option value="adaptive">{t(language, "adaptive")}</option>
-              <option value="full">{t(language, "full")}</option>
-            </select>
-          </label>
+              <label className="field">
+                <span>{t(language, "labelDensity")}</span>
+                <select
+                  value={state.labelDensity}
+                  onChange={(event) =>
+                    dispatch({
+                      type: "setLabelDensity",
+                      value: event.target.value as AppState["labelDensity"],
+                    })
+                  }
+                >
+                  <option value="adaptive">{t(language, "adaptive")}</option>
+                  <option value="full">{t(language, "full")}</option>
+                </select>
+              </label>
+            </>
+          ) : null}
 
-          <label className="switch">
-            <input
-              type="checkbox"
-              checked={state.showScaleGuides}
-              onChange={(event) =>
-                dispatch({ type: "setShowScaleGuides", value: event.target.checked })
-              }
-            />
-            <span>{t(language, "scaleGuides")}</span>
-          </label>
+          {state.analysisTab !== "sweep" ? (
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={state.showScaleGuides}
+                onChange={(event) =>
+                  dispatch({ type: "setShowScaleGuides", value: event.target.checked })
+                }
+              />
+              <span>{t(language, "scaleGuides")}</span>
+            </label>
+          ) : null}
 
-          <label className="switch">
-            <input
-              type="checkbox"
-              checked={state.showTerrainOverlay}
-              onChange={(event) =>
-                dispatch({ type: "setShowTerrainOverlay", value: event.target.checked })
-              }
-            />
-            <span>{t(language, "profileOverlay")}</span>
-          </label>
+          {state.analysisTab === "cross-section" ? (
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={state.showTerrainOverlay}
+                onChange={(event) =>
+                  dispatch({ type: "setShowTerrainOverlay", value: event.target.checked })
+                }
+              />
+              <span>{t(language, "profileOverlay")}</span>
+            </label>
+          ) : null}
 
           <p className="field__hint">{t(language, "centerLayoutHint")}</p>
         </PanelSection>

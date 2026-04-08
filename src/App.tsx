@@ -1,18 +1,27 @@
 import { useDeferredValue, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { buildSceneViewModel, solveVisibility } from "./domain";
+import {
+  buildRayBundlePanelData,
+  buildSceneViewModel,
+  buildSweepChartData,
+  formatSweepParameterValue,
+  solveVisibility,
+} from "./domain";
 import { hydrateStateFromSearch, appReducer, serializeStateToSearch } from "./state/appState";
+import { AnalysisTabs } from "./ui/components/AnalysisTabs";
 import { ControlsPanel } from "./ui/components/ControlsPanel";
+import { RayBundleView } from "./ui/components/RayBundleView";
 import { RightPanel } from "./ui/components/RightPanel";
 import { SceneLegendOverlay } from "./ui/components/SceneLegendOverlay";
 import { SceneSvg } from "./ui/components/SceneSvg";
 import { SceneToolbar } from "./ui/components/SceneToolbar";
+import { SweepChart } from "./ui/components/SweepChart";
 import { TopNav } from "./ui/components/TopNav";
 import { AppFooter } from "./ui/components/AppFooter";
 import { downloadSvgAsPng } from "./ui/exportSvg";
 import { t } from "./i18n";
 
-function getSceneFilename(viewMode: string): string {
-  return `observation-geometry-lab-${viewMode}.png`;
+function getSceneFilename(analysisTab: string, viewMode: string): string {
+  return `observation-geometry-lab-${analysisTab}-${viewMode}.png`;
 }
 
 export default function App() {
@@ -90,28 +99,73 @@ export default function App() {
       ),
     [comparisonResult, deferredState.language, deferredState.unitPreferences],
   );
+  const primaryBundle = useMemo(
+    () =>
+      buildRayBundlePanelData(
+        primaryResult,
+        t(deferredState.language, "primaryModelTitle"),
+        "primary",
+      ),
+    [primaryResult, deferredState.language],
+  );
+  const comparisonBundle = useMemo(
+    () =>
+      buildRayBundlePanelData(
+        comparisonResult,
+        t(deferredState.language, "comparisonModelTitle"),
+        "comparison",
+      ),
+    [comparisonResult, deferredState.language],
+  );
+  const sweepData = useMemo(
+    () =>
+      buildSweepChartData({
+        scenario: deferredState.scenario,
+        primaryModel: deferredState.primaryModel,
+        comparisonModel: deferredState.comparisonModel,
+        focusedModel: deferredState.focusedModel,
+        compareMode: deferredState.viewMode === "compare",
+        config: deferredState.sweepConfig,
+      }),
+    [
+      deferredState.scenario,
+      deferredState.primaryModel,
+      deferredState.comparisonModel,
+      deferredState.focusedModel,
+      deferredState.viewMode,
+      deferredState.sweepConfig,
+    ],
+  );
 
   const scenes =
     deferredState.viewMode === "compare"
       ? [primaryScene, comparisonScene]
       : [deferredState.focusedModel === "primary" ? primaryScene : comparisonScene];
+  const bundlePanels =
+    deferredState.viewMode === "compare"
+      ? [primaryBundle, comparisonBundle]
+      : [deferredState.focusedModel === "primary" ? primaryBundle : comparisonBundle];
 
   const visibleSceneKeys = new Set(scenes.map((scene) => scene.sceneKey));
   const hoveredSceneVisible =
     state.hoveredSceneKey !== null && visibleSceneKeys.has(state.hoveredSceneKey);
   const selectedSceneVisible =
     state.selectedSceneKey !== null && visibleSceneKeys.has(state.selectedSceneKey);
-  const activeFeatureId = hoveredSceneVisible
-    ? state.hoveredFeatureId
-    : selectedSceneVisible
-      ? state.selectedFeatureId
-      : null;
-  const activeSceneKey =
-    hoveredSceneVisible
+  const interactionEnabled = deferredState.analysisTab === "cross-section";
+  const activeFeatureId = interactionEnabled
+    ? hoveredSceneVisible
+      ? state.hoveredFeatureId
+      : selectedSceneVisible
+        ? state.selectedFeatureId
+        : null
+    : null;
+  const activeSceneKey = interactionEnabled
+    ? hoveredSceneVisible
       ? state.hoveredSceneKey
       : selectedSceneVisible
         ? state.selectedSceneKey
-        : null;
+        : null
+    : null;
   const inspectedSceneKey =
     activeSceneKey ??
     (deferredState.viewMode === "compare" ? "primary" : deferredState.focusedModel);
@@ -134,7 +188,10 @@ export default function App() {
         : "side-by-side"
       : state.sceneViewport.compareLayout;
   const shouldShowLegendOverlay =
-    state.workspaceMode === "professional" && state.fullWidthScene && showLegendOverlay;
+    deferredState.analysisTab === "cross-section" &&
+    state.workspaceMode === "professional" &&
+    state.fullWidthScene &&
+    showLegendOverlay;
 
   async function handleExport() {
     const svg = sceneHostRef.current?.querySelector("svg");
@@ -145,7 +202,10 @@ export default function App() {
     }
 
     try {
-      await downloadSvgAsPng(svg as SVGSVGElement, getSceneFilename(state.viewMode));
+      await downloadSvgAsPng(
+        svg as SVGSVGElement,
+        getSceneFilename(state.analysisTab, state.viewMode),
+      );
       setMessage("PNG exported from the current view.");
     } catch (error) {
       setMessage(
@@ -259,73 +319,131 @@ export default function App() {
                 </p>
               </div>
 
-              <SceneToolbar
-                state={state}
-                dispatch={dispatch}
-                suggestedVerticalScale={suggestedVerticalScale}
-                isFullscreen={isSceneFullscreen}
-                showLegend={shouldShowLegendOverlay}
-                onToggleLegend={() => setShowLegendOverlay((current) => !current)}
-                onToggleFullscreen={handleToggleFullscreen}
-                language={state.language}
-              />
+              <div className="scene-card__tools">
+                <AnalysisTabs
+                  value={state.analysisTab}
+                  language={state.language}
+                  onChange={(value) => dispatch({ type: "setAnalysisTab", value })}
+                />
+
+                {state.analysisTab === "cross-section" ? (
+                  <SceneToolbar
+                    state={state}
+                    dispatch={dispatch}
+                    suggestedVerticalScale={suggestedVerticalScale}
+                    isFullscreen={isSceneFullscreen}
+                    showLegend={shouldShowLegendOverlay}
+                    onToggleLegend={() => setShowLegendOverlay((current) => !current)}
+                    onToggleFullscreen={handleToggleFullscreen}
+                    language={state.language}
+                  />
+                ) : (
+                  <div className="scene-toolbar scene-toolbar--compact">
+                    <div className="scene-toolbar__group scene-toolbar__group--meta">
+                      <span className="scene-toolbar__meta scene-toolbar__meta--hint">
+                        {state.analysisTab === "ray-bundle"
+                          ? t(state.language, "rayBundleIntro")
+                          : `${t(state.language, "sweepIntro")} ${formatSweepParameterValue(
+                              sweepData.range.min,
+                              sweepData.parameter,
+                              state.unitPreferences,
+                            )} to ${formatSweepParameterValue(
+                              sweepData.range.max,
+                              sweepData.parameter,
+                              state.unitPreferences,
+                            )} • ${state.sweepConfig.sampleCount} solves`}
+                      </span>
+                    </div>
+                    <div className="scene-toolbar__group">
+                      <button
+                        type="button"
+                        className="scene-toolbar__button"
+                        onClick={handleToggleFullscreen}
+                      >
+                        {isSceneFullscreen
+                          ? t(state.language, "exitFullscreen")
+                          : t(state.language, "fullscreen")}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div
-              className={
-                shouldShowLegendOverlay
-                  ? "scene-card__viewport scene-card__viewport--with-legend"
-                  : "scene-card__viewport"
-              }
-            >
-              <div className="scene-card__canvas">
-                <SceneSvg
-                  scenes={scenes}
-                  annotated={state.annotated}
-                  labelDensity={state.labelDensity}
-                  showScaleGuides={state.showScaleGuides}
-                  showTerrainOverlay={state.showTerrainOverlay}
+            {state.analysisTab === "cross-section" ? (
+              <div
+                className={
+                  shouldShowLegendOverlay
+                    ? "scene-card__viewport scene-card__viewport--with-legend"
+                    : "scene-card__viewport"
+                }
+              >
+                <div className="scene-card__canvas">
+                  <SceneSvg
+                    scenes={scenes}
+                    annotated={state.annotated}
+                    labelDensity={state.labelDensity}
+                    showScaleGuides={state.showScaleGuides}
+                    showTerrainOverlay={state.showTerrainOverlay}
+                    activeFeatureId={activeFeatureId}
+                    activeSceneKey={activeSceneKey}
+                    hoveredFeatureId={state.hoveredFeatureId}
+                    hoveredSceneKey={state.hoveredSceneKey}
+                    selectedFeatureId={state.selectedFeatureId}
+                    selectedSceneKey={state.selectedSceneKey}
+                    framingMode={state.sceneViewport.framingMode}
+                    scaleMode={state.sceneViewport.scaleMode}
+                    compareLayout={resolvedCompareLayout}
+                    zoom={state.sceneViewport.zoom}
+                    verticalZoom={state.sceneViewport.verticalZoom}
+                    panX={state.sceneViewport.panX}
+                    panY={state.sceneViewport.panY}
+                    unitPreferences={state.unitPreferences}
+                    language={state.language}
+                    onHoverFeature={handleSceneHoverFeature}
+                    onSelectFeature={handleSceneSelectFeature}
+                    onPanBy={(deltaX, deltaY) =>
+                      dispatch({ type: "panViewport", deltaX, deltaY })
+                    }
+                    onAdjustZoom={(delta) =>
+                      dispatch({ type: "adjustViewportZoom", delta })
+                    }
+                    onAdjustVerticalZoom={(delta) =>
+                      dispatch({ type: "adjustViewportVerticalZoom", delta })
+                    }
+                  />
+                </div>
+                <SceneLegendOverlay
+                  annotations={inspectedScene.annotations}
+                  sceneKey={inspectedScene.sceneKey}
                   activeFeatureId={activeFeatureId}
-                  activeSceneKey={activeSceneKey}
-                  hoveredFeatureId={state.hoveredFeatureId}
-                  hoveredSceneKey={state.hoveredSceneKey}
                   selectedFeatureId={state.selectedFeatureId}
                   selectedSceneKey={state.selectedSceneKey}
-                  framingMode={state.sceneViewport.framingMode}
-                  scaleMode={state.sceneViewport.scaleMode}
-                  compareLayout={resolvedCompareLayout}
-                  zoom={state.sceneViewport.zoom}
-                  verticalZoom={state.sceneViewport.verticalZoom}
-                  panX={state.sceneViewport.panX}
-                  panY={state.sceneViewport.panY}
-                  unitPreferences={state.unitPreferences}
+                  visible={shouldShowLegendOverlay}
+                  showTerrainOverlay={state.showTerrainOverlay}
                   language={state.language}
                   onHoverFeature={handleSceneHoverFeature}
-                  onSelectFeature={handleSceneSelectFeature}
-                  onPanBy={(deltaX, deltaY) =>
-                    dispatch({ type: "panViewport", deltaX, deltaY })
-                  }
-                  onAdjustZoom={(delta) =>
-                    dispatch({ type: "adjustViewportZoom", delta })
-                  }
-                  onAdjustVerticalZoom={(delta) =>
-                    dispatch({ type: "adjustViewportVerticalZoom", delta })
-                  }
+                  onToggleFeature={handleLegendToggleFeature}
                 />
               </div>
-              <SceneLegendOverlay
-                annotations={inspectedScene.annotations}
-                sceneKey={inspectedScene.sceneKey}
-                activeFeatureId={activeFeatureId}
-                selectedFeatureId={state.selectedFeatureId}
-                selectedSceneKey={state.selectedSceneKey}
-                visible={shouldShowLegendOverlay}
-                showTerrainOverlay={state.showTerrainOverlay}
-                language={state.language}
-                onHoverFeature={handleSceneHoverFeature}
-                onToggleFeature={handleLegendToggleFeature}
-              />
-            </div>
+            ) : state.analysisTab === "ray-bundle" ? (
+              <div className="scene-card__viewport">
+                <div className="scene-card__canvas">
+                  <RayBundleView
+                    panels={bundlePanels}
+                    compareLayout={resolvedCompareLayout}
+                    unitPreferences={state.unitPreferences}
+                    showScaleGuides={state.showScaleGuides}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="scene-card__viewport">
+                <div className="scene-card__canvas">
+                  <SweepChart data={sweepData} units={state.unitPreferences} />
+                </div>
+              </div>
+            )}
           </div>
         </main>
 

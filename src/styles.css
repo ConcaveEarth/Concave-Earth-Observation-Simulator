@@ -758,6 +758,12 @@ select {
   padding: 4px 4px 0;
 }
 
+.scene-card__tools {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .scene-card__intro {
   display: flex;
   flex-wrap: wrap;
@@ -793,6 +799,37 @@ select {
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
+}
+
+.analysis-tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-self: flex-start;
+}
+
+.analysis-tabs__tab {
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--control-border);
+  background: var(--control-bg);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease,
+    color 160ms ease;
+}
+
+.analysis-tabs__tab:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--eyebrow) 38%, transparent);
+}
+
+.analysis-tabs__tab--active {
+  background: var(--control-active);
+  color: var(--text-primary);
 }
 
 .scene-card__viewport--with-legend {
@@ -853,6 +890,10 @@ select {
   width: 100%;
 }
 
+.scene-toolbar--compact {
+  justify-content: space-between;
+}
+
 .scene-toolbar__group {
   display: inline-flex;
   align-items: center;
@@ -909,6 +950,10 @@ select {
   display: block;
   touch-action: none;
   cursor: grab;
+}
+
+.sweep-chart {
+  cursor: default;
 }
 
 .scene-svg:active {

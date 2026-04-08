@@ -7,3 +7,4 @@ export * from "./solver";
 export * from "./presets";
 export * from "./profiles";
 export * from "./scene";
+export * from "./analysis";
