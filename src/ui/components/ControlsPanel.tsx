@@ -49,7 +49,10 @@ function formatInputValue(value: number, decimals: number): string {
     return "";
   }
 
-  return String(roundTo(value, decimals));
+  return roundTo(value, decimals).toLocaleString("en-US", {
+    useGrouping: false,
+    maximumFractionDigits: Math.max(0, decimals),
+  });
 }
 
 function NumberField({
@@ -179,6 +182,7 @@ function NumberField({
             type="text"
             inputMode="decimal"
             value={draftValue}
+            style={{ width: `${Math.max(6, draftValue.length + 1)}ch` }}
             onChange={(event) => {
               const nextDraft = event.target.value;
               setDraftValue(nextDraft);

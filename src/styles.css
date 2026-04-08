@@ -327,6 +327,7 @@ select {
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
+  padding-right: 2px;
 }
 
 .app-shell--fullwidth-scene .right-panel {
@@ -665,16 +666,20 @@ select {
   align-items: center;
   gap: 8px;
   min-width: 0;
+  flex-wrap: nowrap;
 }
 
 .field__value input {
-  width: 92px;
+  min-width: 9ch;
+  width: clamp(96px, 12ch, 156px);
+  max-width: 100%;
   padding: 9px 10px;
   border-radius: 12px;
   border: 1px solid var(--input-border);
   background: var(--input-bg);
   color: var(--text-primary);
-  text-align: center;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .field__unit-select {
@@ -750,7 +755,7 @@ select {
   padding: 14px;
   min-height: 0;
   flex: 1 1 auto;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .scene-card--ray-bundle {
@@ -804,20 +809,17 @@ select {
   position: relative;
   flex: 1 1 auto;
   min-height: 0;
-  overflow: hidden;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable both-edges;
 }
 
 .scene-card__viewport--analysis {
-  min-height: clamp(520px, 62vh, 980px);
-  overflow: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable both-edges;
+  min-height: clamp(460px, 58vh, 920px);
 }
 
 .scene-card__viewport--stacked-list {
-  overflow: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable both-edges;
+  min-height: clamp(760px, 88vh, 1480px);
 }
 
 .analysis-tabs {
@@ -863,6 +865,7 @@ select {
   min-height: 0;
   height: 100%;
   display: flex;
+  align-items: stretch;
 }
 
 .scene-stack-list {
@@ -872,35 +875,39 @@ select {
   grid-template-columns: 1fr;
   gap: 14px;
   align-content: start;
+  padding-bottom: 8px;
 }
 
 .scene-stack-item {
   min-width: 0;
-  min-height: clamp(360px, 42vh, 720px);
+  height: clamp(420px, 46vh, 680px);
+  min-height: 420px;
   display: flex;
+  flex: 0 0 auto;
 }
 
 .scene-stack-item--analysis {
-  min-height: clamp(380px, 46vh, 820px);
+  height: clamp(430px, 50vh, 760px);
+  min-height: 430px;
 }
 
 .app-shell--fullwidth-scene .scene-card__viewport,
 .app-shell--fullwidth-scene .scene-svg {
-  min-height: min(82vh, 1040px);
+  min-height: min(80vh, 980px);
 }
 
 .app-shell--fullwidth-scene .scene-card--ray-bundle .scene-card__viewport,
 .app-shell--fullwidth-scene .scene-card--ray-bundle .scene-svg {
-  min-height: min(92vh, 1320px);
+  min-height: min(84vh, 1080px);
 }
 
 .app-shell--fullwidth-scene .scene-card__viewport--stacked-list {
-  min-height: min(110vh, 1780px);
+  min-height: min(96vh, 1420px);
 }
 
 .app-shell--fullwidth-scene .scene-card--sweep .scene-card__viewport,
 .app-shell--fullwidth-scene .scene-card--sweep .scene-svg {
-  min-height: min(78vh, 980px);
+  min-height: min(74vh, 860px);
 }
 
 .scene-legend-overlay {
@@ -1022,6 +1029,12 @@ select {
   display: block;
   touch-action: none;
   cursor: grab;
+}
+
+.scene-stack-item .scene-svg,
+.scene-card__viewport--analysis .scene-svg {
+  min-height: 100%;
+  height: 100%;
 }
 
 .sweep-chart {
@@ -1320,6 +1333,7 @@ select {
   .scene-stack-item,
   .scene-stack-item--analysis {
     min-height: 360px;
+    height: 360px;
   }
 
   .scene-card__viewport--with-legend {
