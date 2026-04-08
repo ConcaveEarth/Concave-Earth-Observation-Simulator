@@ -876,12 +876,12 @@ select {
 
 .scene-stack-item {
   min-width: 0;
-  min-height: clamp(420px, 48vh, 820px);
+  min-height: clamp(360px, 42vh, 720px);
   display: flex;
 }
 
 .scene-stack-item--analysis {
-  min-height: clamp(420px, 52vh, 900px);
+  min-height: clamp(380px, 46vh, 820px);
 }
 
 .app-shell--fullwidth-scene .scene-card__viewport,
@@ -900,7 +900,7 @@ select {
 
 .app-shell--fullwidth-scene .scene-card--sweep .scene-card__viewport,
 .app-shell--fullwidth-scene .scene-card--sweep .scene-svg {
-  min-height: min(84vh, 1120px);
+  min-height: min(78vh, 980px);
 }
 
 .scene-legend-overlay {

@@ -132,7 +132,9 @@ const en: TranslationDictionary = {
   zoom: "Zoom",
   vertical: "Vertical",
   hoverHint:
-    "Hover to inspect, click to pin, drag to pan, wheel to zoom, Shift+wheel vertical",
+    "Hover to inspect, click to pin, drag to pan, Ctrl+wheel zoom, Shift+wheel vertical",
+  analysisViewportHint:
+    "Drag to pan, Ctrl+wheel zoom, Shift+wheel vertical",
   fullscreen: "Fullscreen",
   exitFullscreen: "Exit Fullscreen",
   legend: "Legend",

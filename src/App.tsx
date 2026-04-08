@@ -377,6 +377,62 @@ export default function App() {
                       </span>
                     </div>
                     <div className="scene-toolbar__group">
+                      <span className="scene-toolbar__label">{t(state.language, "zoom")}</span>
+                      <button
+                        type="button"
+                        className="scene-toolbar__button"
+                        onClick={() => dispatch({ type: "adjustViewportZoom", delta: -0.15 })}
+                      >
+                        -
+                      </button>
+                      <span className="scene-toolbar__value">
+                        {state.sceneViewport.zoom.toFixed(2)}x
+                      </span>
+                      <button
+                        type="button"
+                        className="scene-toolbar__button"
+                        onClick={() => dispatch({ type: "adjustViewportZoom", delta: 0.15 })}
+                      >
+                        +
+                      </button>
+                    </div>
+                    <div className="scene-toolbar__group">
+                      <span className="scene-toolbar__label">{t(state.language, "vertical")}</span>
+                      <button
+                        type="button"
+                        className="scene-toolbar__button"
+                        onClick={() =>
+                          dispatch({ type: "adjustViewportVerticalZoom", delta: -0.2 })
+                        }
+                      >
+                        -
+                      </button>
+                      <span className="scene-toolbar__value">
+                        {state.sceneViewport.verticalZoom.toFixed(2)}x
+                      </span>
+                      <button
+                        type="button"
+                        className="scene-toolbar__button"
+                        onClick={() =>
+                          dispatch({ type: "adjustViewportVerticalZoom", delta: 0.2 })
+                        }
+                      >
+                        +
+                      </button>
+                    </div>
+                    <div className="scene-toolbar__group scene-toolbar__group--meta">
+                      <span className="scene-toolbar__meta">
+                        {t(state.language, "analysisViewportHint")}
+                      </span>
+                      <button
+                        type="button"
+                        className="scene-toolbar__button"
+                        onClick={() => dispatch({ type: "resetViewport" })}
+                      >
+                        {t(state.language, "reset")}
+                      </button>
+                    </div>
+                    <div className="scene-toolbar__group">
                       <button
                         type="button"
                         className="scene-toolbar__button"
@@ -521,6 +577,19 @@ export default function App() {
                           compareLayout="side-by-side"
                           unitPreferences={state.unitPreferences}
                           showScaleGuides={state.showScaleGuides}
+                          zoom={state.sceneViewport.zoom}
+                          verticalZoom={state.sceneViewport.verticalZoom}
+                          panX={state.sceneViewport.panX}
+                          panY={state.sceneViewport.panY}
+                          onPanBy={(deltaX, deltaY) =>
+                            dispatch({ type: "panViewport", deltaX, deltaY })
+                          }
+                          onAdjustZoom={(delta) =>
+                            dispatch({ type: "adjustViewportZoom", delta })
+                          }
+                          onAdjustVerticalZoom={(delta) =>
+                            dispatch({ type: "adjustViewportVerticalZoom", delta })
+                          }
                         />
                       </div>
                     ))
@@ -530,20 +599,43 @@ export default function App() {
                       compareLayout={resolvedCompareLayout}
                       unitPreferences={state.unitPreferences}
                       showScaleGuides={state.showScaleGuides}
+                      zoom={state.sceneViewport.zoom}
+                      verticalZoom={state.sceneViewport.verticalZoom}
+                      panX={state.sceneViewport.panX}
+                      panY={state.sceneViewport.panY}
+                      onPanBy={(deltaX, deltaY) =>
+                        dispatch({ type: "panViewport", deltaX, deltaY })
+                      }
+                      onAdjustZoom={(delta) =>
+                        dispatch({ type: "adjustViewportZoom", delta })
+                      }
+                      onAdjustVerticalZoom={(delta) =>
+                        dispatch({ type: "adjustViewportVerticalZoom", delta })
+                      }
                     />
                   )}
                 </div>
               </div>
             ) : (
-              <div
-                className={
-                  stackedCompareView
-                    ? "scene-card__viewport scene-card__viewport--analysis scene-card__viewport--stacked"
-                    : "scene-card__viewport scene-card__viewport--analysis"
-                }
-              >
+              <div className="scene-card__viewport scene-card__viewport--analysis">
                 <div className="scene-card__canvas">
-                  <SweepChart data={sweepData} units={state.unitPreferences} />
+                  <SweepChart
+                    data={sweepData}
+                    units={state.unitPreferences}
+                    zoom={state.sceneViewport.zoom}
+                    verticalZoom={state.sceneViewport.verticalZoom}
+                    panX={state.sceneViewport.panX}
+                    panY={state.sceneViewport.panY}
+                    onPanBy={(deltaX, deltaY) =>
+                      dispatch({ type: "panViewport", deltaX, deltaY })
+                    }
+                    onAdjustZoom={(delta) =>
+                      dispatch({ type: "adjustViewportZoom", delta })
+                    }
+                    onAdjustVerticalZoom={(delta) =>
+                      dispatch({ type: "adjustViewportVerticalZoom", delta })
+                    }
+                  />
                 </div>
               </div>
             )}

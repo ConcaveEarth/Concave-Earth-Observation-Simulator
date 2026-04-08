@@ -1,7 +1,8 @@
+import { useRef } from "react";
+import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from "react";
 import { formatDistance } from "../../domain/units";
 import type { UnitPreferences } from "../../domain/units";
 import type { CompareLayoutMode } from "../../state/appState";
-import type { FocusedModel } from "../../domain/types";
 import type { RayBundlePanelData } from "../../domain/analysis";
 
 interface RayBundleViewProps {
@@ -9,6 +10,13 @@ interface RayBundleViewProps {
   compareLayout: Exclude<CompareLayoutMode, "auto">;
   unitPreferences: UnitPreferences;
   showScaleGuides: boolean;
+  zoom: number;
+  verticalZoom: number;
+  panX: number;
+  panY: number;
+  onPanBy: (deltaX: number, deltaY: number) => void;
+  onAdjustZoom: (delta: number) => void;
+  onAdjustVerticalZoom: (delta: number) => void;
 }
 
 interface PanelRect {
@@ -31,6 +39,10 @@ function polygonPoints(points: Array<{ x: number; y: number }>) {
 function createProjector(
   panel: PanelRect,
   bounds: RayBundlePanelData["bounds"],
+  zoom: number,
+  verticalZoom: number,
+  panX: number,
+  panY: number,
 ) {
   const paddingX = 28;
   const paddingTop = 72;
@@ -39,17 +51,21 @@ function createProjector(
   const availableHeight = panel.height - paddingTop - paddingBottom;
   const spanX = Math.max(bounds.maxX - bounds.minX, 1);
   const spanY = Math.max(bounds.maxY - bounds.minY, 1);
-  const xScale = availableWidth / spanX;
-  const yScale = availableHeight / spanY;
-  const centerX = (bounds.minX + bounds.maxX) / 2;
-  const centerY = (bounds.minY + bounds.maxY) / 2;
+  const xScale = (availableWidth / spanX) * zoom;
+  const yScale = (availableHeight / spanY) * verticalZoom;
+  const centerX = (bounds.minX + bounds.maxX) / 2 + panX;
+  const centerY = (bounds.minY + bounds.maxY) / 2 + panY;
   const viewportCenterX = panel.x + paddingX + availableWidth / 2;
   const viewportCenterY = panel.y + paddingTop + availableHeight / 2;
 
-  return (point: { x: number; y: number }) => ({
-    x: viewportCenterX + (point.x - centerX) * xScale,
-    y: viewportCenterY - (point.y - centerY) * yScale,
-  });
+  return {
+    xScale,
+    yScale,
+    project: (point: { x: number; y: number }) => ({
+      x: viewportCenterX + (point.x - centerX) * xScale,
+      y: viewportCenterY - (point.y - centerY) * yScale,
+    }),
+  };
 }
 
 function niceScaleStep(value: number): number {
@@ -67,8 +83,7 @@ function niceScaleStep(value: number): number {
 
 function renderBundleScaleGuide(
   panel: RayBundlePanelData,
-  panelRect: PanelRect,
-  project: ReturnType<typeof createProjector>,
+  project: (point: { x: number; y: number }) => { x: number; y: number },
   unitPreferences: UnitPreferences,
 ) {
   const spanX = panel.bounds.maxX - panel.bounds.minX;
@@ -138,7 +153,21 @@ export function RayBundleView({
   compareLayout,
   unitPreferences,
   showScaleGuides,
+  zoom,
+  verticalZoom,
+  panX,
+  panY,
+  onPanBy,
+  onAdjustZoom,
+  onAdjustVerticalZoom,
 }: RayBundleViewProps) {
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const dragStateRef = useRef<{
+    pointerId: number;
+    lastPoint: { x: number; y: number };
+    xScale: number;
+    yScale: number;
+  } | null>(null);
   const isCompare = panels.length > 1;
   const isStacked = isCompare && compareLayout === "stacked";
   const svgWidth = isCompare
@@ -169,12 +198,137 @@ export function RayBundleView({
           },
         ];
 
+  function getSvgPoint(event: { clientX: number; clientY: number }) {
+    const svg = svgRef.current;
+
+    if (!svg) {
+      return null;
+    }
+
+    const rect = svg.getBoundingClientRect();
+
+    if (!rect.width || !rect.height) {
+      return null;
+    }
+
+    return {
+      x: ((event.clientX - rect.left) / rect.width) * svgWidth,
+      y: ((event.clientY - rect.top) / rect.height) * svgHeight,
+    };
+  }
+
+  function findPanelIndex(point: { x: number; y: number } | null) {
+    if (!point) {
+      return -1;
+    }
+
+    return panelRects.findIndex(
+      (panel) =>
+        point.x >= panel.x &&
+        point.x <= panel.x + panel.width &&
+        point.y >= panel.y &&
+        point.y <= panel.y + panel.height,
+    );
+  }
+
+  function handlePointerDown(event: ReactPointerEvent<SVGSVGElement>) {
+    if (event.button !== 0) {
+      return;
+    }
+
+    const point = getSvgPoint(event);
+    const panelIndex = findPanelIndex(point);
+
+    if (!point || panelIndex < 0) {
+      return;
+    }
+
+    const projection = createProjector(
+      panelRects[panelIndex],
+      panels[panelIndex].bounds,
+      zoom,
+      verticalZoom,
+      panX,
+      panY,
+    );
+
+    dragStateRef.current = {
+      pointerId: event.pointerId,
+      lastPoint: point,
+      xScale: projection.xScale,
+      yScale: projection.yScale,
+    };
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function handlePointerMove(event: ReactPointerEvent<SVGSVGElement>) {
+    const dragState = dragStateRef.current;
+
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const point = getSvgPoint(event);
+
+    if (!point) {
+      return;
+    }
+
+    const deltaX = point.x - dragState.lastPoint.x;
+    const deltaY = point.y - dragState.lastPoint.y;
+    dragState.lastPoint = point;
+
+    if (Math.abs(deltaX) < 0.2 && Math.abs(deltaY) < 0.2) {
+      return;
+    }
+
+    onPanBy(
+      -deltaX / Math.max(dragState.xScale, 1e-6),
+      deltaY / Math.max(dragState.yScale, 1e-6),
+    );
+  }
+
+  function handlePointerUp(event: ReactPointerEvent<SVGSVGElement>) {
+    if (dragStateRef.current?.pointerId === event.pointerId) {
+      dragStateRef.current = null;
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }
+
+  function handleWheel(event: ReactWheelEvent<SVGSVGElement>) {
+    const point = getSvgPoint(event);
+
+    if (findPanelIndex(point) < 0) {
+      return;
+    }
+
+    const delta = Math.max(-0.35, Math.min(0.35, -event.deltaY / 700));
+
+    if (event.shiftKey) {
+      event.preventDefault();
+      onAdjustVerticalZoom(delta);
+      return;
+    }
+
+    if (event.ctrlKey || event.metaKey) {
+      event.preventDefault();
+      onAdjustZoom(delta);
+    }
+  }
+
   return (
     <svg
+      ref={svgRef}
       className="scene-svg"
       viewBox={`0 0 ${svgWidth} ${svgHeight}`}
       role="img"
       aria-label="Ray bundle visualization"
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onWheel={handleWheel}
     >
       <defs>
         <linearGradient id="bundleBackdrop" x1="0" y1="0" x2="1" y2="1">
@@ -221,7 +375,15 @@ export function RayBundleView({
 
       {panels.map((panel, index) => {
         const rect = panelRects[index];
-        const project = createProjector(rect, panel.bounds);
+        const projection = createProjector(
+          rect,
+          panel.bounds,
+          zoom,
+          verticalZoom,
+          panX,
+          panY,
+        );
+        const project = projection.project;
         const projectedSurface = panel.surfacePoints.map(project);
         const surfacePolygon = [
           ...projectedSurface,
@@ -335,7 +497,7 @@ export function RayBundleView({
               </text>
 
               {showScaleGuides
-                ? renderBundleScaleGuide(panel, rect, project, unitPreferences)
+                ? renderBundleScaleGuide(panel, project, unitPreferences)
                 : null}
             </g>
 

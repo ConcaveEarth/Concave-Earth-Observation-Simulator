@@ -1,3 +1,5 @@
+import { useRef } from "react";
+import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from "react";
 import {
   formatSweepMetricValue,
   formatSweepParameterValue,
@@ -10,6 +12,13 @@ import type { UnitPreferences } from "../../domain/units";
 interface SweepChartProps {
   data: SweepChartData;
   units: UnitPreferences;
+  zoom: number;
+  verticalZoom: number;
+  panX: number;
+  panY: number;
+  onPanBy: (deltaX: number, deltaY: number) => void;
+  onAdjustZoom: (delta: number) => void;
+  onAdjustVerticalZoom: (delta: number) => void;
 }
 
 const SVG_WIDTH = 1880;
@@ -69,7 +78,18 @@ function niceScaleStep(value: number): number {
   return niceFraction * 10 ** exponent;
 }
 
-export function SweepChart({ data, units }: SweepChartProps) {
+export function SweepChart({
+  data,
+  units,
+  zoom,
+  verticalZoom,
+  panX,
+  panY,
+  onPanBy,
+  onAdjustZoom,
+  onAdjustVerticalZoom,
+}: SweepChartProps) {
+  const svgRef = useRef<SVGSVGElement | null>(null);
   const paddingLeft = 94;
   const paddingRight = 42;
   const paddingTop = 82;
@@ -82,20 +102,138 @@ export function SweepChart({ data, units }: SweepChartProps) {
   const yMax = data.yMax;
   const xSpan = Math.max(xMax - xMin, 1e-6);
   const ySpan = Math.max(yMax - yMin, 1e-6);
+  const xScale = (plotWidth / xSpan) * zoom;
+  const yScale = (plotHeight / ySpan) * verticalZoom;
+  const centerX = (xMin + xMax) / 2 + panX;
+  const centerY = (yMin + yMax) / 2 + panY;
+  const plotCenterX = paddingLeft + plotWidth / 2;
+  const plotCenterY = paddingTop + plotHeight / 2;
   const project = (point: { x: number; y: number }) => ({
-    x: paddingLeft + ((point.x - xMin) / xSpan) * plotWidth,
-    y: paddingTop + plotHeight - ((point.y - yMin) / ySpan) * plotHeight,
+    x: plotCenterX + (point.x - centerX) * xScale,
+    y: plotCenterY - (point.y - centerY) * yScale,
   });
-  const currentX = paddingLeft + ((data.range.current - xMin) / xSpan) * plotWidth;
+  const currentX = project({ x: data.range.current, y: centerY }).x;
   const xStep = niceScaleStep(xSpan / 5);
   const yStep = niceScaleStep(ySpan / 4);
 
+  function getSvgPoint(event: { clientX: number; clientY: number }) {
+    const svg = svgRef.current;
+
+    if (!svg) {
+      return null;
+    }
+
+    const rect = svg.getBoundingClientRect();
+
+    if (!rect.width || !rect.height) {
+      return null;
+    }
+
+    return {
+      x: ((event.clientX - rect.left) / rect.width) * SVG_WIDTH,
+      y: ((event.clientY - rect.top) / rect.height) * SVG_HEIGHT,
+    };
+  }
+
+  function pointInPlot(point: { x: number; y: number } | null) {
+    return Boolean(
+      point &&
+        point.x >= paddingLeft &&
+        point.x <= paddingLeft + plotWidth &&
+        point.y >= paddingTop &&
+        point.y <= paddingTop + plotHeight,
+    );
+  }
+
+  function handlePointerDown(event: ReactPointerEvent<SVGSVGElement>) {
+    if (event.button !== 0) {
+      return;
+    }
+
+    const point = getSvgPoint(event);
+
+    if (!pointInPlot(point)) {
+      return;
+    }
+
+    const startPoint = point as { x: number; y: number };
+    dragState.current = {
+      pointerId: event.pointerId,
+      lastPoint: startPoint,
+    };
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  const dragState = useRef<{
+    pointerId: number;
+    lastPoint: { x: number; y: number };
+  } | null>(null);
+
+  function handlePointerMove(event: ReactPointerEvent<SVGSVGElement>) {
+    const drag = dragState.current;
+
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const point = getSvgPoint(event);
+
+    if (!point) {
+      return;
+    }
+
+    const deltaX = point.x - drag.lastPoint.x;
+    const deltaY = point.y - drag.lastPoint.y;
+    drag.lastPoint = point;
+
+    if (Math.abs(deltaX) < 0.2 && Math.abs(deltaY) < 0.2) {
+      return;
+    }
+
+    onPanBy(-deltaX / Math.max(xScale, 1e-6), deltaY / Math.max(yScale, 1e-6));
+  }
+
+  function handlePointerUp(event: ReactPointerEvent<SVGSVGElement>) {
+    if (dragState.current?.pointerId === event.pointerId) {
+      dragState.current = null;
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }
+
+  function handleWheel(event: ReactWheelEvent<SVGSVGElement>) {
+    const point = getSvgPoint(event);
+
+    if (!pointInPlot(point)) {
+      return;
+    }
+
+    const delta = Math.max(-0.35, Math.min(0.35, -event.deltaY / 700));
+
+    if (event.shiftKey) {
+      event.preventDefault();
+      onAdjustVerticalZoom(delta);
+      return;
+    }
+
+    if (event.ctrlKey || event.metaKey) {
+      event.preventDefault();
+      onAdjustZoom(delta);
+    }
+  }
+
   return (
     <svg
+      ref={svgRef}
       className="scene-svg sweep-chart"
       viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
       role="img"
       aria-label="Parameter sweep chart"
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onWheel={handleWheel}
     >
       <defs>
         <linearGradient id="sweepBackdrop" x1="0" y1="0" x2="1" y2="1">
@@ -114,6 +252,15 @@ export function SweepChart({ data, units }: SweepChartProps) {
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
+        <clipPath id="sweepPlotClip">
+          <rect
+            x={paddingLeft}
+            y={paddingTop}
+            width={plotWidth}
+            height={plotHeight}
+            rx={14}
+          />
+        </clipPath>
       </defs>
 
       <rect width={SVG_WIDTH} height={SVG_HEIGHT} fill="url(#sweepBackdrop)" rx={30} />
@@ -167,7 +314,7 @@ export function SweepChart({ data, units }: SweepChartProps) {
       />
 
       {data.series.map((series) => (
-        <g key={series.id}>
+        <g key={series.id} clipPath="url(#sweepPlotClip)">
           <polyline
             points={linePoints(series.points, project)}
             fill="none"

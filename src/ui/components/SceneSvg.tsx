@@ -674,13 +674,16 @@ export function SceneSvg({
     if (!findProjectionAtPoint(point)) {
       return;
     }
-
-    event.preventDefault();
     const delta = Math.max(-0.35, Math.min(0.35, -event.deltaY / 700));
 
     if (event.shiftKey) {
+      event.preventDefault();
       onAdjustVerticalZoom(delta);
-    } else {
+      return;
+    }
+
+    if (event.ctrlKey || event.metaKey) {
+      event.preventDefault();
       onAdjustZoom(delta);
     }
   }
