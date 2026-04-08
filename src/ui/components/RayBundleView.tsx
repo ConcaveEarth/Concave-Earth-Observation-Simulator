@@ -21,8 +21,8 @@ interface PanelRect {
 const SINGLE_SVG_WIDTH = 1800;
 const COMPARE_SVG_WIDTH = 2360;
 const STACKED_SVG_WIDTH = 1800;
-const SVG_HEIGHT = 920;
-const STACKED_HEIGHT = 1320;
+const SVG_HEIGHT = 1040;
+const STACKED_HEIGHT = 1560;
 
 function polygonPoints(points: Array<{ x: number; y: number }>) {
   return points.map((point) => `${point.x},${point.y}`).join(" ");
@@ -33,8 +33,8 @@ function createProjector(
   bounds: RayBundlePanelData["bounds"],
 ) {
   const paddingX = 28;
-  const paddingTop = 68;
-  const paddingBottom = 40;
+  const paddingTop = 72;
+  const paddingBottom = 88;
   const availableWidth = panel.width - paddingX * 2;
   const availableHeight = panel.height - paddingTop - paddingBottom;
   const spanX = Math.max(bounds.maxX - bounds.minX, 1);

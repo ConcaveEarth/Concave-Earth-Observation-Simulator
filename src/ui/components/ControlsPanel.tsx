@@ -594,16 +594,22 @@ export function ControlsPanel({
             </label>
           )}
 
-          <label className="switch">
-            <input
-              type="checkbox"
-              checked={state.fullWidthScene}
-              onChange={(event) =>
-                dispatch({ type: "setFullWidthScene", value: event.target.checked })
-              }
-            />
-            <span>{t(language, "fullWidthDiagrams")}</span>
-          </label>
+          {state.viewMode === "compare" ? (
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={state.sceneViewport.compareLayout === "stacked"}
+                onChange={(event) =>
+                  dispatch({
+                    type: "setViewportField",
+                    key: "compareLayout",
+                    value: event.target.checked ? "stacked" : "side-by-side",
+                  })
+                }
+              />
+              <span>{t(language, "stackComparePanels")}</span>
+            </label>
+          ) : null}
 
           {state.analysisTab === "cross-section" ? (
             <>

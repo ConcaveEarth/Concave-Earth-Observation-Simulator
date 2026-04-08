@@ -181,16 +181,18 @@ export default function App() {
       (largest, scene) => Math.max(largest, scene.suggestedVerticalScale),
       1,
     );
+  const useSceneFirstLayout =
+    state.workspaceMode === "professional" || state.fullWidthScene;
   const resolvedCompareLayout =
     state.sceneViewport.compareLayout === "auto"
-      ? windowWidth < 1180 || (!state.fullWidthScene && windowWidth >= 1850)
+      ? windowWidth < 1180
         ? "stacked"
         : "side-by-side"
       : state.sceneViewport.compareLayout;
   const shouldShowLegendOverlay =
     deferredState.analysisTab === "cross-section" &&
     state.workspaceMode === "professional" &&
-    state.fullWidthScene &&
+    useSceneFirstLayout &&
     showLegendOverlay;
 
   async function handleExport() {
@@ -297,7 +299,7 @@ export default function App() {
 
       <div
         className={
-          state.fullWidthScene ? "app-shell app-shell--fullwidth-scene" : "app-shell"
+          useSceneFirstLayout ? "app-shell app-shell--fullwidth-scene" : "app-shell"
         }
       >
         <ControlsPanel
@@ -309,7 +311,16 @@ export default function App() {
         />
 
         <main className="center-panel">
-          <div className="scene-card panel" ref={sceneHostRef}>
+          <div
+            className={
+              deferredState.analysisTab === "ray-bundle"
+                ? "scene-card scene-card--ray-bundle panel"
+                : deferredState.analysisTab === "sweep"
+                  ? "scene-card scene-card--sweep panel"
+                  : "scene-card panel"
+            }
+            ref={sceneHostRef}
+          >
             <div className="scene-card__header">
               <div className="scene-card__intro">
                 <p className="scene-card__eyebrow">{t(state.language, "simulationFirst")}</p>
@@ -427,7 +438,7 @@ export default function App() {
                 />
               </div>
             ) : state.analysisTab === "ray-bundle" ? (
-              <div className="scene-card__viewport">
+              <div className="scene-card__viewport scene-card__viewport--analysis">
                 <div className="scene-card__canvas">
                   <RayBundleView
                     panels={bundlePanels}
@@ -438,7 +449,7 @@ export default function App() {
                 </div>
               </div>
             ) : (
-              <div className="scene-card__viewport">
+              <div className="scene-card__viewport scene-card__viewport--analysis">
                 <div className="scene-card__canvas">
                   <SweepChart data={sweepData} units={state.unitPreferences} />
                 </div>
@@ -460,7 +471,7 @@ export default function App() {
           onCopyLink={handleCopyLink}
           message={message}
           language={state.language}
-          fullWidthScene={state.fullWidthScene}
+          sceneFirstLayout={useSceneFirstLayout}
         />
       </div>
 

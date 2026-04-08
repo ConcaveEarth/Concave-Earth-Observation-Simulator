@@ -29,7 +29,7 @@ interface RightPanelProps {
   onCopyLink: () => void;
   message: string | null;
   language: LanguageMode;
-  fullWidthScene: boolean;
+  sceneFirstLayout: boolean;
 }
 
 interface FeatureMetric {
@@ -559,7 +559,7 @@ export function RightPanel({
   onCopyLink,
   message,
   language,
-  fullWidthScene,
+  sceneFirstLayout,
 }: RightPanelProps) {
   const preset = getPresetById(state.scenario.presetId);
   const hoveredAnnotation = activeScene.annotations.find(
@@ -773,7 +773,7 @@ export function RightPanel({
         </PanelSection>
       ) : null}
 
-      {professionalMode && !fullWidthScene ? (
+      {professionalMode && !sceneFirstLayout ? (
         <PanelSection
           title={t(language, "lineLegend")}
           eyebrow={t(language, "sceneGuide")}

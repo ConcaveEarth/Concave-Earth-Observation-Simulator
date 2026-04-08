@@ -751,6 +751,10 @@ select {
   overflow: hidden;
 }
 
+.scene-card--ray-bundle {
+  min-height: 0;
+}
+
 .scene-card__header {
   display: flex;
   flex-direction: column;
@@ -801,6 +805,10 @@ select {
   overflow: hidden;
 }
 
+.scene-card__viewport--analysis {
+  min-height: clamp(460px, 56vh, 900px);
+}
+
 .analysis-tabs {
   display: inline-flex;
   flex-wrap: wrap;
@@ -847,6 +855,16 @@ select {
 .app-shell--fullwidth-scene .scene-card__viewport,
 .app-shell--fullwidth-scene .scene-svg {
   min-height: min(78vh, 940px);
+}
+
+.app-shell--fullwidth-scene .scene-card--ray-bundle .scene-card__viewport,
+.app-shell--fullwidth-scene .scene-card--ray-bundle .scene-svg {
+  min-height: min(82vh, 1040px);
+}
+
+.app-shell--fullwidth-scene .scene-card--sweep .scene-card__viewport,
+.app-shell--fullwidth-scene .scene-card--sweep .scene-svg {
+  min-height: min(76vh, 940px);
 }
 
 .scene-legend-overlay {

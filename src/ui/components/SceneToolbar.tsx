@@ -89,19 +89,21 @@ export function SceneToolbar({
         />
       </div>
 
-      <div className="scene-toolbar__group">
-        <span className="scene-toolbar__label">{t(language, "layout")}</span>
-        <ControlButton
-          label={t(language, "fullWidth")}
-          active={state.fullWidthScene}
-          onClick={() => dispatch({ type: "setFullWidthScene", value: true })}
-        />
-        <ControlButton
-          label={t(language, "docked")}
-          active={!state.fullWidthScene}
-          onClick={() => dispatch({ type: "setFullWidthScene", value: false })}
-        />
-      </div>
+      {state.workspaceMode !== "professional" ? (
+        <div className="scene-toolbar__group">
+          <span className="scene-toolbar__label">{t(language, "layout")}</span>
+          <ControlButton
+            label={t(language, "fullWidth")}
+            active={state.fullWidthScene}
+            onClick={() => dispatch({ type: "setFullWidthScene", value: true })}
+          />
+          <ControlButton
+            label={t(language, "docked")}
+            active={!state.fullWidthScene}
+            onClick={() => dispatch({ type: "setFullWidthScene", value: false })}
+          />
+        </div>
+      ) : null}
 
       <div className="scene-toolbar__group">
         <span className="scene-toolbar__label">{t(language, "scale")}</span>
