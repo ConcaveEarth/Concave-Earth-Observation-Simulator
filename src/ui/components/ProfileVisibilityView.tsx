@@ -5,6 +5,13 @@ import type { UnitPreferences } from "../../domain/units";
 import type { CompareLayoutMode } from "../../state/appState";
 import type { ProfileVisibilityPanelData } from "../../domain/analysis";
 import { t, type LanguageMode } from "../../i18n";
+import {
+  createLinearProjector,
+  createPanelRects,
+  findPanelIndex as findViewportPanelIndex,
+  getSvgPoint as getViewportSvgPoint,
+  niceStep,
+} from "../viewport";
 
 interface ProfileVisibilityViewProps {
   panels: ProfileVisibilityPanelData[];
@@ -22,13 +29,6 @@ interface ProfileVisibilityViewProps {
   onAdjustVerticalZoom: (delta: number) => void;
 }
 
-interface PanelRect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
 const SINGLE_SVG_WIDTH = 1800;
 const COMPARE_SVG_WIDTH = 2360;
 const STACKED_SVG_WIDTH = 1800;
@@ -39,51 +39,6 @@ function polygonPoints(points: Array<{ x: number; y: number }>) {
   return points.map((point) => `${point.x},${point.y}`).join(" ");
 }
 
-function createProjector(
-  panel: PanelRect,
-  bounds: ProfileVisibilityPanelData["bounds"],
-  zoom: number,
-  verticalZoom: number,
-  panX: number,
-  panY: number,
-) {
-  const paddingX = Math.min(Math.max(panel.width * 0.024, 24), 42);
-  const paddingTop = Math.min(Math.max(panel.height * 0.11, 62), 96);
-  const paddingBottom = Math.min(Math.max(panel.height * 0.16, 110), 184);
-  const availableWidth = panel.width - paddingX * 2;
-  const availableHeight = panel.height - paddingTop - paddingBottom;
-  const spanX = Math.max(bounds.maxX - bounds.minX, 1);
-  const spanY = Math.max(bounds.maxY - bounds.minY, 1);
-  const xScale = (availableWidth / spanX) * zoom;
-  const yScale = (availableHeight / spanY) * verticalZoom;
-  const centerX = (bounds.minX + bounds.maxX) / 2 + panX;
-  const centerY = (bounds.minY + bounds.maxY) / 2 + panY;
-  const viewportCenterX = panel.x + paddingX + availableWidth / 2;
-  const viewportCenterY = panel.y + paddingTop + availableHeight / 2;
-
-  return {
-    xScale,
-    yScale,
-    project: (point: { x: number; y: number }) => ({
-      x: viewportCenterX + (point.x - centerX) * xScale,
-      y: viewportCenterY - (point.y - centerY) * yScale,
-    }),
-  };
-}
-
-function niceScaleStep(value: number): number {
-  if (value <= 0) {
-    return 1;
-  }
-
-  const exponent = Math.floor(Math.log10(value));
-  const fraction = value / 10 ** exponent;
-  const niceFraction =
-    fraction <= 1 ? 1 : fraction <= 2 ? 2 : fraction <= 5 ? 5 : 10;
-
-  return niceFraction * 10 ** exponent;
-}
-
 function renderProfileScaleGuide(
   panel: ProfileVisibilityPanelData,
   project: (point: { x: number; y: number }) => { x: number; y: number },
@@ -91,7 +46,7 @@ function renderProfileScaleGuide(
   language: LanguageMode,
 ) {
   const spanX = panel.bounds.maxX - panel.bounds.minX;
-  const horizontalStep = niceScaleStep(spanX / 4);
+  const horizontalStep = niceStep(spanX, 4);
   const startWorld = {
     x: panel.bounds.minX + spanX * 0.08,
     y: panel.bounds.minY + (panel.bounds.maxY - panel.bounds.minY) * 0.08,
@@ -176,65 +131,22 @@ export function ProfileVisibilityView({
   } | null>(null);
   const isCompare = panels.length > 1;
   const isStacked = isCompare && compareLayout === "stacked";
-  const svgWidth = isCompare
-    ? isStacked
-      ? STACKED_SVG_WIDTH
-      : COMPARE_SVG_WIDTH
-    : SINGLE_SVG_WIDTH;
-  const svgHeight = isStacked ? STACKED_HEIGHT : SVG_HEIGHT;
-  const panelRects: PanelRect[] = !isCompare
-    ? [{ x: 10, y: 18, width: svgWidth - 20, height: svgHeight - 36 }]
-    : isStacked
-      ? [
-          { x: 10, y: 18, width: svgWidth - 20, height: (svgHeight - 54) / 2 },
-          {
-            x: 10,
-            y: svgHeight / 2 + 9,
-            width: svgWidth - 20,
-            height: (svgHeight - 54) / 2,
-          },
-        ]
-      : [
-          { x: 10, y: 18, width: (svgWidth - 32) / 2, height: svgHeight - 36 },
-          {
-            x: svgWidth / 2 + 6,
-            y: 18,
-            width: (svgWidth - 32) / 2,
-            height: svgHeight - 36,
-          },
-        ];
+  const { svgWidth, svgHeight, panelRects } = createPanelRects({
+    isCompare,
+    isStacked,
+    singleWidth: SINGLE_SVG_WIDTH,
+    compareWidth: COMPARE_SVG_WIDTH,
+    stackedWidth: STACKED_SVG_WIDTH,
+    singleHeight: SVG_HEIGHT,
+    stackedHeight: STACKED_HEIGHT,
+  });
 
   function getSvgPoint(event: { clientX: number; clientY: number }) {
-    const svg = svgRef.current;
-
-    if (!svg) {
-      return null;
-    }
-
-    const rect = svg.getBoundingClientRect();
-
-    if (!rect.width || !rect.height) {
-      return null;
-    }
-
-    return {
-      x: ((event.clientX - rect.left) / rect.width) * svgWidth,
-      y: ((event.clientY - rect.top) / rect.height) * svgHeight,
-    };
+    return getViewportSvgPoint(svgRef, svgWidth, svgHeight, event);
   }
 
   function findPanelIndex(point: { x: number; y: number } | null) {
-    if (!point) {
-      return -1;
-    }
-
-    return panelRects.findIndex(
-      (panel) =>
-        point.x >= panel.x &&
-        point.x <= panel.x + panel.width &&
-        point.y >= panel.y &&
-        point.y <= panel.y + panel.height,
-    );
+    return findViewportPanelIndex(point, panelRects);
   }
 
   function handlePointerDown(event: ReactPointerEvent<SVGSVGElement>) {
@@ -249,13 +161,20 @@ export function ProfileVisibilityView({
       return;
     }
 
-    const projection = createProjector(
+    const projection = createLinearProjector(
       panelRects[panelIndex],
       panels[panelIndex].bounds,
-      zoom,
-      verticalZoom,
-      panX,
-      panY,
+      {
+        zoom,
+        verticalZoom,
+        panX,
+        panY,
+        padding: {
+          paddingX: [24, 42],
+          paddingTop: [62, 96],
+          paddingBottom: [110, 184],
+        },
+      },
     );
 
     dragStateRef.current = {
@@ -382,13 +301,20 @@ export function ProfileVisibilityView({
 
       {panels.map((panel, index) => {
         const rect = panelRects[index];
-        const projection = createProjector(
+        const projection = createLinearProjector(
           rect,
           panel.bounds,
-          zoom,
-          verticalZoom,
-          panX,
-          panY,
+          {
+            zoom,
+            verticalZoom,
+            panX,
+            panY,
+            padding: {
+              paddingX: [24, 42],
+              paddingTop: [62, 96],
+              paddingBottom: [110, 184],
+            },
+          },
         );
         const project = projection.project;
         const projectedSurface = panel.surfacePoints.map(project);

@@ -23,6 +23,7 @@ import { getModelLabel, getPresetDescription, getPresetName, t, type LanguageMod
 import type { FocusedModel, SceneViewModel, VisibilitySolveResult } from "../../domain/types";
 import type { AppState, WorkspaceMode } from "../../state/appState";
 import { PanelSection } from "./PanelSection";
+import { PanelScrollArea } from "./PanelScrollArea";
 
 interface RightPanelProps {
   state: AppState;
@@ -1166,23 +1167,24 @@ export function RightPanel({
 
   return (
     <aside className="right-panel panel">
-      <PanelSection
-        title={t(language, "currentOutput")}
-        eyebrow={t(language, "numerics")}
-        className="right-panel__section right-panel__section--numerics"
-      >
+      <PanelScrollArea viewportClassName="right-panel__viewport">
+        <PanelSection
+          title={t(language, "currentOutput")}
+          eyebrow={t(language, "numerics")}
+          className="right-panel__section right-panel__section--numerics"
+        >
         <div className="metrics-grid">
           {currentOutputCards.map((metric) => (
             <SummaryMetric key={metric.label} label={metric.label} value={metric.value} />
           ))}
         </div>
-      </PanelSection>
+        </PanelSection>
 
-      <PanelSection
-        title={t(language, "modelTransparency")}
-        eyebrow={t(language, "assumptions")}
-        className="right-panel__section right-panel__section--assumptions"
-      >
+        <PanelSection
+          title={t(language, "modelTransparency")}
+          eyebrow={t(language, "assumptions")}
+          className="right-panel__section right-panel__section--assumptions"
+        >
           <div className="detail-card">
           <p>
             <strong>{t(language, "activeAnalysis")}:</strong>{" "}
@@ -1252,77 +1254,77 @@ export function RightPanel({
                 ? `${state.sceneViewport.verticalZoom.toFixed(2)}x survey relief factor`
                 : `base x${activeScene.suggestedVerticalScale.toFixed(1)} with control x${state.sceneViewport.verticalZoom.toFixed(2)}`}
           </p>
-        </div>
-      </PanelSection>
-
-      {professionalMode ? (
-        <PanelSection
-          title={
-            state.analysisTab === "ray-bundle"
-              ? t(language, "rayBundleSummaryTitle")
-              : state.analysisTab === "observer-view"
-                ? t(language, "observerReconstructionTitle")
-                : state.analysisTab === "profile-visibility"
-                  ? t(language, "profileVisibilitySummaryTitle")
-                  : state.analysisTab === "sweep"
-                    ? t(language, "sweepSummaryTitle")
-                    : t(language, "surveyGeometry")
-          }
-          eyebrow={t(language, "fieldMetrics")}
-          className="right-panel__section right-panel__section--field-metrics"
-        >
-          <div className="detail-card">
-            <div className="feature-metrics">
-              {fieldMetricRows.map((metric) => (
-                <div key={metric.label} className="feature-metrics__row">
-                  <span>{metric.label}</span>
-                  <strong>{metric.value}</strong>
-                </div>
-              ))}
-            </div>
           </div>
         </PanelSection>
-      ) : null}
 
-      {professionalMode && !sceneFirstLayout ? (
-        <PanelSection
-          title={t(language, "lineLegend")}
-          eyebrow={t(language, "sceneGuide")}
-          className="right-panel__section right-panel__section--legend"
-        >
-          <div className="detail-card">
-            <div className="legend-list">
-              {activeScene.annotations
-                .filter(
-                  (annotation) =>
-                    state.showTerrainOverlay || annotation.id !== "terrain-profile",
-                )
-                .map((annotation) => (
-                  <div
-                    key={annotation.id}
-                    className={
-                      annotation.id === activeFeatureId
-                        ? "legend-item legend-item--active"
-                        : "legend-item"
-                    }
-                  >
-                    <span
-                      className="legend-swatch"
-                      style={{ backgroundColor: annotation.color }}
-                    />
-                    <span>{annotation.label}</span>
+        {professionalMode ? (
+          <PanelSection
+            title={
+              state.analysisTab === "ray-bundle"
+                ? t(language, "rayBundleSummaryTitle")
+                : state.analysisTab === "observer-view"
+                  ? t(language, "observerReconstructionTitle")
+                  : state.analysisTab === "profile-visibility"
+                    ? t(language, "profileVisibilitySummaryTitle")
+                    : state.analysisTab === "sweep"
+                      ? t(language, "sweepSummaryTitle")
+                      : t(language, "surveyGeometry")
+            }
+            eyebrow={t(language, "fieldMetrics")}
+            className="right-panel__section right-panel__section--field-metrics"
+          >
+            <div className="detail-card">
+              <div className="feature-metrics">
+                {fieldMetricRows.map((metric) => (
+                  <div key={metric.label} className="feature-metrics__row">
+                    <span>{metric.label}</span>
+                    <strong>{metric.value}</strong>
                   </div>
                 ))}
+              </div>
             </div>
-          </div>
-        </PanelSection>
-      ) : null}
+          </PanelSection>
+        ) : null}
 
-      <PanelSection
-        title={t(language, "featureInspection")}
-        eyebrow={t(language, "inspection")}
-        className="right-panel__section right-panel__section--inspection"
-      >
+        {professionalMode && !sceneFirstLayout ? (
+          <PanelSection
+            title={t(language, "lineLegend")}
+            eyebrow={t(language, "sceneGuide")}
+            className="right-panel__section right-panel__section--legend"
+          >
+            <div className="detail-card">
+              <div className="legend-list">
+                {activeScene.annotations
+                  .filter(
+                    (annotation) =>
+                      state.showTerrainOverlay || annotation.id !== "terrain-profile",
+                  )
+                  .map((annotation) => (
+                    <div
+                      key={annotation.id}
+                      className={
+                        annotation.id === activeFeatureId
+                          ? "legend-item legend-item--active"
+                          : "legend-item"
+                      }
+                    >
+                      <span
+                        className="legend-swatch"
+                        style={{ backgroundColor: annotation.color }}
+                      />
+                      <span>{annotation.label}</span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </PanelSection>
+        ) : null}
+
+        <PanelSection
+          title={t(language, "featureInspection")}
+          eyebrow={t(language, "inspection")}
+          className="right-panel__section right-panel__section--inspection"
+        >
           <div className="detail-card">
             <div className="detail-card__toolbar">
               <div>
@@ -1372,45 +1374,46 @@ export function RightPanel({
               </div>
             ))}
           </div>
-        </div>
-      </PanelSection>
-
-      {professionalMode ? (
-        <PanelSection
-          title={t(language, "presetNotes")}
-          eyebrow={t(language, "context")}
-          className="right-panel__section right-panel__section--context"
-        >
-          <div className="detail-card">
-            <h4>{getPresetName(language, preset)}</h4>
-            <p>{getPresetDescription(language, preset)}</p>
-            {activeScene.terrainOverlay ? (
-              <p>
-                Profile overlay: {activeScene.terrainOverlay.name}. This layer is
-                aligned to the scenario distances for diagram readability in the
-                cross-section view, and the dedicated Profile Visibility analysis
-                tab now samples that profile through the shared solver.
-              </p>
-            ) : null}
           </div>
         </PanelSection>
-      ) : null}
 
-      <PanelSection
-        title={t(language, "shareExport")}
-        eyebrow={t(language, "output")}
-        className="right-panel__section right-panel__section--output"
-      >
-        <div className="action-row">
-          <button type="button" className="action-button" onClick={onExport}>
-            {t(language, "exportPng")}
-          </button>
-          <button type="button" className="action-button action-button--ghost" onClick={onCopyLink}>
-            {t(language, "copyShareUrl")}
-          </button>
-        </div>
-        {message ? <p className="status-text">{message}</p> : null}
-      </PanelSection>
+        {professionalMode ? (
+          <PanelSection
+            title={t(language, "presetNotes")}
+            eyebrow={t(language, "context")}
+            className="right-panel__section right-panel__section--context"
+          >
+            <div className="detail-card">
+              <h4>{getPresetName(language, preset)}</h4>
+              <p>{getPresetDescription(language, preset)}</p>
+              {activeScene.terrainOverlay ? (
+                <p>
+                  Profile overlay: {activeScene.terrainOverlay.name}. This layer is
+                  aligned to the scenario distances for diagram readability in the
+                  cross-section view, and the dedicated Profile Visibility analysis
+                  tab now samples that profile through the shared solver.
+                </p>
+              ) : null}
+            </div>
+          </PanelSection>
+        ) : null}
+
+        <PanelSection
+          title={t(language, "shareExport")}
+          eyebrow={t(language, "output")}
+          className="right-panel__section right-panel__section--output"
+        >
+          <div className="action-row">
+            <button type="button" className="action-button" onClick={onExport}>
+              {t(language, "exportPng")}
+            </button>
+            <button type="button" className="action-button action-button--ghost" onClick={onCopyLink}>
+              {t(language, "copyShareUrl")}
+            </button>
+          </div>
+          {message ? <p className="status-text">{message}</p> : null}
+        </PanelSection>
+      </PanelScrollArea>
     </aside>
   );
 }

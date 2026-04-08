@@ -24,6 +24,9 @@ comparison-first observation lab milestone:
 - Modernized UI and analytics foundation using Radix UI primitives and an
   ECharts-powered sweep workspace, while keeping the custom geometry renderer
   and shared solver domain intact
+- Shared viewport utilities and workstation-style scroll areas that unify
+  analysis sizing, pan/zoom behavior, and panel scrolling across the newer
+  analysis tools
 
 This milestone is the baseline we can safely build on before deeper analytical
 features such as full terrain-aware obstruction and map workflows.
@@ -45,8 +48,11 @@ features such as full terrain-aware obstruction and map workflows.
 - URL-serializable state plus PNG export
 - Domain, state, and UI separation with Vitest coverage
 - Radix-powered collapsible sections, navigation dropdowns, and analysis tabs
+- Radix ScrollArea-powered control, data, and legend docks
 - ECharts-backed sweep analysis with responsive resizing and split bundles for
   faster initial loading
+- Shared D3-backed viewport helpers for the non-cross-section analysis SVG
+  views, improving maintainability and future framing work
 
 ## Near-Term Roadmap
 

@@ -23,6 +23,7 @@ import type {
 } from "../../domain/types";
 import type { AppAction, AppState } from "../../state/appState";
 import { PanelSection } from "./PanelSection";
+import { PanelScrollArea } from "./PanelScrollArea";
 
 interface ControlsPanelProps {
   state: AppState;
@@ -380,21 +381,22 @@ export function ControlsPanel({
 
   return (
     <aside className="left-panel panel">
-      <div className="panel__intro">
-        <p className="panel__eyebrow">{t(language, "appEyebrow")}</p>
-        <h1>{t(language, "panelIntroTitle")}</h1>
-        <p>{t(language, "panelIntroBody")}</p>
-      </div>
+      <PanelScrollArea viewportClassName="left-panel__viewport">
+        <div className="panel__intro">
+          <p className="panel__eyebrow">{t(language, "appEyebrow")}</p>
+          <h1>{t(language, "panelIntroTitle")}</h1>
+          <p>{t(language, "panelIntroBody")}</p>
+        </div>
 
-      <div className="controls-dock">
-        <PanelSection
-          title={t(language, "scenario")}
-          eyebrow={t(language, "observationInputs")}
-          sectionId="control-scenario"
-          collapsible
-          collapsed={collapsedSections.scenario}
-          onToggleCollapsed={() => toggleSection("scenario")}
-        >
+        <div className="controls-dock">
+          <PanelSection
+            title={t(language, "scenario")}
+            eyebrow={t(language, "observationInputs")}
+            sectionId="control-scenario"
+            collapsible
+            collapsed={collapsedSections.scenario}
+            onToggleCollapsed={() => toggleSection("scenario")}
+          >
           <label className="field">
             <div className="field__label-row">
               <span>{t(language, "preset")}</span>
@@ -544,54 +546,55 @@ export function ControlsPanel({
             onChange={(nextValue) => setScenarioValue("targetSampleCount", nextValue)}
             language={language}
           />
-        </PanelSection>
+          </PanelSection>
 
-        <ModelEditor
-          title={t(language, "primaryModelTitle")}
-          target="primary"
-          model={state.primaryModel}
-          dispatch={dispatch}
-          sectionId="control-primary-model"
-          language={language}
-          collapsible
-          collapsed={collapsedSections.model1}
-          onToggleCollapsed={() => toggleSection("model1")}
-        />
+          <ModelEditor
+            title={t(language, "primaryModelTitle")}
+            target="primary"
+            model={state.primaryModel}
+            dispatch={dispatch}
+            sectionId="control-primary-model"
+            language={language}
+            collapsible
+            collapsed={collapsedSections.model1}
+            onToggleCollapsed={() => toggleSection("model1")}
+          />
 
-        <ModelEditor
-          title={t(language, "comparisonModelTitle")}
-          target="comparison"
-          model={state.comparisonModel}
-          dispatch={dispatch}
-          sectionId="control-comparison-model"
-          language={language}
-          collapsible
-          collapsed={collapsedSections.model2}
-          onToggleCollapsed={() => toggleSection("model2")}
-        />
+          <ModelEditor
+            title={t(language, "comparisonModelTitle")}
+            target="comparison"
+            model={state.comparisonModel}
+            dispatch={dispatch}
+            sectionId="control-comparison-model"
+            language={language}
+            collapsible
+            collapsed={collapsedSections.model2}
+            onToggleCollapsed={() => toggleSection("model2")}
+          />
 
-        <PanelSection
-          title={t(language, "export")}
-          eyebrow={t(language, "shareableState")}
-          sectionId="control-export"
-          collapsible
-          collapsed={collapsedSections.export}
-          onToggleCollapsed={() => toggleSection("export")}
-        >
-          <div className="action-row">
-            <button type="button" className="action-button" onClick={onExport}>
-              {t(language, "exportPng")}
-            </button>
-            <button
-              type="button"
-              className="action-button action-button--ghost"
-              onClick={onCopyLink}
-            >
-              {t(language, "copyShareUrl")}
-            </button>
-          </div>
-        </PanelSection>
-      </div>
+          <PanelSection
+            title={t(language, "export")}
+            eyebrow={t(language, "shareableState")}
+            sectionId="control-export"
+            collapsible
+            collapsed={collapsedSections.export}
+            onToggleCollapsed={() => toggleSection("export")}
+          >
+            <div className="action-row">
+              <button type="button" className="action-button" onClick={onExport}>
+                {t(language, "exportPng")}
+              </button>
+              <button
+                type="button"
+                className="action-button action-button--ghost"
+                onClick={onCopyLink}
+              >
+                {t(language, "copyShareUrl")}
+              </button>
+            </div>
+          </PanelSection>
+        </div>
+      </PanelScrollArea>
     </aside>
   );
 }

@@ -303,9 +303,7 @@ select {
   gap: 16px;
   padding: 18px;
   min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scroll-behavior: smooth;
+  overflow: hidden;
 }
 
 .left-panel {
@@ -327,6 +325,55 @@ select {
   overflow: visible;
   overscroll-behavior: contain;
   padding-right: 2px;
+}
+
+.panel-scroll-area {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.panel-scroll-area__viewport {
+  width: 100%;
+  height: 100%;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
+}
+
+.panel-scroll-area__viewport > div {
+  min-width: 0;
+}
+
+.panel-scroll-area__scrollbar {
+  display: flex;
+  width: 12px;
+  padding: 2px;
+  touch-action: none;
+  user-select: none;
+}
+
+.panel-scroll-area__thumb {
+  position: relative;
+  flex: 1;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(122, 164, 204, 0.85), rgba(83, 116, 153, 0.9));
+}
+
+.panel-scroll-area__thumb::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  min-height: 32px;
+}
+
+.panel-scroll-area__corner {
+  background: transparent;
+}
+
+.left-panel__viewport,
+.right-panel__viewport {
+  padding-right: 6px;
 }
 
 .app-shell--fullwidth-scene .right-panel {
@@ -1056,10 +1103,15 @@ select {
   width: 100%;
   max-height: 100%;
   padding: 12px 14px;
-  overflow: auto;
+  overflow: hidden;
   min-height: 0;
   border-radius: 20px;
   background: linear-gradient(180deg, rgba(8, 18, 28, 0.9), rgba(7, 14, 22, 0.82));
+}
+
+.scene-legend-overlay__scroll {
+  min-height: 0;
+  flex: 1;
 }
 
 .scene-legend-overlay__header {

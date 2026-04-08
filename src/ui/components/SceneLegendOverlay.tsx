@@ -1,5 +1,6 @@
 import { t, type LanguageMode } from "../../i18n";
 import type { SurfaceAnnotation } from "../../domain/types";
+import { PanelScrollArea } from "./PanelScrollArea";
 
 interface SceneLegendOverlayProps {
   annotations: SurfaceAnnotation[];
@@ -46,32 +47,34 @@ export function SceneLegendOverlay({
         <p className="panel-section__eyebrow">{t(language, "sceneGuide")}</p>
         <h3>{t(language, "lineLegend")}</h3>
       </div>
-      <div className="legend-list">
-        {visibleAnnotations.map((annotation) => (
-          <button
-            type="button"
-            key={annotation.id}
-            className={
-              annotation.id === activeFeatureId
-                ? "legend-item legend-item--active"
-                : annotation.id === selectedFeatureId && selectedSceneKey === sceneKey
-                  ? "legend-item legend-item--pinned"
-                : "legend-item"
-            }
-            onMouseEnter={() => onHoverFeature(sceneKey, annotation.id)}
-            onMouseLeave={() => onHoverFeature(null, null)}
-            onFocus={() => onHoverFeature(sceneKey, annotation.id)}
-            onBlur={() => onHoverFeature(null, null)}
-            onClick={() => onToggleFeature(sceneKey, annotation.id)}
-          >
-            <span
-              className="legend-swatch"
-              style={{ backgroundColor: annotation.color }}
-            />
-            <span>{annotation.label}</span>
-          </button>
-        ))}
-      </div>
+      <PanelScrollArea className="scene-legend-overlay__scroll">
+        <div className="legend-list">
+          {visibleAnnotations.map((annotation) => (
+            <button
+              type="button"
+              key={annotation.id}
+              className={
+                annotation.id === activeFeatureId
+                  ? "legend-item legend-item--active"
+                  : annotation.id === selectedFeatureId && selectedSceneKey === sceneKey
+                    ? "legend-item legend-item--pinned"
+                  : "legend-item"
+              }
+              onMouseEnter={() => onHoverFeature(sceneKey, annotation.id)}
+              onMouseLeave={() => onHoverFeature(null, null)}
+              onFocus={() => onHoverFeature(sceneKey, annotation.id)}
+              onBlur={() => onHoverFeature(null, null)}
+              onClick={() => onToggleFeature(sceneKey, annotation.id)}
+            >
+              <span
+                className="legend-swatch"
+                style={{ backgroundColor: annotation.color }}
+              />
+              <span>{annotation.label}</span>
+            </button>
+          ))}
+        </div>
+      </PanelScrollArea>
     </aside>
   );
 }
