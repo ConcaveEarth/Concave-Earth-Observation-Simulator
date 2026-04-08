@@ -41,6 +41,7 @@ const en: TranslationDictionary = {
   dragMicrocopy: "Drag for sweep, use +/- for fine adjustment.",
   crossSection: "Cross-section",
   rayBundle: "Ray Bundle",
+  profileVisibility: "Profile Visibility",
   sweep: "Sweep",
   splitCompare: "Split Compare",
   panelLayout: "Panel layout",
@@ -72,6 +73,8 @@ const en: TranslationDictionary = {
   analysisView: "Analysis view",
   rayBundleIntro:
     "Multiple sampled target heights traced through the shared ray solver to show the visible/blocked envelope.",
+  profileVisibilityIntro:
+    "Terrain/profile samples are now solved through the shared visibility engine so shoreline, skyline, and mountain silhouettes can participate in the analysis rather than remain purely illustrative.",
   sweepIntro:
     "A controlled parameter sweep driven by repeated solver runs across the active models.",
   sweepParameter: "Sweep parameter",

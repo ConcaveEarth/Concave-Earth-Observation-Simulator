@@ -859,8 +859,9 @@ export function RightPanel({
             {activeScene.terrainOverlay ? (
               <p>
                 Profile overlay: {activeScene.terrainOverlay.name}. This layer is
-                aligned to the scenario distances for diagram readability, and it
-                does not yet replace the solver's baseline surface-intersection mesh.
+                aligned to the scenario distances for diagram readability in the
+                cross-section view, and the dedicated Profile Visibility analysis
+                tab now samples that profile through the shared solver.
               </p>
             ) : null}
           </div>

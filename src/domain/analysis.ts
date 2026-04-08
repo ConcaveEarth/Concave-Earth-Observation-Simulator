@@ -10,13 +10,14 @@ import {
   getDefaultStepM,
   traceRay,
 } from "./raytrace";
-import { solveVisibility } from "./solver";
+import { getTerrainProfileByPresetId, createGenericTargetProfile } from "./profiles";
+import { solveTargetPointVisibility, solveVisibility } from "./solver";
 import { clamp, formatAngle, formatDistance, formatFraction, formatHeight, lerp } from "./units";
 import type { FocusedModel, ModelConfig, ScenarioInput, VisibilitySolveResult, Vec2 } from "./types";
 import type { UnitPreferences } from "./units";
 import { getModelLabel, type LanguageMode } from "../i18n";
 
-export type AnalysisTab = "cross-section" | "ray-bundle" | "sweep";
+export type AnalysisTab = "cross-section" | "ray-bundle" | "sweep" | "profile-visibility";
 export type SweepParameter =
   | "distance"
   | "observerHeight"
@@ -112,6 +113,57 @@ export interface RayBundlePanelData {
     visibleSamples: number;
     blockedSamples: number;
     visibilityFractionLabel: string;
+  };
+}
+
+export interface ProfileVisibilityTrace {
+  id: string;
+  color: string;
+  width: number;
+  dashed?: boolean;
+  points: Vec2[];
+}
+
+export interface ProfileVisibilitySamplePoint {
+  id: string;
+  point: Vec2;
+  distanceM: number;
+  heightM: number;
+  visible: boolean;
+  apparentElevationRad: number | null;
+}
+
+export interface ProfileVisibilityPanelData {
+  sceneKey: FocusedModel;
+  title: string;
+  subtitle: string;
+  bounds: {
+    minX: number;
+    maxX: number;
+    minY: number;
+    maxY: number;
+  };
+  suggestedVerticalScale: number;
+  surfacePoints: Vec2[];
+  profilePolyline: Vec2[];
+  profileSegments: ProfileVisibilityTrace[];
+  observerStem: {
+    base: Vec2;
+    top: Vec2;
+  };
+  traces: ProfileVisibilityTrace[];
+  markers: Array<{
+    id: string;
+    point: Vec2;
+    color: string;
+    label: string;
+  }>;
+  samplePoints: ProfileVisibilitySamplePoint[];
+  stats: {
+    visibleSamples: number;
+    blockedSamples: number;
+    visibilityFractionLabel: string;
+    visibleSpanM: number;
   };
 }
 
@@ -623,6 +675,255 @@ export function buildRayBundlePanelData(
       visibleSamples,
       blockedSamples,
       visibilityFractionLabel: formatFraction(result.visibilityFraction),
+    },
+  };
+}
+
+function interpolateProfileHeight(
+  profileSamples: Array<{ distanceM: number; heightM: number }>,
+  distanceM: number,
+) {
+  if (distanceM <= profileSamples[0].distanceM) {
+    return profileSamples[0].heightM;
+  }
+
+  if (distanceM >= profileSamples[profileSamples.length - 1].distanceM) {
+    return profileSamples[profileSamples.length - 1].heightM;
+  }
+
+  for (let index = 0; index < profileSamples.length - 1; index += 1) {
+    const left = profileSamples[index];
+    const right = profileSamples[index + 1];
+
+    if (distanceM < left.distanceM || distanceM > right.distanceM) {
+      continue;
+    }
+
+    const fraction =
+      (distanceM - left.distanceM) / Math.max(right.distanceM - left.distanceM, 1e-6);
+    return lerp(left.heightM, right.heightM, fraction);
+  }
+
+  return profileSamples[profileSamples.length - 1].heightM;
+}
+
+function sampleProfileForAnalysis(result: VisibilitySolveResult) {
+  const profile =
+    getTerrainProfileByPresetId(result.scenario.presetId) ??
+    createGenericTargetProfile(
+      result.scenario.presetId,
+      result.scenario.surfaceDistanceM,
+      result.scenario.targetHeightM,
+    );
+  const sortedSamples = [...profile.samples].sort((left, right) => left.distanceM - right.distanceM);
+  const minDistanceM = sortedSamples[0].distanceM;
+  const maxDistanceM = sortedSamples[sortedSamples.length - 1].distanceM;
+  const sampleCount = clamp(
+    Math.round(result.scenario.targetSampleCount * 2.4),
+    18,
+    52,
+  );
+
+  const analysisSamples = Array.from({ length: sampleCount }, (_, index) => {
+    const fraction = sampleCount === 1 ? 0 : index / (sampleCount - 1);
+    const distanceM = lerp(minDistanceM, maxDistanceM, fraction);
+    return {
+      distanceM,
+      heightM: interpolateProfileHeight(sortedSamples, distanceM),
+    };
+  });
+
+  return {
+    profile,
+    minDistanceM,
+    maxDistanceM,
+    analysisSamples,
+  };
+}
+
+function buildProfileVisibilitySegments(
+  samplePoints: ProfileVisibilitySamplePoint[],
+): ProfileVisibilityTrace[] {
+  const segments: ProfileVisibilityTrace[] = [];
+
+  for (let index = 0; index < samplePoints.length - 1; index += 1) {
+    const left = samplePoints[index];
+    const right = samplePoints[index + 1];
+    const visible = left.visible && right.visible;
+
+    segments.push({
+      id: `profile-segment-${index}`,
+      color: visible ? "rgba(255, 208, 126, 0.96)" : "rgba(182, 194, 206, 0.52)",
+      width: visible ? 3.6 : 2.2,
+      dashed: !visible,
+      points: [left.point, right.point],
+    });
+  }
+
+  return segments;
+}
+
+export function buildProfileVisibilityPanelData(
+  result: VisibilitySolveResult,
+  title: string,
+  sceneKey: FocusedModel,
+): ProfileVisibilityPanelData {
+  const { profile, minDistanceM, maxDistanceM, analysisSamples } =
+    sampleProfileForAnalysis(result);
+  const maxDistanceAngleRad = getTargetAngle(maxDistanceM, result.scenario.radiusM);
+  const rawSurfaceSamples = Array.from({ length: 180 }, (_, index) => {
+    const angle = lerp(
+      -maxDistanceAngleRad * 0.08,
+      maxDistanceAngleRad * 1.02,
+      index / 179,
+    );
+    const point = pointAtSurfaceHeight(
+      result.scenario.radiusM,
+      angle,
+      result.model.geometryMode,
+      0,
+    );
+    return transformToObserverFrame(result, point);
+  });
+  const observerBase = transformToObserverFrame(result, result.observerSurfacePoint);
+  const observerTop = { x: 0, y: 0 };
+  const rawProfilePoints = analysisSamples.map((sample) =>
+    transformToObserverFrame(
+      result,
+      pointAtSurfaceHeight(
+        result.scenario.radiusM,
+        getTargetAngle(sample.distanceM, result.scenario.radiusM),
+        result.model.geometryMode,
+        sample.heightM,
+      ),
+    ),
+  );
+  const verticalScale = getVerticalExaggeration(maxDistanceM, [
+    ...rawSurfaceSamples,
+    ...rawProfilePoints,
+    observerBase,
+    observerTop,
+  ]);
+  const surfacePoints = exaggerate(rawSurfaceSamples, verticalScale);
+  const profilePolyline = exaggerate(rawProfilePoints, verticalScale);
+  const observerStemBase = { x: observerBase.x, y: observerBase.y * verticalScale };
+  const traces: ProfileVisibilityTrace[] = [];
+  const samplePoints: ProfileVisibilitySamplePoint[] = [];
+  let visibleSamples = 0;
+  let blockedSamples = 0;
+
+  const rayStride = Math.max(1, Math.floor(analysisSamples.length / 10));
+
+  analysisSamples.forEach((sample, index) => {
+    const solve = solveTargetPointVisibility(
+      result.scenario,
+      result.model,
+      sample.distanceM,
+      sample.heightM,
+    );
+    const localTarget = transformToObserverFrame(result, solve.targetPoint);
+    const point = { x: localTarget.x, y: localTarget.y * verticalScale };
+
+    samplePoints.push({
+      id: `profile-sample-${index}`,
+      point,
+      distanceM: sample.distanceM,
+      heightM: sample.heightM,
+      visible: solve.visible,
+      apparentElevationRad: solve.apparentElevationRad ?? null,
+    });
+
+    if (solve.visible) {
+      visibleSamples += 1;
+    } else {
+      blockedSamples += 1;
+    }
+
+    const shouldDrawRay =
+      index % rayStride === 0 || index === analysisSamples.length - 1 || index === 0;
+
+    if (!shouldDrawRay) {
+      return;
+    }
+
+    if (solve.trace?.points.length) {
+      traces.push({
+        id: `profile-ray-${index}`,
+        color: solve.visible
+          ? "rgba(255, 194, 101, 0.7)"
+          : "rgba(222, 231, 242, 0.42)",
+        width: solve.visible ? 1.9 : 1.25,
+        dashed: !solve.visible,
+        points: solve.trace.points.map((tracePoint) => {
+          const local = transformToObserverFrame(result, tracePoint);
+          return { x: local.x, y: local.y * verticalScale };
+        }),
+      });
+    }
+  });
+
+  const profileSegments = buildProfileVisibilitySegments(samplePoints);
+  const visiblePoints = samplePoints.filter((sample) => sample.visible);
+  const visibleSpanM =
+    visiblePoints.length > 1
+      ? visiblePoints[visiblePoints.length - 1].distanceM - visiblePoints[0].distanceM
+      : 0;
+
+  return {
+    sceneKey,
+    title,
+    subtitle: `${profile.name} • ${visibleSamples}/${samplePoints.length} sampled profile points reach the observer`,
+    bounds: collectBounds(
+      [
+        ...surfacePoints,
+        ...profilePolyline,
+        ...traces.flatMap((trace) => trace.points),
+        observerStemBase,
+        observerTop,
+      ],
+      {
+        xPaddingFactor: 0.08,
+        minXPad: Math.max(1_000, maxDistanceM * 0.025),
+        topPaddingFactor: 0.18,
+        bottomPaddingFactor: 0.34,
+        minTopPad: Math.max(180, result.scenario.observerHeightM * verticalScale * 0.08),
+        minBottomPad: Math.max(260, Math.max(...profilePolyline.map((point) => Math.abs(point.y))) * 0.12),
+      },
+    ),
+    suggestedVerticalScale: verticalScale,
+    surfacePoints,
+    profilePolyline,
+    profileSegments,
+    observerStem: {
+      base: observerStemBase,
+      top: observerTop,
+    },
+    traces,
+    markers: [
+      {
+        id: "profile-observer",
+        point: observerTop,
+        color: "#f5f2e8",
+        label: "Observer",
+      },
+      {
+        id: "profile-peak",
+        point:
+          samplePoints.reduce((highest, sample) =>
+            sample.point.y > highest.point.y ? sample : highest,
+          ).point,
+        color: "#ffd07e",
+        label: "Profile peak",
+      },
+    ],
+    samplePoints,
+    stats: {
+      visibleSamples,
+      blockedSamples,
+      visibilityFractionLabel: formatFraction(
+        samplePoints.length ? visibleSamples / samplePoints.length : 0,
+      ),
+      visibleSpanM,
     },
   };
 }

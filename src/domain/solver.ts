@@ -41,11 +41,12 @@ function getObserverPoint(scenario: ScenarioInput, model: ModelConfig): Vec2 {
 function getTargetPoint(
   scenario: ScenarioInput,
   model: ModelConfig,
+  targetDistanceM: number,
   sampleHeightM: number,
 ): Vec2 {
   return pointAtSurfaceHeight(
     scenario.radiusM,
-    getTargetAngle(scenario.surfaceDistanceM, scenario.radiusM),
+    getTargetAngle(targetDistanceM, scenario.radiusM),
     model.geometryMode,
     sampleHeightM,
   );
@@ -115,12 +116,14 @@ function solveConvexOpticalHorizon(
 function evaluateRayAtHeight(
   scenario: ScenarioInput,
   model: ModelConfig,
+  targetDistanceM: number,
   sampleHeightM: number,
 ): SolvedRay | null {
   const observerPoint = getObserverPoint(scenario, model);
   const observerTangent = localTangentAtAngle(0);
   const observerUp = localUpAtAngle(0, model.geometryMode);
-  const targetPoint = getTargetPoint(scenario, model, sampleHeightM);
+  const targetAngleRad = getTargetAngle(targetDistanceM, scenario.radiusM);
+  const targetPoint = getTargetPoint(scenario, model, targetDistanceM, sampleHeightM);
   const targetLocal = toObserverFrame(targetPoint, observerPoint, observerTangent, observerUp);
   const actualElevationRad = Math.atan2(targetLocal.y, targetLocal.x);
   const searchWindow = model.geometryMode === "concave" ? 0.34 : 0.22;
@@ -136,7 +139,7 @@ function evaluateRayAtHeight(
       scenario,
       model,
       launchAngleRad: angle,
-      targetAngleRad: getTargetAngle(scenario.surfaceDistanceM, scenario.radiusM),
+      targetAngleRad,
     });
 
     if (!trace.targetCrossing) {
@@ -183,7 +186,7 @@ function evaluateRayAtHeight(
         scenario,
         model,
         launchAngleRad: angle,
-        targetAngleRad: getTargetAngle(scenario.surfaceDistanceM, scenario.radiusM),
+        targetAngleRad,
       });
 
       if (!trace.targetCrossing) {
@@ -221,6 +224,34 @@ function evaluateRayAtHeight(
   }
 
   return null;
+}
+
+export function solveTargetPointVisibility(
+  scenario: ScenarioInput,
+  model: ModelConfig,
+  targetDistanceM: number,
+  sampleHeightM: number,
+): VisibilitySample {
+  const observerPoint = getObserverPoint(scenario, model);
+  const observerTangent = localTangentAtAngle(0);
+  const observerUp = localUpAtAngle(0, model.geometryMode);
+  const targetAngleRad = getTargetAngle(targetDistanceM, scenario.radiusM);
+  const targetPoint = getTargetPoint(scenario, model, targetDistanceM, sampleHeightM);
+  const localTarget = toObserverFrame(targetPoint, observerPoint, observerTangent, observerUp);
+  const actualElevationRad = Math.atan2(localTarget.y, localTarget.x);
+  const solved = evaluateRayAtHeight(scenario, model, targetDistanceM, sampleHeightM);
+
+  return {
+    targetDistanceM,
+    targetAngleRad,
+    targetPoint,
+    sampleHeightM,
+    visible: Boolean(solved),
+    trace: solved?.trace,
+    apparentElevationRad: solved?.apparentElevationRad,
+    actualElevationRad,
+    missHeightM: solved?.missHeightM ?? Number.POSITIVE_INFINITY,
+  };
 }
 
 function solveOpticalHorizon(
@@ -312,8 +343,13 @@ export function solveVisibility(
     model.geometryMode,
     0,
   );
-  const targetBasePoint = getTargetPoint(scenario, model, 0);
-  const targetTopPoint = getTargetPoint(scenario, model, scenario.targetHeightM);
+  const targetBasePoint = getTargetPoint(scenario, model, scenario.surfaceDistanceM, 0);
+  const targetTopPoint = getTargetPoint(
+    scenario,
+    model,
+    scenario.surfaceDistanceM,
+    scenario.targetHeightM,
+  );
   const targetAngleRad = getTargetAngle(scenario.surfaceDistanceM, scenario.radiusM);
   const observerTangent = localTangentAtAngle(0);
   const observerUp = localUpAtAngle(0, model.geometryMode);
@@ -339,23 +375,18 @@ export function solveVisibility(
   for (let index = 0; index < sampleCount; index += 1) {
     const sampleHeightM =
       sampleCount === 1 ? 0 : (scenario.targetHeightM * index) / (sampleCount - 1);
-    const targetPoint = getTargetPoint(scenario, model, sampleHeightM);
-    const localTarget = toObserverFrame(targetPoint, observerPoint, observerTangent, observerUp);
-    const actualElevationRad = Math.atan2(localTarget.y, localTarget.x);
-    const solved = evaluateRayAtHeight(scenario, model, sampleHeightM);
+    const sample = solveTargetPointVisibility(
+      scenario,
+      model,
+      scenario.surfaceDistanceM,
+      sampleHeightM,
+    );
 
-    if (solved) {
+    if (sample.visible) {
       solvedVisibleSamples += 1;
     }
 
-    targetSamples.push({
-      sampleHeightM,
-      visible: Boolean(solved),
-      trace: solved?.trace,
-      apparentElevationRad: solved?.apparentElevationRad,
-      actualElevationRad,
-      missHeightM: solved?.missHeightM ?? Number.POSITIVE_INFINITY,
-    });
+    targetSamples.push(sample);
   }
 
   const visibleSamples = targetSamples.filter((sample) => sample.visible);

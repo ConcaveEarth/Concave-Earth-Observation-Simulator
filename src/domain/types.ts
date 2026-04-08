@@ -60,6 +60,9 @@ export interface RayTrace {
 }
 
 export interface VisibilitySample {
+  targetDistanceM: number;
+  targetAngleRad: number;
+  targetPoint: Vec2;
   sampleHeightM: number;
   visible: boolean;
   trace?: RayTrace;

@@ -31,6 +31,8 @@ map workflows.
 - Signed atmospheric coefficient range from `-0.99` to `+0.99`
 - Hidden-height, visibility-fraction, apparent-angle, and horizon outputs
 - Ray Bundle analysis view driven by sampled target-point visibility solutions
+- Profile Visibility analysis view that samples terrain/profile silhouettes through
+  the shared solver instead of treating them as pure decoration
 - Sweep analysis view for parameter-vs-output comparison curves
 - URL-serializable state plus PNG export
 - Domain, state, and UI separation with Vitest coverage
@@ -40,7 +42,8 @@ map workflows.
 - Tighten remaining line/path fidelity in the cross-section constructions
 - Deepen ray-bundle analytics and visibility-envelope explanations
 - Expand sweep metrics and scenario controls
-- Upgrade terrain/profile obstruction from illustrative overlay to solver input
+- Deepen terrain/profile obstruction from profile-sampled solver participation into
+  more complete obstruction handling along the path
 - Add observer-eye reconstruction and later sky-wrap / celestial views
 
 ## Scripts

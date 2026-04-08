@@ -159,6 +159,17 @@ export function PresentationToolbar({
             }
           />
         </div>
+      ) : state.analysisTab === "profile-visibility" ? (
+        <div className="scene-toolbar__group">
+          <span className="scene-toolbar__label">{t(language, "guides")}</span>
+          <ControlButton
+            label={t(language, "scaleGuides")}
+            active={state.showScaleGuides}
+            onClick={() =>
+              dispatch({ type: "setShowScaleGuides", value: !state.showScaleGuides })
+            }
+          />
+        </div>
       ) : (
         <>
           <div className="scene-toolbar__group">

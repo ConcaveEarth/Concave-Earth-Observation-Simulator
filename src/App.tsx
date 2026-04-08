@@ -1,5 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import {
+  buildProfileVisibilityPanelData,
   buildRayBundlePanelData,
   buildSceneViewModel,
   buildSweepChartData,
@@ -10,6 +11,7 @@ import { hydrateStateFromSearch, appReducer, serializeStateToSearch } from "./st
 import { AnalysisTabs } from "./ui/components/AnalysisTabs";
 import { ControlsPanel } from "./ui/components/ControlsPanel";
 import { PresentationToolbar } from "./ui/components/PresentationToolbar";
+import { ProfileVisibilityView } from "./ui/components/ProfileVisibilityView";
 import { RayBundleView } from "./ui/components/RayBundleView";
 import { RightPanel } from "./ui/components/RightPanel";
 import { SceneLegendOverlay } from "./ui/components/SceneLegendOverlay";
@@ -118,6 +120,24 @@ export default function App() {
       ),
     [comparisonResult, deferredState.language],
   );
+  const primaryProfileVisibility = useMemo(
+    () =>
+      buildProfileVisibilityPanelData(
+        primaryResult,
+        t(deferredState.language, "primaryModelTitle"),
+        "primary",
+      ),
+    [primaryResult, deferredState.language],
+  );
+  const comparisonProfileVisibility = useMemo(
+    () =>
+      buildProfileVisibilityPanelData(
+        comparisonResult,
+        t(deferredState.language, "comparisonModelTitle"),
+        "comparison",
+      ),
+    [comparisonResult, deferredState.language],
+  );
   const sweepData = useMemo(
     () =>
       buildSweepChartData({
@@ -148,6 +168,14 @@ export default function App() {
     deferredState.viewMode === "compare"
       ? [primaryBundle, comparisonBundle]
       : [deferredState.focusedModel === "primary" ? primaryBundle : comparisonBundle];
+  const profilePanels =
+    deferredState.viewMode === "compare"
+      ? [primaryProfileVisibility, comparisonProfileVisibility]
+      : [
+          deferredState.focusedModel === "primary"
+            ? primaryProfileVisibility
+            : comparisonProfileVisibility,
+        ];
 
   const visibleSceneKeys = new Set(scenes.map((scene) => scene.sceneKey));
   const hoveredSceneVisible =
@@ -322,6 +350,10 @@ export default function App() {
                   ? `scene-card scene-card--ray-bundle panel${
                       state.fitContentHeight ? " scene-card--fit-content" : ""
                     }`
+                  : deferredState.analysisTab === "profile-visibility"
+                    ? `scene-card scene-card--profile-visibility panel${
+                        state.fitContentHeight ? " scene-card--fit-content" : ""
+                      }`
                   : deferredState.analysisTab === "sweep"
                     ? `scene-card scene-card--sweep panel${
                         state.fitContentHeight ? " scene-card--fit-content" : ""
@@ -369,6 +401,8 @@ export default function App() {
                       <span className="scene-toolbar__meta scene-toolbar__meta--hint">
                         {state.analysisTab === "ray-bundle"
                           ? t(state.language, "rayBundleIntro")
+                          : state.analysisTab === "profile-visibility"
+                            ? t(state.language, "profileVisibilityIntro")
                           : `${t(state.language, "sweepIntro")} ${formatSweepParameterValue(
                               sweepData.range.min,
                               sweepData.parameter,
@@ -622,6 +656,70 @@ export default function App() {
                   ) : (
                     <RayBundleView
                       panels={bundlePanels}
+                      compareLayout={resolvedCompareLayout}
+                      unitPreferences={state.unitPreferences}
+                      showScaleGuides={state.showScaleGuides}
+                      fitContentHeight={state.fitContentHeight}
+                      zoom={state.sceneViewport.zoom}
+                      verticalZoom={state.sceneViewport.verticalZoom}
+                      panX={state.sceneViewport.panX}
+                      panY={state.sceneViewport.panY}
+                      onPanBy={(deltaX, deltaY) =>
+                        dispatch({ type: "panViewport", deltaX, deltaY })
+                      }
+                      onAdjustZoom={(delta) =>
+                        dispatch({ type: "adjustViewportZoom", delta })
+                      }
+                      onAdjustVerticalZoom={(delta) =>
+                        dispatch({ type: "adjustViewportVerticalZoom", delta })
+                      }
+                    />
+                  )}
+                </div>
+              </div>
+            ) : state.analysisTab === "profile-visibility" ? (
+              <div
+                className={
+                  stackedCompareView
+                    ? "scene-card__viewport scene-card__viewport--analysis scene-card__viewport--stacked-list"
+                    : "scene-card__viewport scene-card__viewport--analysis"
+                }
+              >
+                <div
+                  className={
+                    stackedCompareView
+                      ? "scene-stack-list"
+                      : "scene-card__canvas"
+                  }
+                >
+                  {stackedCompareView ? (
+                    profilePanels.map((panel) => (
+                      <div key={panel.sceneKey} className="scene-stack-item scene-stack-item--analysis">
+                        <ProfileVisibilityView
+                          panels={[panel]}
+                          compareLayout="side-by-side"
+                          unitPreferences={state.unitPreferences}
+                          showScaleGuides={state.showScaleGuides}
+                          fitContentHeight={state.fitContentHeight}
+                          zoom={state.sceneViewport.zoom}
+                          verticalZoom={state.sceneViewport.verticalZoom}
+                          panX={state.sceneViewport.panX}
+                          panY={state.sceneViewport.panY}
+                          onPanBy={(deltaX, deltaY) =>
+                            dispatch({ type: "panViewport", deltaX, deltaY })
+                          }
+                          onAdjustZoom={(delta) =>
+                            dispatch({ type: "adjustViewportZoom", delta })
+                          }
+                          onAdjustVerticalZoom={(delta) =>
+                            dispatch({ type: "adjustViewportVerticalZoom", delta })
+                          }
+                        />
+                      </div>
+                    ))
+                  ) : (
+                    <ProfileVisibilityView
+                      panels={profilePanels}
                       compareLayout={resolvedCompareLayout}
                       unitPreferences={state.unitPreferences}
                       showScaleGuides={state.showScaleGuides}
