@@ -1,3 +1,4 @@
+import * as Tabs from "@radix-ui/react-tabs";
 import type { AnalysisTab } from "../../domain/analysis";
 import { t, type LanguageMode } from "../../i18n";
 
@@ -17,21 +18,26 @@ export function AnalysisTabs({ value, onChange, language }: AnalysisTabsProps) {
   ];
 
   return (
-    <div className="analysis-tabs" role="tablist" aria-label="Analysis views">
-      {tabOptions.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          role="tab"
-          aria-selected={value === option.value}
-          className={
-            value === option.value ? "analysis-tabs__tab analysis-tabs__tab--active" : "analysis-tabs__tab"
-          }
-          onClick={() => onChange(option.value)}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
+    <Tabs.Root
+      className="analysis-tabs"
+      value={value}
+      onValueChange={(nextValue) => onChange(nextValue as AnalysisTab)}
+    >
+      <Tabs.List className="analysis-tabs__list" aria-label="Analysis views">
+        {tabOptions.map((option) => (
+          <Tabs.Trigger
+            key={option.value}
+            value={option.value}
+            className={
+              value === option.value
+                ? "analysis-tabs__tab analysis-tabs__tab--active"
+                : "analysis-tabs__tab"
+            }
+          >
+            {option.label}
+          </Tabs.Trigger>
+        ))}
+      </Tabs.List>
+    </Tabs.Root>
   );
 }

@@ -21,6 +21,9 @@ comparison-first observation lab milestone:
   solver-backed terrain/profile overlays
 - Observer-eye reconstruction tab that converts solved apparent elevations into
   a perceptual horizon-and-silhouette view
+- Modernized UI and analytics foundation using Radix UI primitives and an
+  ECharts-powered sweep workspace, while keeping the custom geometry renderer
+  and shared solver domain intact
 
 This milestone is the baseline we can safely build on before deeper analytical
 features such as full terrain-aware obstruction and map workflows.
@@ -41,6 +44,9 @@ features such as full terrain-aware obstruction and map workflows.
 - Sweep analysis view for parameter-vs-output comparison curves
 - URL-serializable state plus PNG export
 - Domain, state, and UI separation with Vitest coverage
+- Radix-powered collapsible sections, navigation dropdowns, and analysis tabs
+- ECharts-backed sweep analysis with responsive resizing and split bundles for
+  faster initial loading
 
 ## Near-Term Roadmap
 
@@ -65,7 +71,8 @@ npm run build
 
 - `src/domain`: pure geometry, curvature, ray tracing, solver, presets, scene model
 - `src/state`: centralized app state and URL serialization
-- `src/ui`: controls, analysis tabs, renderers, analytics panels, export helpers
+- `src/ui`: Radix-enhanced controls, analysis tabs, renderers, analytics panels,
+  export helpers
 - `src/test`: domain, state, and UI tests
 
 ## GitHub Pages

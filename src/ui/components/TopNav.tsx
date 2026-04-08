@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { languageOptions, t, type LanguageMode } from "../../i18n";
 import type { ThemeMode, WorkspaceMode } from "../../state/appState";
 
@@ -84,31 +84,6 @@ export function TopNav({
   onLanguageChange,
   onWorkspaceModeChange,
 }: TopNavProps) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    function handlePointerDown(event: MouseEvent) {
-      if (!menuRef.current?.contains(event.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setMenuOpen(false);
-      }
-    }
-
-    window.addEventListener("mousedown", handlePointerDown);
-    window.addEventListener("keydown", handleEscape);
-
-    return () => {
-      window.removeEventListener("mousedown", handlePointerDown);
-      window.removeEventListener("keydown", handleEscape);
-    };
-  }, []);
-
   return (
     <header className="top-nav panel">
       <div className="top-nav__brand">
@@ -121,34 +96,33 @@ export function TopNav({
           {t(language, "home")}
         </a>
         <NavAnchor label={t(language, "forums")} href="https://concaveearth.net" />
-        <div className="top-nav__menu" ref={menuRef}>
-          <button
-            type="button"
-            className={menuOpen ? "top-nav__link top-nav__link--active" : "top-nav__link"}
-            aria-expanded={menuOpen}
-            aria-haspopup="true"
-            onClick={() => setMenuOpen((current) => !current)}
-          >
-            {t(language, "moreCE")}
-            <span className="top-nav__caret">{menuOpen ? "▲" : "▼"}</span>
-          </button>
-
-          {menuOpen ? (
-            <div className="top-nav__dropdown" role="menu" aria-label="More Concave Earth links">
-              <p className="top-nav__dropdown-title">{t(language, "communityResearchLinks")}</p>
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger asChild>
+            <button type="button" className="top-nav__link">
+              {t(language, "moreCE")}
+              <span className="top-nav__caret">v</span>
+            </button>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Portal>
+            <DropdownMenu.Content
+              className="top-nav__dropdown"
+              sideOffset={10}
+              align="end"
+              collisionPadding={20}
+            >
+              <DropdownMenu.Label className="top-nav__dropdown-title">
+                {t(language, "communityResearchLinks")}
+              </DropdownMenu.Label>
               <div className="top-nav__dropdown-list">
                 {moreCeLinks.map((link) => (
-                  <NavAnchor
-                    key={link.href}
-                    label={link.label}
-                    href={link.href}
-                    secondary
-                  />
+                  <DropdownMenu.Item key={link.href} asChild>
+                    <NavAnchor label={link.label} href={link.href} secondary />
+                  </DropdownMenu.Item>
                 ))}
               </div>
-            </div>
-          ) : null}
-        </div>
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
+        </DropdownMenu.Root>
       </nav>
 
       <div className="top-nav__utilities">

@@ -186,6 +186,7 @@ const en: TranslationDictionary = {
     "Hover to inspect, click to pin, drag to pan, Ctrl+wheel zoom, Shift+wheel vertical",
   analysisViewportHint:
     "Drag to pan, Ctrl+wheel zoom, Shift+wheel vertical",
+  loadingAnalysisWorkspace: "Loading analysis workspace",
   fullscreen: "Fullscreen",
   exitFullscreen: "Exit Fullscreen",
   legend: "Legend",

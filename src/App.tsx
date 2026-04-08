@@ -1,4 +1,13 @@
-import { useDeferredValue, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import {
+  Suspense,
+  lazy,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
 import {
   buildObserverViewPanelData,
   buildProfileVisibilityPanelData,
@@ -11,22 +20,52 @@ import {
 import { hydrateStateFromSearch, appReducer, serializeStateToSearch } from "./state/appState";
 import { AnalysisTabs } from "./ui/components/AnalysisTabs";
 import { ControlsPanel } from "./ui/components/ControlsPanel";
-import { ObserverView } from "./ui/components/ObserverView";
 import { PresentationToolbar } from "./ui/components/PresentationToolbar";
-import { ProfileVisibilityView } from "./ui/components/ProfileVisibilityView";
-import { RayBundleView } from "./ui/components/RayBundleView";
 import { RightPanel } from "./ui/components/RightPanel";
 import { SceneLegendOverlay } from "./ui/components/SceneLegendOverlay";
 import { SceneSvg } from "./ui/components/SceneSvg";
 import { SceneToolbar } from "./ui/components/SceneToolbar";
-import { SweepChart } from "./ui/components/SweepChart";
 import { TopNav } from "./ui/components/TopNav";
 import { AppFooter } from "./ui/components/AppFooter";
 import { downloadSvgAsPng } from "./ui/exportSvg";
 import { t } from "./i18n";
 
+const RayBundleView = lazy(() =>
+  import("./ui/components/RayBundleView").then((module) => ({
+    default: module.RayBundleView,
+  })),
+);
+const ObserverView = lazy(() =>
+  import("./ui/components/ObserverView").then((module) => ({
+    default: module.ObserverView,
+  })),
+);
+const ProfileVisibilityView = lazy(() =>
+  import("./ui/components/ProfileVisibilityView").then((module) => ({
+    default: module.ProfileVisibilityView,
+  })),
+);
+const SweepChart = lazy(() =>
+  import("./ui/components/SweepChart").then((module) => ({
+    default: module.SweepChart,
+  })),
+);
+
 function getSceneFilename(analysisTab: string, viewMode: string): string {
   return `observation-geometry-lab-${analysisTab}-${viewMode}.png`;
+}
+
+function AnalysisLoadingFallback({ message }: { message: string }) {
+  return (
+    <div className="scene-card__loading" role="status" aria-live="polite">
+      <div className="scene-card__loading-card panel">
+        <p className="scene-card__loading-title">{message}</p>
+        <p className="scene-card__loading-body">
+          Loading the analysis workspace and charting modules.
+        </p>
+      </div>
+    </div>
+  );
 }
 
 export default function App() {
@@ -684,27 +723,62 @@ export default function App() {
                   onToggleFeature={handleLegendToggleFeature}
                 />
               </div>
-            ) : state.analysisTab === "ray-bundle" ? (
-              <div
-                className={
-                  stackedCompareView
-                    ? "scene-card__viewport scene-card__viewport--analysis scene-card__viewport--stacked-list"
-                    : "scene-card__viewport scene-card__viewport--analysis"
+            ) : (
+              <Suspense
+                fallback={
+                  <AnalysisLoadingFallback
+                    message={t(state.language, "loadingAnalysisWorkspace")}
+                  />
                 }
               >
-                <div
-                  className={
-                    stackedCompareView
-                      ? "scene-stack-list"
-                      : "scene-card__canvas"
-                  }
-                >
-                  {stackedCompareView ? (
-                    bundlePanels.map((panel) => (
-                      <div key={panel.sceneKey} className="scene-stack-item scene-stack-item--analysis">
+                {state.analysisTab === "ray-bundle" ? (
+                  <div
+                    className={
+                      stackedCompareView
+                        ? "scene-card__viewport scene-card__viewport--analysis scene-card__viewport--stacked-list"
+                        : "scene-card__viewport scene-card__viewport--analysis"
+                    }
+                  >
+                    <div
+                      className={
+                        stackedCompareView
+                          ? "scene-stack-list"
+                          : "scene-card__canvas"
+                      }
+                    >
+                      {stackedCompareView ? (
+                        bundlePanels.map((panel) => (
+                          <div
+                            key={panel.sceneKey}
+                            className="scene-stack-item scene-stack-item--analysis"
+                          >
+                            <RayBundleView
+                              panels={[panel]}
+                              compareLayout="side-by-side"
+                              unitPreferences={state.unitPreferences}
+                              language={state.language}
+                              showScaleGuides={state.showScaleGuides}
+                              fitContentHeight={state.fitContentHeight}
+                              zoom={state.sceneViewport.zoom}
+                              verticalZoom={state.sceneViewport.verticalZoom}
+                              panX={state.sceneViewport.panX}
+                              panY={state.sceneViewport.panY}
+                              onPanBy={(deltaX, deltaY) =>
+                                dispatch({ type: "panViewport", deltaX, deltaY })
+                              }
+                              onAdjustZoom={(delta) =>
+                                dispatch({ type: "adjustViewportZoom", delta })
+                              }
+                              onAdjustVerticalZoom={(delta) =>
+                                dispatch({ type: "adjustViewportVerticalZoom", delta })
+                              }
+                            />
+                          </div>
+                        ))
+                      ) : (
                         <RayBundleView
-                          panels={[panel]}
-                          compareLayout="side-by-side"
+                          panels={bundlePanels}
+                          compareLayout={resolvedCompareLayout}
                           unitPreferences={state.unitPreferences}
                           language={state.language}
                           showScaleGuides={state.showScaleGuides}
@@ -723,54 +797,58 @@ export default function App() {
                             dispatch({ type: "adjustViewportVerticalZoom", delta })
                           }
                         />
-                      </div>
-                    ))
-                  ) : (
-                    <RayBundleView
-                      panels={bundlePanels}
-                      compareLayout={resolvedCompareLayout}
-                      unitPreferences={state.unitPreferences}
-                      language={state.language}
-                      showScaleGuides={state.showScaleGuides}
-                      fitContentHeight={state.fitContentHeight}
-                      zoom={state.sceneViewport.zoom}
-                      verticalZoom={state.sceneViewport.verticalZoom}
-                      panX={state.sceneViewport.panX}
-                      panY={state.sceneViewport.panY}
-                      onPanBy={(deltaX, deltaY) =>
-                        dispatch({ type: "panViewport", deltaX, deltaY })
+                      )}
+                    </div>
+                  </div>
+                ) : state.analysisTab === "observer-view" ? (
+                  <div
+                    className={
+                      stackedCompareView
+                        ? "scene-card__viewport scene-card__viewport--analysis scene-card__viewport--stacked-list"
+                        : "scene-card__viewport scene-card__viewport--analysis"
+                    }
+                  >
+                    <div
+                      className={
+                        stackedCompareView
+                          ? "scene-stack-list"
+                          : "scene-card__canvas"
                       }
-                      onAdjustZoom={(delta) =>
-                        dispatch({ type: "adjustViewportZoom", delta })
-                      }
-                      onAdjustVerticalZoom={(delta) =>
-                        dispatch({ type: "adjustViewportVerticalZoom", delta })
-                      }
-                    />
-                  )}
-                </div>
-              </div>
-            ) : state.analysisTab === "observer-view" ? (
-              <div
-                className={
-                  stackedCompareView
-                    ? "scene-card__viewport scene-card__viewport--analysis scene-card__viewport--stacked-list"
-                    : "scene-card__viewport scene-card__viewport--analysis"
-                }
-              >
-                <div
-                  className={
-                    stackedCompareView
-                      ? "scene-stack-list"
-                      : "scene-card__canvas"
-                  }
-                >
-                  {stackedCompareView ? (
-                    observerPanels.map((panel) => (
-                      <div key={panel.sceneKey} className="scene-stack-item scene-stack-item--analysis">
+                    >
+                      {stackedCompareView ? (
+                        observerPanels.map((panel) => (
+                          <div
+                            key={panel.sceneKey}
+                            className="scene-stack-item scene-stack-item--analysis"
+                          >
+                            <ObserverView
+                              panels={[panel]}
+                              compareLayout="side-by-side"
+                              unitPreferences={state.unitPreferences}
+                              language={state.language}
+                              showScaleGuides={state.showScaleGuides}
+                              annotated={state.annotated}
+                              fitContentHeight={state.fitContentHeight}
+                              zoom={state.sceneViewport.zoom}
+                              verticalZoom={state.sceneViewport.verticalZoom}
+                              panX={state.sceneViewport.panX}
+                              panY={state.sceneViewport.panY}
+                              onPanBy={(deltaX, deltaY) =>
+                                dispatch({ type: "panViewport", deltaX, deltaY })
+                              }
+                              onAdjustZoom={(delta) =>
+                                dispatch({ type: "adjustViewportZoom", delta })
+                              }
+                              onAdjustVerticalZoom={(delta) =>
+                                dispatch({ type: "adjustViewportVerticalZoom", delta })
+                              }
+                            />
+                          </div>
+                        ))
+                      ) : (
                         <ObserverView
-                          panels={[panel]}
-                          compareLayout="side-by-side"
+                          panels={observerPanels}
+                          compareLayout={resolvedCompareLayout}
                           unitPreferences={state.unitPreferences}
                           language={state.language}
                           showScaleGuides={state.showScaleGuides}
@@ -790,55 +868,57 @@ export default function App() {
                             dispatch({ type: "adjustViewportVerticalZoom", delta })
                           }
                         />
-                      </div>
-                    ))
-                  ) : (
-                    <ObserverView
-                      panels={observerPanels}
-                      compareLayout={resolvedCompareLayout}
-                      unitPreferences={state.unitPreferences}
-                      language={state.language}
-                      showScaleGuides={state.showScaleGuides}
-                      annotated={state.annotated}
-                      fitContentHeight={state.fitContentHeight}
-                      zoom={state.sceneViewport.zoom}
-                      verticalZoom={state.sceneViewport.verticalZoom}
-                      panX={state.sceneViewport.panX}
-                      panY={state.sceneViewport.panY}
-                      onPanBy={(deltaX, deltaY) =>
-                        dispatch({ type: "panViewport", deltaX, deltaY })
+                      )}
+                    </div>
+                  </div>
+                ) : state.analysisTab === "profile-visibility" ? (
+                  <div
+                    className={
+                      stackedCompareView
+                        ? "scene-card__viewport scene-card__viewport--analysis scene-card__viewport--stacked-list"
+                        : "scene-card__viewport scene-card__viewport--analysis"
+                    }
+                  >
+                    <div
+                      className={
+                        stackedCompareView
+                          ? "scene-stack-list"
+                          : "scene-card__canvas"
                       }
-                      onAdjustZoom={(delta) =>
-                        dispatch({ type: "adjustViewportZoom", delta })
-                      }
-                      onAdjustVerticalZoom={(delta) =>
-                        dispatch({ type: "adjustViewportVerticalZoom", delta })
-                      }
-                    />
-                  )}
-                </div>
-              </div>
-            ) : state.analysisTab === "profile-visibility" ? (
-              <div
-                className={
-                  stackedCompareView
-                    ? "scene-card__viewport scene-card__viewport--analysis scene-card__viewport--stacked-list"
-                    : "scene-card__viewport scene-card__viewport--analysis"
-                }
-              >
-                <div
-                  className={
-                    stackedCompareView
-                      ? "scene-stack-list"
-                      : "scene-card__canvas"
-                  }
-                >
-                  {stackedCompareView ? (
-                    profilePanels.map((panel) => (
-                      <div key={panel.sceneKey} className="scene-stack-item scene-stack-item--analysis">
+                    >
+                      {stackedCompareView ? (
+                        profilePanels.map((panel) => (
+                          <div
+                            key={panel.sceneKey}
+                            className="scene-stack-item scene-stack-item--analysis"
+                          >
+                            <ProfileVisibilityView
+                              panels={[panel]}
+                              compareLayout="side-by-side"
+                              unitPreferences={state.unitPreferences}
+                              language={state.language}
+                              showScaleGuides={state.showScaleGuides}
+                              fitContentHeight={state.fitContentHeight}
+                              zoom={state.sceneViewport.zoom}
+                              verticalZoom={state.sceneViewport.verticalZoom}
+                              panX={state.sceneViewport.panX}
+                              panY={state.sceneViewport.panY}
+                              onPanBy={(deltaX, deltaY) =>
+                                dispatch({ type: "panViewport", deltaX, deltaY })
+                              }
+                              onAdjustZoom={(delta) =>
+                                dispatch({ type: "adjustViewportZoom", delta })
+                              }
+                              onAdjustVerticalZoom={(delta) =>
+                                dispatch({ type: "adjustViewportVerticalZoom", delta })
+                              }
+                            />
+                          </div>
+                        ))
+                      ) : (
                         <ProfileVisibilityView
-                          panels={[panel]}
-                          compareLayout="side-by-side"
+                          panels={profilePanels}
+                          compareLayout={resolvedCompareLayout}
                           unitPreferences={state.unitPreferences}
                           language={state.language}
                           showScaleGuides={state.showScaleGuides}
@@ -857,57 +937,35 @@ export default function App() {
                             dispatch({ type: "adjustViewportVerticalZoom", delta })
                           }
                         />
-                      </div>
-                    ))
-                  ) : (
-                    <ProfileVisibilityView
-                      panels={profilePanels}
-                      compareLayout={resolvedCompareLayout}
-                      unitPreferences={state.unitPreferences}
-                      language={state.language}
-                      showScaleGuides={state.showScaleGuides}
-                      fitContentHeight={state.fitContentHeight}
-                      zoom={state.sceneViewport.zoom}
-                      verticalZoom={state.sceneViewport.verticalZoom}
-                      panX={state.sceneViewport.panX}
-                      panY={state.sceneViewport.panY}
-                      onPanBy={(deltaX, deltaY) =>
-                        dispatch({ type: "panViewport", deltaX, deltaY })
-                      }
-                      onAdjustZoom={(delta) =>
-                        dispatch({ type: "adjustViewportZoom", delta })
-                      }
-                      onAdjustVerticalZoom={(delta) =>
-                        dispatch({ type: "adjustViewportVerticalZoom", delta })
-                      }
-                    />
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="scene-card__viewport scene-card__viewport--analysis">
-                <div className="scene-card__canvas">
-                  <SweepChart
-                    data={sweepData}
-                    units={state.unitPreferences}
-                    language={state.language}
-                    fitContentHeight={state.fitContentHeight}
-                    zoom={state.sceneViewport.zoom}
-                    verticalZoom={state.sceneViewport.verticalZoom}
-                    panX={state.sceneViewport.panX}
-                    panY={state.sceneViewport.panY}
-                    onPanBy={(deltaX, deltaY) =>
-                      dispatch({ type: "panViewport", deltaX, deltaY })
-                    }
-                    onAdjustZoom={(delta) =>
-                      dispatch({ type: "adjustViewportZoom", delta })
-                    }
-                    onAdjustVerticalZoom={(delta) =>
-                      dispatch({ type: "adjustViewportVerticalZoom", delta })
-                    }
-                  />
-                </div>
-              </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="scene-card__viewport scene-card__viewport--analysis">
+                    <div className="scene-card__canvas">
+                      <SweepChart
+                        data={sweepData}
+                        units={state.unitPreferences}
+                        language={state.language}
+                        fitContentHeight={state.fitContentHeight}
+                        zoom={state.sceneViewport.zoom}
+                        verticalZoom={state.sceneViewport.verticalZoom}
+                        panX={state.sceneViewport.panX}
+                        panY={state.sceneViewport.panY}
+                        onPanBy={(deltaX, deltaY) =>
+                          dispatch({ type: "panViewport", deltaX, deltaY })
+                        }
+                        onAdjustZoom={(delta) =>
+                          dispatch({ type: "adjustViewportZoom", delta })
+                        }
+                        onAdjustVerticalZoom={(delta) =>
+                          dispatch({ type: "adjustViewportVerticalZoom", delta })
+                        }
+                      />
+                    </div>
+                  </div>
+                )}
+              </Suspense>
             )}
           </div>
         </main>
