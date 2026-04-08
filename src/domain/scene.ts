@@ -209,21 +209,43 @@ function getFeatureDefinitions(
   };
 }
 
-function collectBounds(points: Vec2[], paddingFactor = 0.06, minYPad = 180): SceneBounds {
+interface BoundsPaddingOptions {
+  xPaddingFactor?: number;
+  minXPad?: number;
+  topPaddingFactor?: number;
+  bottomPaddingFactor?: number;
+  minTopPad?: number;
+  minBottomPad?: number;
+}
+
+function collectBounds(
+  points: Vec2[],
+  {
+    xPaddingFactor = 0.06,
+    minXPad = 900,
+    topPaddingFactor = 0.16,
+    bottomPaddingFactor = 0.24,
+    minTopPad = 180,
+    minBottomPad = 220,
+  }: BoundsPaddingOptions = {},
+): SceneBounds {
   const xs = points.map((point) => point.x);
   const ys = points.map((point) => point.y);
   const minX = Math.min(...xs);
   const maxX = Math.max(...xs);
   const minY = Math.min(...ys);
   const maxY = Math.max(...ys);
-  const xPad = Math.max((maxX - minX) * paddingFactor, 900);
-  const yPad = Math.max((maxY - minY) * (paddingFactor * 2.3), minYPad);
+  const spanX = Math.max(maxX - minX, 1);
+  const spanY = Math.max(maxY - minY, 1);
+  const xPad = Math.max(spanX * xPaddingFactor, minXPad);
+  const topPad = Math.max(spanY * topPaddingFactor, minTopPad);
+  const bottomPad = Math.max(spanY * bottomPaddingFactor, minBottomPad);
 
   return {
     minX: minX - xPad,
     maxX: maxX + xPad,
-    minY: minY - yPad,
-    maxY: maxY + yPad,
+    minY: minY - bottomPad,
+    maxY: maxY + topPad,
   };
 }
 
@@ -450,11 +472,14 @@ function createFocusBounds(result: VisibilitySolveResult, points: Vec2[]): Scene
     (point) => point.x >= -focusBack && point.x <= focusForward,
   );
 
-  return collectBounds(
-    filtered.length ? filtered : points,
-    0.09,
-    Math.max(220, result.scenario.targetHeightM * 0.1),
-  );
+  return collectBounds(filtered.length ? filtered : points, {
+    xPaddingFactor: 0.1,
+    minXPad: Math.max(1_100, result.scenario.surfaceDistanceM * 0.016),
+    topPaddingFactor: 0.2,
+    bottomPaddingFactor: 0.32,
+    minTopPad: Math.max(260, result.scenario.targetHeightM * 0.18),
+    minBottomPad: Math.max(320, result.scenario.targetHeightM * 0.28),
+  });
 }
 
 function placeLabel(
@@ -1284,17 +1309,23 @@ export function buildSceneViewModel(
     );
   }
 
-  const relevantPoints = [
+  const geometryPoints = [
     ...surfaceSamples,
     ...observerAltitudeCurve,
     ...geometricSightline,
     ...segments.flatMap((segment) => [segment.from, segment.to]),
     ...markers.map((marker) => marker.point),
-    ...labels.map((label) => label.point),
     ...lines.flatMap((line) => line.points),
   ];
-  const bounds = collectBounds(relevantPoints);
-  const focusBounds = createFocusBounds(result, relevantPoints);
+  const bounds = collectBounds(geometryPoints, {
+    xPaddingFactor: 0.08,
+    minXPad: Math.max(950, result.scenario.surfaceDistanceM * 0.014),
+    topPaddingFactor: 0.18,
+    bottomPaddingFactor: 0.28,
+    minTopPad: Math.max(220, result.scenario.targetHeightM * 0.12),
+    minBottomPad: Math.max(260, result.scenario.targetHeightM * 0.2),
+  });
+  const focusBounds = createFocusBounds(result, geometryPoints);
 
   return {
     sceneKey,

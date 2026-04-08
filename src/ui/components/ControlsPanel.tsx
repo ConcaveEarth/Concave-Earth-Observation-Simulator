@@ -20,9 +20,7 @@ import type {
   FocusedModel,
   ModelConfig,
   ScenarioInput,
-  ViewMode,
 } from "../../domain/types";
-import type { AnalysisTab, SweepMetric, SweepParameter, SweepRangeMode } from "../../domain/analysis";
 import type { AppAction, AppState } from "../../state/appState";
 import { PanelSection } from "./PanelSection";
 
@@ -215,31 +213,6 @@ function NumberField({
   );
 }
 
-function ViewPills({
-  value,
-  options,
-  onChange,
-}: {
-  value: string;
-  options: Array<{ label: string; value: string }>;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <div className="pill-group">
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          className={value === option.value ? "pill pill--active" : "pill"}
-          onClick={() => onChange(option.value)}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 function ModelEditor({
   title,
   target,
@@ -372,7 +345,6 @@ export function ControlsPanel({
   language,
 }: ControlsPanelProps) {
   const [collapsedSections, setCollapsedSections] = useState({
-    view: false,
     scenario: false,
     model1: false,
     model2: false,
@@ -391,13 +363,6 @@ export function ControlsPanel({
   const radiusUnitOptions = [
     { label: "km", value: "km" },
     { label: "mi", value: "mi" },
-  ] as const;
-  const controlSections = [
-    { label: t(language, "view"), target: "control-view" },
-    { label: t(language, "scenario"), target: "control-scenario" },
-    { label: t(language, "primary"), target: "control-primary-model" },
-    { label: t(language, "compare"), target: "control-comparison-model" },
-    { label: t(language, "export"), target: "control-export" },
   ] as const;
   const presetDefaults = getPresetById(state.scenario.presetId).scenario;
   const setScenarioValue = <K extends keyof ScenarioInput>(
@@ -418,137 +383,6 @@ export function ControlsPanel({
       </div>
 
       <div className="controls-dock">
-        <div className="controls-dock__nav">
-          <p className="controls-dock__eyebrow">{t(language, "quickJump")}</p>
-          <div className="controls-dock__nav-grid">
-            {controlSections.map((section) => (
-              <a
-                key={section.target}
-                className="controls-dock__link"
-                href={`#${section.target}`}
-              >
-                {section.label}
-              </a>
-            ))}
-          </div>
-          <p className="field__hint">{t(language, "quickJumpHint")}</p>
-        </div>
-
-        <PanelSection
-          title={t(language, "view")}
-          eyebrow={t(language, "presentation")}
-          sectionId="control-view"
-          collapsible
-          collapsed={collapsedSections.view}
-          onToggleCollapsed={() => toggleSection("view")}
-        >
-          <label className="field">
-            <span>{t(language, "analysisView")}</span>
-            <ViewPills
-              value={state.analysisTab}
-              options={[
-                { label: t(language, "crossSection"), value: "cross-section" },
-                { label: t(language, "rayBundle"), value: "ray-bundle" },
-                { label: t(language, "sweep"), value: "sweep" },
-              ]}
-              onChange={(value) =>
-                dispatch({ type: "setAnalysisTab", value: value as AnalysisTab })
-              }
-            />
-          </label>
-
-          {state.analysisTab === "cross-section" ? (
-            <p className="field__hint">{t(language, "centerLayoutHint")}</p>
-          ) : state.analysisTab === "ray-bundle" ? (
-            <p className="field__hint">{t(language, "rayBundleIntro")}</p>
-          ) : (
-            <p className="field__hint">{t(language, "sweepIntro")}</p>
-          )}
-
-          {state.analysisTab === "sweep" ? (
-            <>
-              <label className="field">
-                <span>{t(language, "sweepParameter")}</span>
-                <select
-                  value={state.sweepConfig.parameter}
-                  onChange={(event) =>
-                    dispatch({
-                      type: "setSweepField",
-                      key: "parameter",
-                      value: event.target.value as SweepParameter,
-                    })
-                  }
-                >
-                  <option value="distance">{t(language, "distanceParameter")}</option>
-                  <option value="observerHeight">{t(language, "observerHeightParameter")}</option>
-                  <option value="targetHeight">{t(language, "targetHeightParameter")}</option>
-                  <option value="atmosphere">{t(language, "atmosphereParameter")}</option>
-                </select>
-              </label>
-
-              <label className="field">
-                <span>{t(language, "sweepMetric")}</span>
-                <select
-                  value={state.sweepConfig.metric}
-                  onChange={(event) =>
-                    dispatch({
-                      type: "setSweepField",
-                      key: "metric",
-                      value: event.target.value as SweepMetric,
-                    })
-                  }
-                >
-                  <option value="hiddenHeight">{t(language, "hiddenHeightMetric")}</option>
-                  <option value="visibilityFraction">
-                    {t(language, "visibilityFractionMetric")}
-                  </option>
-                  <option value="apparentElevation">
-                    {t(language, "apparentElevationMetric")}
-                  </option>
-                  <option value="opticalHorizon">{t(language, "opticalHorizonMetric")}</option>
-                </select>
-              </label>
-
-              <label className="field">
-                <span>{t(language, "sweepRange")}</span>
-                <select
-                  value={state.sweepConfig.rangeMode}
-                  onChange={(event) =>
-                    dispatch({
-                      type: "setSweepField",
-                      key: "rangeMode",
-                      value: event.target.value as SweepRangeMode,
-                    })
-                  }
-                >
-                  <option value="focused">{t(language, "focused")}</option>
-                  <option value="operational">{t(language, "operational")}</option>
-                  <option value="wide">{t(language, "wide")}</option>
-                </select>
-              </label>
-
-              <NumberField
-                label={t(language, "sweepResolution")}
-                value={state.sweepConfig.sampleCount}
-                min={8}
-                max={80}
-                step={1}
-                unit="pts"
-                language={language}
-                onChange={(value) =>
-                  dispatch({
-                    type: "setSweepField",
-                    key: "sampleCount",
-                    value: Math.round(value),
-                  })
-                }
-              />
-            </>
-          ) : null}
-
-          <p className="field__hint">{t(language, "presentationMovedHint")}</p>
-        </PanelSection>
-
         <PanelSection
           title={t(language, "scenario")}
           eyebrow={t(language, "observationInputs")}

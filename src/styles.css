@@ -807,7 +807,7 @@ select {
 }
 
 .scene-card__viewport--analysis {
-  min-height: clamp(460px, 56vh, 900px);
+  min-height: clamp(520px, 62vh, 980px);
   overflow: auto;
   overscroll-behavior: contain;
 }
@@ -864,11 +864,11 @@ select {
 
 .app-shell--fullwidth-scene .scene-card--ray-bundle .scene-card__viewport,
 .app-shell--fullwidth-scene .scene-card--ray-bundle .scene-svg {
-  min-height: min(82vh, 1040px);
+  min-height: min(86vh, 1160px);
 }
 
 .app-shell--fullwidth-scene .scene-card__viewport--stacked {
-  min-height: min(92vh, 1360px);
+  min-height: min(96vh, 1480px);
 }
 
 .app-shell--fullwidth-scene .scene-card--sweep .scene-card__viewport,
@@ -972,6 +972,20 @@ select {
 
 .scene-toolbar__button--active {
   background: var(--control-active);
+}
+
+.scene-toolbar__select,
+.scene-toolbar__input {
+  min-height: 34px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--text-primary);
+}
+
+.scene-toolbar__input {
+  width: 76px;
 }
 
 .scene-svg {

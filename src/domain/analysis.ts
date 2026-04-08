@@ -121,21 +121,39 @@ const sweepSeriesColors: Record<FocusedModel, string> = {
   comparison: "#7dd7ff",
 };
 
-function collectBounds(points: Vec2[]) {
+function collectBounds(
+  points: Vec2[],
+  {
+    xPaddingFactor = 0.08,
+    minXPad = 900,
+    topPaddingFactor = 0.18,
+    bottomPaddingFactor = 0.3,
+    minTopPad = 140,
+    minBottomPad = 200,
+  }: {
+    xPaddingFactor?: number;
+    minXPad?: number;
+    topPaddingFactor?: number;
+    bottomPaddingFactor?: number;
+    minTopPad?: number;
+    minBottomPad?: number;
+  } = {},
+) {
   const minX = Math.min(...points.map((point) => point.x));
   const maxX = Math.max(...points.map((point) => point.x));
   const minY = Math.min(...points.map((point) => point.y));
   const maxY = Math.max(...points.map((point) => point.y));
   const spanX = Math.max(maxX - minX, 1);
   const spanY = Math.max(maxY - minY, 1);
-  const paddingX = spanX * 0.08;
-  const paddingY = spanY * 0.1;
+  const paddingX = Math.max(spanX * xPaddingFactor, minXPad);
+  const paddingTop = Math.max(spanY * topPaddingFactor, minTopPad);
+  const paddingBottom = Math.max(spanY * bottomPaddingFactor, minBottomPad);
 
   return {
     minX: minX - paddingX,
     maxX: maxX + paddingX,
-    minY: minY - paddingY,
-    maxY: maxY + paddingY,
+    minY: minY - paddingBottom,
+    maxY: maxY + paddingTop,
   };
 }
 
@@ -530,15 +548,25 @@ export function buildRayBundlePanelData(
     sceneKey,
     title,
     subtitle: `${visibleSamples}/${result.targetSamples.length} sampled rays reach the observer`,
-    bounds: collectBounds([
-      ...surfacePoints,
-      ...traces.flatMap((trace) => trace.points),
-      exObserverBase,
-      observerTop,
-      exTargetBase,
-      exTargetTop,
-      exVisibleStart,
-    ]),
+    bounds: collectBounds(
+      [
+        ...surfacePoints,
+        ...traces.flatMap((trace) => trace.points),
+        exObserverBase,
+        observerTop,
+        exTargetBase,
+        exTargetTop,
+        exVisibleStart,
+      ],
+      {
+        xPaddingFactor: 0.1,
+        minXPad: Math.max(1_000, result.scenario.surfaceDistanceM * 0.03),
+        topPaddingFactor: 0.2,
+        bottomPaddingFactor: 0.36,
+        minTopPad: Math.max(180, result.scenario.targetHeightM * verticalScale * 0.08),
+        minBottomPad: Math.max(280, result.scenario.targetHeightM * verticalScale * 0.18),
+      },
+    ),
     suggestedVerticalScale: verticalScale,
     surfacePoints,
     targetStem: {
