@@ -4,11 +4,13 @@ import { formatDistance } from "../../domain/units";
 import type { UnitPreferences } from "../../domain/units";
 import type { CompareLayoutMode } from "../../state/appState";
 import type { RayBundlePanelData } from "../../domain/analysis";
+import { t, type LanguageMode } from "../../i18n";
 
 interface RayBundleViewProps {
   panels: RayBundlePanelData[];
   compareLayout: Exclude<CompareLayoutMode, "auto">;
   unitPreferences: UnitPreferences;
+  language: LanguageMode;
   showScaleGuides: boolean;
   fitContentHeight: boolean;
   zoom: number;
@@ -86,6 +88,7 @@ function renderBundleScaleGuide(
   panel: RayBundlePanelData,
   project: (point: { x: number; y: number }) => { x: number; y: number },
   unitPreferences: UnitPreferences,
+  language: LanguageMode,
 ) {
   const spanX = panel.bounds.maxX - panel.bounds.minX;
   const horizontalStep = niceScaleStep(spanX / 4);
@@ -143,7 +146,7 @@ function renderBundleScaleGuide(
         fontSize={11}
         fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
       >
-        Sampled bundle span
+        {t(language, "sampledBundleSpanLabel")}
       </text>
     </g>
   );
@@ -153,6 +156,7 @@ export function RayBundleView({
   panels,
   compareLayout,
   unitPreferences,
+  language,
   showScaleGuides,
   fitContentHeight,
   zoom,
@@ -325,7 +329,7 @@ export function RayBundleView({
       className="scene-svg"
       viewBox={`0 0 ${svgWidth} ${svgHeight}`}
       role="img"
-      aria-label="Ray bundle visualization"
+      aria-label={t(language, "rayBundle")}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -486,7 +490,7 @@ export function RayBundleView({
                 fontSize={13}
                 fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
               >
-                Observer
+                {t(language, "observer")}
               </text>
               <text
                 x={project(panel.targetStem.top).x + 10}
@@ -495,11 +499,11 @@ export function RayBundleView({
                 fontSize={13}
                 fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
               >
-                Target samples
+                {t(language, "targetSamples")}
               </text>
 
               {showScaleGuides
-                ? renderBundleScaleGuide(panel, project, unitPreferences)
+                ? renderBundleScaleGuide(panel, project, unitPreferences, language)
                 : null}
             </g>
 
@@ -530,7 +534,7 @@ export function RayBundleView({
               fontSize={13}
               fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
             >
-              {`${panel.stats.visibleSamples} visible • ${panel.stats.blockedSamples} blocked • ${panel.stats.visibilityFractionLabel}`}
+              {`${panel.stats.visibleSamples} ${t(language, "visibleSamples").toLowerCase()} • ${panel.stats.blockedSamples} ${t(language, "blockedSamples").toLowerCase()} • ${panel.stats.visibilityFractionLabel}`}
             </text>
           </g>
         );

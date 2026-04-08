@@ -8,10 +8,12 @@ import {
   type SweepParameter,
 } from "../../domain/analysis";
 import type { UnitPreferences } from "../../domain/units";
+import { t, type LanguageMode } from "../../i18n";
 
 interface SweepChartProps {
   data: SweepChartData;
   units: UnitPreferences;
+  language: LanguageMode;
   fitContentHeight: boolean;
   zoom: number;
   verticalZoom: number;
@@ -25,31 +27,31 @@ interface SweepChartProps {
 const SVG_WIDTH = 1880;
 const SVG_HEIGHT = 1040;
 
-function getParameterLabel(parameter: SweepParameter) {
+function getParameterLabel(language: LanguageMode, parameter: SweepParameter) {
   switch (parameter) {
     case "observerHeight":
-      return "Observer height";
+      return t(language, "observerHeightParameter");
     case "targetHeight":
-      return "Target height";
+      return t(language, "targetHeightParameter");
     case "atmosphere":
-      return "Atmospheric coefficient";
+      return t(language, "atmosphereParameter");
     case "distance":
     default:
-      return "Surface distance";
+      return t(language, "distanceParameter");
   }
 }
 
-function getMetricLabel(metric: SweepMetric) {
+function getMetricLabel(language: LanguageMode, metric: SweepMetric) {
   switch (metric) {
     case "visibilityFraction":
-      return "Visibility fraction";
+      return t(language, "visibilityFractionMetric");
     case "apparentElevation":
-      return "Apparent elevation";
+      return t(language, "apparentElevationMetric");
     case "opticalHorizon":
-      return "Optical horizon";
+      return t(language, "opticalHorizonMetric");
     case "hiddenHeight":
     default:
-      return "Hidden height";
+      return t(language, "hiddenHeightMetric");
   }
 }
 
@@ -82,6 +84,7 @@ function niceScaleStep(value: number): number {
 export function SweepChart({
   data,
   units,
+  language,
   fitContentHeight,
   zoom,
   verticalZoom,
@@ -230,7 +233,7 @@ export function SweepChart({
       className="scene-svg sweep-chart"
       viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
       role="img"
-      aria-label="Parameter sweep chart"
+      aria-label={t(language, "parameterSweepTitle")}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -415,7 +418,7 @@ export function SweepChart({
         fontWeight="600"
         fontFamily="'Trebuchet MS', 'Segoe UI Variable Display', sans-serif"
       >
-        Parameter Sweep
+        {t(language, "parameterSweepTitle")}
       </text>
       <text
         x="42"
@@ -424,7 +427,7 @@ export function SweepChart({
         fontSize={14}
         fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
       >
-        Shared solver outputs traced across a controlled range for both model interpretations.
+        {t(language, "parameterSweepBody")}
       </text>
 
       <text
@@ -435,7 +438,7 @@ export function SweepChart({
         fontSize={13}
         fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
       >
-        {getParameterLabel(data.parameter)}
+        {getParameterLabel(language, data.parameter)}
       </text>
       <text
         x="22"
@@ -446,7 +449,7 @@ export function SweepChart({
         fontSize={13}
         fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
       >
-        {getMetricLabel(data.metric)}
+        {getMetricLabel(language, data.metric)}
       </text>
 
       <g>

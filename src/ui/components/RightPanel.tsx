@@ -2,6 +2,14 @@ import {
   getAtmosphereCurvatureMagnitude,
   getIntrinsicCurvatureMagnitude,
 } from "../../domain/curvature";
+import {
+  formatSweepMetricValue,
+  formatSweepParameterValue,
+  type ObserverViewPanelData,
+  type ProfileVisibilityPanelData,
+  type RayBundlePanelData,
+  type SweepChartData,
+} from "../../domain/analysis";
 import { pointAtSurfaceHeight, toObserverFrame } from "../../domain/geometry";
 import { getPresetById } from "../../domain/presets";
 import {
@@ -20,6 +28,10 @@ interface RightPanelProps {
   state: AppState;
   activeResult: VisibilitySolveResult;
   activeScene: SceneViewModel;
+  activeBundlePanel: RayBundlePanelData;
+  activeProfilePanel: ProfileVisibilityPanelData;
+  activeObserverPanel: ObserverViewPanelData;
+  sweepData: SweepChartData;
   inspectedSceneKey: FocusedModel;
   activeFeatureId: string | null;
   isFeaturePinned: boolean;
@@ -82,6 +94,338 @@ function formatCurvatureRatio(
 ) {
   const ratio = Math.abs(magnitudePerM * radiusM);
   return `${ratio.toFixed(2)} / R ${direction}`;
+}
+
+function getAnalysisTabLabel(language: LanguageMode, analysisTab: AppState["analysisTab"]) {
+  switch (analysisTab) {
+    case "ray-bundle":
+      return t(language, "rayBundle");
+    case "observer-view":
+      return t(language, "observerView");
+    case "profile-visibility":
+      return t(language, "profileVisibility");
+    case "sweep":
+      return t(language, "sweep");
+    case "cross-section":
+    default:
+      return t(language, "crossSection");
+  }
+}
+
+function getSweepParameterLabel(language: LanguageMode, parameter: SweepChartData["parameter"]) {
+  switch (parameter) {
+    case "observerHeight":
+      return t(language, "observerHeightParameter");
+    case "targetHeight":
+      return t(language, "targetHeightParameter");
+    case "atmosphere":
+      return t(language, "atmosphereParameter");
+    case "distance":
+    default:
+      return t(language, "distanceParameter");
+  }
+}
+
+function getSweepMetricLabel(language: LanguageMode, metric: SweepChartData["metric"]) {
+  switch (metric) {
+    case "visibilityFraction":
+      return t(language, "visibilityFractionMetric");
+    case "apparentElevation":
+      return t(language, "apparentElevationMetric");
+    case "opticalHorizon":
+      return t(language, "opticalHorizonMetric");
+    case "hiddenHeight":
+    default:
+      return t(language, "hiddenHeightMetric");
+  }
+}
+
+function getNearestSweepPoint(
+  series: SweepChartData["series"][number],
+  currentX: number,
+) {
+  return series.points.reduce((nearest, point) => {
+    if (!nearest) {
+      return point;
+    }
+
+    return Math.abs(point.x - currentX) < Math.abs(nearest.x - currentX) ? point : nearest;
+  }, null as SweepChartData["series"][number]["points"][number] | null);
+}
+
+function getCurrentOutputCards(args: {
+  state: AppState;
+  activeResult: VisibilitySolveResult;
+  activeBundlePanel: RayBundlePanelData;
+  activeProfilePanel: ProfileVisibilityPanelData;
+  activeObserverPanel: ObserverViewPanelData;
+  sweepData: SweepChartData;
+  language: LanguageMode;
+}) {
+  const { state, activeResult, activeBundlePanel, activeProfilePanel, activeObserverPanel, sweepData, language } = args;
+  const units = state.unitPreferences;
+
+  if (state.analysisTab === "ray-bundle") {
+    return [
+      {
+        label: t(language, "visibleSamples"),
+        value: String(activeBundlePanel.stats.visibleSamples),
+      },
+      {
+        label: t(language, "blockedSamples"),
+        value: String(activeBundlePanel.stats.blockedSamples),
+      },
+      {
+        label: t(language, "visibilityFraction"),
+        value: activeBundlePanel.stats.visibilityFractionLabel,
+      },
+      {
+        label: t(language, "bundleSpan"),
+        value: formatDistance(activeBundlePanel.stats.bundleSpanM, units.distance),
+      },
+      {
+        label: t(language, "bundleSampleCount"),
+        value: String(activeBundlePanel.samplePoints.length),
+      },
+      {
+        label: t(language, "hiddenHeight"),
+        value: formatHeight(activeResult.hiddenHeightM, units.height),
+      },
+    ];
+  }
+
+  if (state.analysisTab === "observer-view") {
+    return [
+      {
+        label: t(language, "visibleSamples"),
+        value: String(activeObserverPanel.stats.visibleSamples),
+      },
+      {
+        label: t(language, "blockedSamples"),
+        value: String(activeObserverPanel.stats.blockedSamples),
+      },
+      {
+        label: t(language, "apparentHorizonDip"),
+        value: activeObserverPanel.stats.horizonDipLabel,
+      },
+      {
+        label: t(language, "visibleTopElevation"),
+        value:
+          activeObserverPanel.stats.topVisibleElevationRad == null
+            ? "N/A"
+            : formatAngle(activeObserverPanel.stats.topVisibleElevationRad),
+      },
+      {
+        label: t(language, "geometricTopElevation"),
+        value: formatAngle(activeObserverPanel.stats.topGhostElevationRad),
+      },
+      {
+        label: t(language, "apparentProfileSpan"),
+        value: formatDistance(activeObserverPanel.stats.apparentProfileSpanM, units.distance),
+      },
+    ];
+  }
+
+  if (state.analysisTab === "profile-visibility") {
+    return [
+      {
+        label: t(language, "visibleSamples"),
+        value: String(activeProfilePanel.stats.visibleSamples),
+      },
+      {
+        label: t(language, "blockedSamples"),
+        value: String(activeProfilePanel.stats.blockedSamples),
+      },
+      {
+        label: t(language, "visibilityFraction"),
+        value: activeProfilePanel.stats.visibilityFractionLabel,
+      },
+      {
+        label: t(language, "visibleProfileSpan"),
+        value: formatDistance(activeProfilePanel.stats.visibleSpanM, units.distance),
+      },
+      {
+        label: t(language, "profileSamples"),
+        value: String(activeProfilePanel.stats.sampleCount),
+      },
+      {
+        label: t(language, "maxProfileHeight"),
+        value: formatHeight(activeProfilePanel.stats.maxProfileHeightM, units.height),
+      },
+    ];
+  }
+
+  if (state.analysisTab === "sweep") {
+    const primarySeries = sweepData.series.find((series) => series.id === "primary") ?? sweepData.series[0];
+    const comparisonSeries = sweepData.series.find((series) => series.id === "comparison");
+    const primaryCurrent = primarySeries ? getNearestSweepPoint(primarySeries, sweepData.range.current) : null;
+    const comparisonCurrent = comparisonSeries
+      ? getNearestSweepPoint(comparisonSeries, sweepData.range.current)
+      : null;
+
+    return [
+      {
+        label: t(language, "activeParameter"),
+        value: getSweepParameterLabel(language, sweepData.parameter),
+      },
+      {
+        label: t(language, "activeMetric"),
+        value: getSweepMetricLabel(language, sweepData.metric),
+      },
+      {
+        label: t(language, "currentScenarioValue"),
+        value: formatSweepParameterValue(
+          sweepData.range.current,
+          sweepData.parameter,
+          units,
+        ),
+      },
+      {
+        label: comparisonCurrent ? t(language, "modelOneCurrent") : t(language, "activeModelCurrent"),
+        value: primaryCurrent
+          ? formatSweepMetricValue(primaryCurrent.y, sweepData.metric, units)
+          : "N/A",
+      },
+      ...(comparisonCurrent
+        ? [
+            {
+              label: t(language, "modelTwoCurrent"),
+              value: formatSweepMetricValue(comparisonCurrent.y, sweepData.metric, units),
+            },
+          ]
+        : []),
+      {
+        label: t(language, "sweepSamples"),
+        value: String(state.sweepConfig.sampleCount),
+      },
+    ];
+  }
+
+  return [
+    {
+      label: t(language, "hiddenHeight"),
+      value: formatHeight(activeResult.hiddenHeightM, units.height),
+    },
+    {
+      label: t(language, "visibleHeight"),
+      value: formatHeight(activeResult.visibleHeightM, units.height),
+    },
+    {
+      label: t(language, "visibilityFraction"),
+      value: formatFraction(activeResult.visibilityFraction),
+    },
+    {
+      label: t(language, "apparentElevation"),
+      value: formatAngle(activeResult.apparentElevationRad),
+    },
+    {
+      label: t(language, "actualElevation"),
+      value: formatAngle(activeResult.actualElevationRad),
+    },
+    {
+      label: t(language, "opticalHorizon"),
+      value: activeResult.opticalHorizon
+        ? formatDistance(activeResult.opticalHorizon.distanceM, units.distance)
+        : "N/A",
+    },
+  ];
+}
+
+function getAnalysisSummary(args: {
+  state: AppState;
+  activeResult: VisibilitySolveResult;
+  activeBundlePanel: RayBundlePanelData;
+  activeProfilePanel: ProfileVisibilityPanelData;
+  activeObserverPanel: ObserverViewPanelData;
+  sweepData: SweepChartData;
+  language: LanguageMode;
+}): { title: string; description: string; metrics: FeatureMetric[] } {
+  const { state, activeResult, activeBundlePanel, activeProfilePanel, activeObserverPanel, sweepData, language } = args;
+  const units = state.unitPreferences;
+
+  switch (state.analysisTab) {
+    case "ray-bundle":
+      return {
+        title: t(language, "rayBundleSummaryTitle"),
+        description: t(language, "rayBundleSummaryBody"),
+        metrics: [
+          { label: t(language, "activeAnalysis"), value: getAnalysisTabLabel(language, state.analysisTab) },
+          { label: t(language, "bundleSampleCount"), value: String(activeBundlePanel.samplePoints.length) },
+          { label: t(language, "bundleSpan"), value: formatDistance(activeBundlePanel.stats.bundleSpanM, units.distance) },
+          { label: t(language, "visibilityFraction"), value: activeBundlePanel.stats.visibilityFractionLabel },
+        ],
+      };
+    case "observer-view":
+      return {
+        title: t(language, "observerReconstructionTitle"),
+        description: t(language, "observerReconstructionBody"),
+        metrics: [
+          { label: t(language, "activeAnalysis"), value: getAnalysisTabLabel(language, state.analysisTab) },
+          { label: t(language, "apparentHorizonDip"), value: activeObserverPanel.stats.horizonDipLabel },
+          {
+            label: t(language, "visibleTopElevation"),
+            value:
+              activeObserverPanel.stats.topVisibleElevationRad == null
+                ? "N/A"
+                : formatAngle(activeObserverPanel.stats.topVisibleElevationRad),
+          },
+          {
+            label: t(language, "apparentProfileSpan"),
+            value: formatDistance(activeObserverPanel.stats.apparentProfileSpanM, units.distance),
+          },
+        ],
+      };
+    case "profile-visibility":
+      return {
+        title: t(language, "profileVisibilitySummaryTitle"),
+        description: t(language, "profileVisibilitySummaryBody"),
+        metrics: [
+          { label: t(language, "activeAnalysis"), value: getAnalysisTabLabel(language, state.analysisTab) },
+          { label: t(language, "profileSamples"), value: String(activeProfilePanel.stats.sampleCount) },
+          {
+            label: t(language, "visibleProfileSpan"),
+            value: formatDistance(activeProfilePanel.stats.visibleSpanM, units.distance),
+          },
+          {
+            label: t(language, "maxProfileHeight"),
+            value: formatHeight(activeProfilePanel.stats.maxProfileHeightM, units.height),
+          },
+        ],
+      };
+    case "sweep":
+      return {
+        title: t(language, "sweepSummaryTitle"),
+        description: t(language, "sweepSummaryBody"),
+        metrics: [
+          { label: t(language, "activeAnalysis"), value: getAnalysisTabLabel(language, state.analysisTab) },
+          { label: t(language, "activeParameter"), value: getSweepParameterLabel(language, sweepData.parameter) },
+          { label: t(language, "activeMetric"), value: getSweepMetricLabel(language, sweepData.metric) },
+          {
+            label: t(language, "comparedSeries"),
+            value: String(sweepData.series.length),
+          },
+        ],
+      };
+    case "cross-section":
+    default:
+      return {
+        title: getModelLabel(language, activeResult.model),
+        description:
+          "Hover a line, curve, or construction in the scene to inspect its angular and geodetic values here.",
+        metrics: [
+          { label: "Scene", value: getModelLabel(language, activeResult.model) },
+          {
+            label: "Surface distance",
+            value: formatDistance(activeResult.scenario.surfaceDistanceM, units.distance),
+          },
+          { label: "Central angle", value: formatAngle(activeResult.targetAngleRad) },
+          {
+            label: "Solver trace step",
+            value: formatDistance(activeResult.solverMetadata.stepM, units.distance),
+          },
+        ],
+      };
+  }
 }
 
 function getFeatureMetrics(
@@ -547,10 +891,198 @@ function getFeatureMetrics(
   }
 }
 
+function getFieldMetricRows(args: {
+  state: AppState;
+  activeResult: VisibilitySolveResult;
+  activeBundlePanel: RayBundlePanelData;
+  activeProfilePanel: ProfileVisibilityPanelData;
+  activeObserverPanel: ObserverViewPanelData;
+  sweepData: SweepChartData;
+  surfaceChordM: number;
+  geometricDropM: number;
+  language: LanguageMode;
+}) {
+  const {
+    state,
+    activeResult,
+    activeBundlePanel,
+    activeProfilePanel,
+    activeObserverPanel,
+    sweepData,
+    surfaceChordM,
+    geometricDropM,
+    language,
+  } = args;
+
+  const units = state.unitPreferences;
+
+  if (state.analysisTab === "ray-bundle") {
+    const visibleStartHeightM =
+      activeBundlePanel.samplePoints.find((point) => point.visible)?.heightM ?? 0;
+
+    return [
+      {
+        label: "Surface arc distance",
+        value: formatDistance(activeResult.scenario.surfaceDistanceM, units.distance),
+      },
+      {
+        label: t(language, "bundleSpan"),
+        value: formatDistance(activeBundlePanel.stats.bundleSpanM, units.distance),
+      },
+      {
+        label: t(language, "bundleSampleCount"),
+        value: String(activeBundlePanel.samplePoints.length),
+      },
+      {
+        label: "Visible start height",
+        value: formatHeight(visibleStartHeightM, units.height),
+      },
+      {
+        label: "Observer height",
+        value: formatHeight(activeResult.scenario.observerHeightM, units.height),
+      },
+      {
+        label: "Target stack height",
+        value: formatHeight(activeResult.scenario.targetHeightM, units.height),
+      },
+    ];
+  }
+
+  if (state.analysisTab === "observer-view") {
+    return [
+      { label: t(language, "apparentHorizonDip"), value: activeObserverPanel.stats.horizonDipLabel },
+      {
+        label: t(language, "apparentProfileSpan"),
+        value: formatDistance(activeObserverPanel.stats.apparentProfileSpanM, units.distance),
+      },
+      {
+        label: t(language, "visibleTopElevation"),
+        value:
+          activeObserverPanel.stats.topVisibleElevationRad == null
+            ? "N/A"
+            : formatAngle(activeObserverPanel.stats.topVisibleElevationRad),
+      },
+      {
+        label: t(language, "geometricTopElevation"),
+        value: formatAngle(activeObserverPanel.stats.topGhostElevationRad),
+      },
+      {
+        label: t(language, "visibleSamples"),
+        value: String(activeObserverPanel.stats.visibleSamples),
+      },
+      {
+        label: t(language, "blockedSamples"),
+        value: String(activeObserverPanel.stats.blockedSamples),
+      },
+    ];
+  }
+
+  if (state.analysisTab === "profile-visibility") {
+    return [
+      {
+        label: "Surface arc distance",
+        value: formatDistance(activeResult.scenario.surfaceDistanceM, units.distance),
+      },
+      {
+        label: t(language, "visibleProfileSpan"),
+        value: formatDistance(activeProfilePanel.stats.visibleSpanM, units.distance),
+      },
+      {
+        label: t(language, "profileSamples"),
+        value: String(activeProfilePanel.stats.sampleCount),
+      },
+      {
+        label: t(language, "maxProfileHeight"),
+        value: formatHeight(activeProfilePanel.stats.maxProfileHeightM, units.height),
+      },
+      {
+        label: t(language, "visibleSamples"),
+        value: String(activeProfilePanel.stats.visibleSamples),
+      },
+      {
+        label: t(language, "blockedSamples"),
+        value: String(activeProfilePanel.stats.blockedSamples),
+      },
+    ];
+  }
+
+  if (state.analysisTab === "sweep") {
+    return [
+      {
+        label: t(language, "activeParameter"),
+        value: getSweepParameterLabel(language, sweepData.parameter),
+      },
+      {
+        label: t(language, "activeMetric"),
+        value: getSweepMetricLabel(language, sweepData.metric),
+      },
+      {
+        label: t(language, "currentScenarioValue"),
+        value: formatSweepParameterValue(
+          sweepData.range.current,
+          sweepData.parameter,
+          units,
+        ),
+      },
+      {
+        label: "Range start",
+        value: formatSweepParameterValue(sweepData.range.min, sweepData.parameter, units),
+      },
+      {
+        label: "Range end",
+        value: formatSweepParameterValue(sweepData.range.max, sweepData.parameter, units),
+      },
+      {
+        label: t(language, "sweepSamples"),
+        value: String(state.sweepConfig.sampleCount),
+      },
+    ];
+  }
+
+  return [
+    {
+      label: "Surface arc distance",
+      value: formatDistance(activeResult.scenario.surfaceDistanceM, units.distance),
+    },
+    {
+      label: "Surface chord",
+      value: formatDistance(surfaceChordM, units.distance),
+    },
+    {
+      label: "Arc minus chord",
+      value: formatDistance(activeResult.scenario.surfaceDistanceM - surfaceChordM, units.distance),
+    },
+    {
+      label: "Central angle",
+      value: formatAngle(activeResult.targetAngleRad),
+    },
+    {
+      label: "Target base drop from tangent",
+      value: formatHeight(geometricDropM, units.height),
+    },
+    {
+      label: "Geometric horizon dip",
+      value: activeResult.geometricHorizon
+        ? formatAngle(Math.abs(activeResult.geometricHorizon.apparentElevationRad))
+        : "N/A",
+    },
+    {
+      label: "Optical horizon dip",
+      value: activeResult.opticalHorizon
+        ? formatAngle(Math.abs(activeResult.opticalHorizon.apparentElevationRad))
+        : "N/A",
+    },
+  ];
+}
+
 export function RightPanel({
   state,
   activeResult,
   activeScene,
+  activeBundlePanel,
+  activeProfilePanel,
+  activeObserverPanel,
+  sweepData,
   inspectedSceneKey,
   activeFeatureId,
   isFeaturePinned,
@@ -595,6 +1127,35 @@ export function RightPanel({
         ? "Survey scale"
         : "Diagram spread";
   const professionalMode = workspaceMode === "professional";
+  const analysisSummary = getAnalysisSummary({
+    state,
+    activeResult,
+    activeBundlePanel,
+    activeProfilePanel,
+    activeObserverPanel,
+    sweepData,
+    language,
+  });
+  const currentOutputCards = getCurrentOutputCards({
+    state,
+    activeResult,
+    activeBundlePanel,
+    activeProfilePanel,
+    activeObserverPanel,
+    sweepData,
+    language,
+  });
+  const fieldMetricRows = getFieldMetricRows({
+    state,
+    activeResult,
+    activeBundlePanel,
+    activeProfilePanel,
+    activeObserverPanel,
+    sweepData,
+    surfaceChordM,
+    geometricDropM,
+    language,
+  });
   const featureDetails = getFeatureMetrics(
     activeResult,
     activeScene,
@@ -611,37 +1172,9 @@ export function RightPanel({
         className="right-panel__section right-panel__section--numerics"
       >
         <div className="metrics-grid">
-          <SummaryMetric
-            label={t(language, "hiddenHeight")}
-            value={formatHeight(activeResult.hiddenHeightM, state.unitPreferences.height)}
-          />
-          <SummaryMetric
-            label={t(language, "visibleHeight")}
-            value={formatHeight(activeResult.visibleHeightM, state.unitPreferences.height)}
-          />
-          <SummaryMetric
-            label={t(language, "visibilityFraction")}
-            value={formatFraction(activeResult.visibilityFraction)}
-          />
-          <SummaryMetric
-            label={t(language, "apparentElevation")}
-            value={formatAngle(activeResult.apparentElevationRad)}
-          />
-          <SummaryMetric
-            label={t(language, "actualElevation")}
-            value={formatAngle(activeResult.actualElevationRad)}
-          />
-          <SummaryMetric
-            label={t(language, "opticalHorizon")}
-            value={
-              activeResult.opticalHorizon
-                ? formatDistance(
-                    activeResult.opticalHorizon.distanceM,
-                    state.unitPreferences.distance,
-                  )
-                : "N/A"
-            }
-          />
+          {currentOutputCards.map((metric) => (
+            <SummaryMetric key={metric.label} label={metric.label} value={metric.value} />
+          ))}
         </div>
       </PanelSection>
 
@@ -650,7 +1183,11 @@ export function RightPanel({
         eyebrow={t(language, "assumptions")}
         className="right-panel__section right-panel__section--assumptions"
       >
-        <div className="detail-card">
+          <div className="detail-card">
+          <p>
+            <strong>{t(language, "activeAnalysis")}:</strong>{" "}
+            {getAnalysisTabLabel(language, state.analysisTab)}
+          </p>
           <p>
             <strong>Inspecting:</strong> {inspectedSceneKey === "primary" ? `${t(language, "primaryModelTitle")} panel` : `${t(language, "comparisonModelTitle")} panel`}
           </p>
@@ -720,58 +1257,28 @@ export function RightPanel({
 
       {professionalMode ? (
         <PanelSection
-          title={t(language, "surveyGeometry")}
+          title={
+            state.analysisTab === "ray-bundle"
+              ? t(language, "rayBundleSummaryTitle")
+              : state.analysisTab === "observer-view"
+                ? t(language, "observerReconstructionTitle")
+                : state.analysisTab === "profile-visibility"
+                  ? t(language, "profileVisibilitySummaryTitle")
+                  : state.analysisTab === "sweep"
+                    ? t(language, "sweepSummaryTitle")
+                    : t(language, "surveyGeometry")
+          }
           eyebrow={t(language, "fieldMetrics")}
           className="right-panel__section right-panel__section--field-metrics"
         >
           <div className="detail-card">
             <div className="feature-metrics">
-              <div className="feature-metrics__row">
-                <span>Surface arc distance</span>
-                <strong>
-                  {formatDistance(
-                    activeResult.scenario.surfaceDistanceM,
-                    state.unitPreferences.distance,
-                  )}
-                </strong>
-              </div>
-              <div className="feature-metrics__row">
-                <span>Surface chord</span>
-                <strong>{formatDistance(surfaceChordM, state.unitPreferences.distance)}</strong>
-              </div>
-              <div className="feature-metrics__row">
-                <span>Arc minus chord</span>
-                <strong>
-                  {formatDistance(
-                    activeResult.scenario.surfaceDistanceM - surfaceChordM,
-                    state.unitPreferences.distance,
-                  )}
-                </strong>
-              </div>
-              <div className="feature-metrics__row">
-                <span>Central angle</span>
-                <strong>{formatAngle(activeResult.targetAngleRad)}</strong>
-              </div>
-              <div className="feature-metrics__row">
-                <span>Target base drop from tangent</span>
-                <strong>{formatHeight(geometricDropM, state.unitPreferences.height)}</strong>
-              </div>
-              <div className="feature-metrics__row">
-                <span>Geometric horizon dip</span>
-                <strong>
-                  {activeResult.geometricHorizon
-                    ? formatAngle(Math.abs(activeResult.geometricHorizon.apparentElevationRad))
-                    : "N/A"}
-                </strong>
-              </div>
-              <div className="feature-metrics__row">
-                <span>Optical horizon dip</span>
-                <strong>
-                  {activeResult.opticalHorizon
-                    ? formatAngle(Math.abs(activeResult.opticalHorizon.apparentElevationRad))
-                    : "N/A"}
-                </strong>
-              </div>
+              {fieldMetricRows.map((metric) => (
+                <div key={metric.label} className="feature-metrics__row">
+                  <span>{metric.label}</span>
+                  <strong>{metric.value}</strong>
+                </div>
+              ))}
             </div>
           </div>
         </PanelSection>
@@ -816,31 +1323,52 @@ export function RightPanel({
         eyebrow={t(language, "inspection")}
         className="right-panel__section right-panel__section--inspection"
       >
-        <div className="detail-card">
-          <div className="detail-card__toolbar">
-            <div>
-              <p className="detail-card__eyebrow">
-                {isFeaturePinned ? t(language, "pinnedFeature") : activeFeatureId ? t(language, "hoveredFeature") : t(language, "sceneSummary")}
-              </p>
-              <h4>{hoveredAnnotation?.label ?? featureDetails.title}</h4>
-            </div>
-            {isFeaturePinned ? (
-              <button
-                type="button"
-                className="field__reset"
+          <div className="detail-card">
+            <div className="detail-card__toolbar">
+              <div>
+                <p className="detail-card__eyebrow">
+                  {state.analysisTab === "cross-section"
+                    ? isFeaturePinned
+                      ? t(language, "pinnedFeature")
+                      : activeFeatureId
+                        ? t(language, "hoveredFeature")
+                        : t(language, "sceneSummary")
+                    : t(language, "sceneSummary")}
+                </p>
+                <h4>
+                  {state.analysisTab === "cross-section"
+                    ? hoveredAnnotation?.label ?? featureDetails.title
+                    : analysisSummary.title}
+                </h4>
+              </div>
+              {state.analysisTab === "cross-section" && isFeaturePinned ? (
+                <button
+                  type="button"
+                  className="field__reset"
                 onClick={onClearSelection}
               >
                 {t(language, "clearPin")}
-              </button>
-            ) : null}
-          </div>
-          <p>{hoveredAnnotation?.description ?? featureDetails.description}</p>
-          <p className="field__hint">{t(language, "hoverToInspectHint")}</p>
-          <div className="feature-metrics">
-            {featureDetails.metrics.map((metric) => (
-              <div key={metric.label} className="feature-metrics__row">
-                <span>{metric.label}</span>
-                <strong>{metric.value}</strong>
+                </button>
+              ) : null}
+            </div>
+            <p>
+              {state.analysisTab === "cross-section"
+                ? hoveredAnnotation?.description ?? featureDetails.description
+                : analysisSummary.description}
+            </p>
+            <p className="field__hint">
+              {state.analysisTab === "cross-section"
+                ? t(language, "hoverToInspectHint")
+                : t(language, "sharedSceneText")}
+            </p>
+            <div className="feature-metrics">
+              {(state.analysisTab === "cross-section"
+                ? featureDetails.metrics
+                : analysisSummary.metrics
+              ).map((metric) => (
+                <div key={metric.label} className="feature-metrics__row">
+                  <span>{metric.label}</span>
+                  <strong>{metric.value}</strong>
               </div>
             ))}
           </div>

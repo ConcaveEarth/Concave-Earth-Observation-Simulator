@@ -232,6 +232,14 @@ export default function App() {
     inspectedSceneKey === "primary" ? primaryResult : comparisonResult;
   const inspectedScene =
     inspectedSceneKey === "primary" ? primaryScene : comparisonScene;
+  const inspectedBundlePanel =
+    inspectedSceneKey === "primary" ? primaryBundle : comparisonBundle;
+  const inspectedProfilePanel =
+    inspectedSceneKey === "primary"
+      ? primaryProfileVisibility
+      : comparisonProfileVisibility;
+  const inspectedObserverPanel =
+    inspectedSceneKey === "primary" ? primaryObserverView : comparisonObserverView;
   const isFeaturePinned =
     selectedSceneVisible && state.selectedFeatureId !== null && state.selectedSceneKey !== null;
   const displayedScenes = scenes;
@@ -665,6 +673,7 @@ export default function App() {
                           panels={[panel]}
                           compareLayout="side-by-side"
                           unitPreferences={state.unitPreferences}
+                          language={state.language}
                           showScaleGuides={state.showScaleGuides}
                           fitContentHeight={state.fitContentHeight}
                           zoom={state.sceneViewport.zoom}
@@ -688,6 +697,7 @@ export default function App() {
                       panels={bundlePanels}
                       compareLayout={resolvedCompareLayout}
                       unitPreferences={state.unitPreferences}
+                      language={state.language}
                       showScaleGuides={state.showScaleGuides}
                       fitContentHeight={state.fitContentHeight}
                       zoom={state.sceneViewport.zoom}
@@ -729,6 +739,7 @@ export default function App() {
                           panels={[panel]}
                           compareLayout="side-by-side"
                           unitPreferences={state.unitPreferences}
+                          language={state.language}
                           showScaleGuides={state.showScaleGuides}
                           annotated={state.annotated}
                           fitContentHeight={state.fitContentHeight}
@@ -753,6 +764,7 @@ export default function App() {
                       panels={observerPanels}
                       compareLayout={resolvedCompareLayout}
                       unitPreferences={state.unitPreferences}
+                      language={state.language}
                       showScaleGuides={state.showScaleGuides}
                       annotated={state.annotated}
                       fitContentHeight={state.fitContentHeight}
@@ -795,6 +807,7 @@ export default function App() {
                           panels={[panel]}
                           compareLayout="side-by-side"
                           unitPreferences={state.unitPreferences}
+                          language={state.language}
                           showScaleGuides={state.showScaleGuides}
                           fitContentHeight={state.fitContentHeight}
                           zoom={state.sceneViewport.zoom}
@@ -818,6 +831,7 @@ export default function App() {
                       panels={profilePanels}
                       compareLayout={resolvedCompareLayout}
                       unitPreferences={state.unitPreferences}
+                      language={state.language}
                       showScaleGuides={state.showScaleGuides}
                       fitContentHeight={state.fitContentHeight}
                       zoom={state.sceneViewport.zoom}
@@ -843,6 +857,7 @@ export default function App() {
                   <SweepChart
                     data={sweepData}
                     units={state.unitPreferences}
+                    language={state.language}
                     fitContentHeight={state.fitContentHeight}
                     zoom={state.sceneViewport.zoom}
                     verticalZoom={state.sceneViewport.verticalZoom}
@@ -868,6 +883,10 @@ export default function App() {
           state={state}
           activeResult={inspectedResult}
           activeScene={inspectedScene}
+          activeBundlePanel={inspectedBundlePanel}
+          activeProfilePanel={inspectedProfilePanel}
+          activeObserverPanel={inspectedObserverPanel}
+          sweepData={sweepData}
           inspectedSceneKey={inspectedSceneKey}
           activeFeatureId={activeFeatureId}
           isFeaturePinned={Boolean(isFeaturePinned)}

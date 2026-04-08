@@ -4,11 +4,13 @@ import { formatAngle, formatDistance } from "../../domain/units";
 import type { UnitPreferences } from "../../domain/units";
 import type { CompareLayoutMode } from "../../state/appState";
 import type { ObserverViewPanelData } from "../../domain/analysis";
+import { t, type LanguageMode } from "../../i18n";
 
 interface ObserverViewProps {
   panels: ObserverViewPanelData[];
   compareLayout: Exclude<CompareLayoutMode, "auto">;
   unitPreferences: UnitPreferences;
+  language: LanguageMode;
   showScaleGuides: boolean;
   annotated: boolean;
   fitContentHeight: boolean;
@@ -98,6 +100,7 @@ function renderObserverScaleGuide(
   panel: ObserverViewPanelData,
   project: (point: { x: number; y: number }) => { x: number; y: number },
   unitPreferences: UnitPreferences,
+  language: LanguageMode,
 ) {
   const spanX = panel.bounds.maxX - panel.bounds.minX;
   const horizontalStep = niceScaleStep(spanX / 4);
@@ -168,7 +171,7 @@ function renderObserverScaleGuide(
         fontSize={11}
         fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
       >
-        Apparent profile span
+        {t(language, "apparentProfileSpanLabel")}
       </text>
 
       <line
@@ -215,7 +218,7 @@ function renderObserverScaleGuide(
         fontSize={11}
         fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
       >
-        Angular elevation
+        {t(language, "angularElevationLabel")}
       </text>
     </g>
   );
@@ -225,6 +228,7 @@ export function ObserverView({
   panels,
   compareLayout,
   unitPreferences,
+  language,
   showScaleGuides,
   annotated,
   fitContentHeight,
@@ -398,7 +402,7 @@ export function ObserverView({
       className="scene-svg"
       viewBox={`0 0 ${svgWidth} ${svgHeight}`}
       role="img"
-      aria-label="Observer-eye reconstruction"
+      aria-label={t(language, "observerView")}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -598,7 +602,7 @@ export function ObserverView({
                     fontSize={12}
                     fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
                   >
-                    Observer horizontal
+                    {t(language, "observerHorizontalLabel")}
                   </text>
                   <text
                     x={horizonLeft.x + 14}
@@ -607,13 +611,13 @@ export function ObserverView({
                     fontSize={12}
                     fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
                   >
-                    Apparent horizon {panel.stats.horizonDipLabel}
+                    {t(language, "apparentHorizonLabel")} {panel.stats.horizonDipLabel}
                   </text>
                 </>
               ) : null}
 
               {showScaleGuides
-                ? renderObserverScaleGuide(panel, project, unitPreferences)
+                ? renderObserverScaleGuide(panel, project, unitPreferences, language)
                 : null}
             </g>
 
@@ -644,7 +648,7 @@ export function ObserverView({
               fontSize={13}
               fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
             >
-              {`${panel.stats.visibleSamples} visible - ${panel.stats.blockedSamples} blocked - ${panel.stats.visibilityFractionLabel}`}
+              {`${panel.stats.visibleSamples} ${t(language, "visibleSamples").toLowerCase()} • ${panel.stats.blockedSamples} ${t(language, "blockedSamples").toLowerCase()} • ${panel.stats.visibilityFractionLabel}`}
             </text>
           </g>
         );

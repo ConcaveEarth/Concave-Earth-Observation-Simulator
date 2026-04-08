@@ -120,11 +120,14 @@ export interface RayBundlePanelData {
     id: string;
     point: Vec2;
     visible: boolean;
+    distanceM: number;
+    heightM: number;
   }>;
   stats: {
     visibleSamples: number;
     blockedSamples: number;
     visibilityFractionLabel: string;
+    bundleSpanM: number;
   };
 }
 
@@ -176,6 +179,8 @@ export interface ProfileVisibilityPanelData {
     blockedSamples: number;
     visibilityFractionLabel: string;
     visibleSpanM: number;
+    sampleCount: number;
+    maxProfileHeightM: number;
   };
 }
 
@@ -215,6 +220,9 @@ export interface ObserverViewPanelData {
     blockedSamples: number;
     visibilityFractionLabel: string;
     horizonDipLabel: string;
+    apparentProfileSpanM: number;
+    topVisibleElevationRad: number | null;
+    topGhostElevationRad: number;
   };
 }
 
@@ -606,6 +614,8 @@ export function buildRayBundlePanelData(
       id: `sample-${index}`,
       point: exTargetPoint,
       visible: sample.visible,
+      distanceM: result.scenario.surfaceDistanceM,
+      heightM: sample.sampleHeightM,
     });
 
     if (sample.visible && sample.trace?.points.length) {
@@ -726,6 +736,7 @@ export function buildRayBundlePanelData(
       visibleSamples,
       blockedSamples,
       visibilityFractionLabel: formatFraction(result.visibilityFraction),
+      bundleSpanM: result.scenario.surfaceDistanceM,
     },
   };
 }
@@ -997,6 +1008,8 @@ export function buildProfileVisibilityPanelData(
         samplePoints.length ? visibleSamples / samplePoints.length : 0,
       ),
       visibleSpanM,
+      sampleCount: samplePoints.length,
+      maxProfileHeightM: Math.max(...profile.samples.map((sample) => sample.heightM)),
     },
   };
 }
@@ -1064,6 +1077,11 @@ export function buildObserverViewPanelData(
   const topGhostPoint = ghostSilhouette.reduce((highest, point) =>
     point.y > highest.y ? point : highest,
   );
+  const apparentProfileSpanM =
+    observerViewPoints.length > 1
+      ? observerViewPoints[observerViewPoints.length - 1].distanceM -
+        observerViewPoints[0].distanceM
+      : 0;
 
   return {
     sceneKey,
@@ -1121,6 +1139,9 @@ export function buildObserverViewPanelData(
       blockedSamples: solvedSamples.filter((sample) => !sample.solve.visible).length,
       visibilityFractionLabel: formatFraction(result.visibilityFraction),
       horizonDipLabel: formatAngle(Math.abs(horizonElevationRad)),
+      apparentProfileSpanM,
+      topVisibleElevationRad: topVisiblePoint?.y ?? null,
+      topGhostElevationRad: topGhostPoint.y,
     },
   };
 }
