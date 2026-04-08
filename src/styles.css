@@ -124,7 +124,7 @@ select {
 
 .app-shell--fullwidth-scene {
   grid-template-columns: minmax(290px, 340px) minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) clamp(280px, 35vh, 420px);
   grid-template-areas:
     "left center"
     "left right";
@@ -334,6 +334,7 @@ select {
   grid-auto-flow: dense;
   align-content: start;
   overflow-y: auto;
+  max-height: clamp(280px, 35vh, 420px);
 }
 
 .app-shell--fullwidth-scene .right-panel__section--inspection {
@@ -807,6 +808,8 @@ select {
 
 .scene-card__viewport--analysis {
   min-height: clamp(460px, 56vh, 900px);
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .analysis-tabs {
@@ -850,6 +853,8 @@ select {
 .scene-card__canvas {
   min-width: 0;
   min-height: 0;
+  height: 100%;
+  display: flex;
 }
 
 .app-shell--fullwidth-scene .scene-card__viewport,
@@ -860,6 +865,10 @@ select {
 .app-shell--fullwidth-scene .scene-card--ray-bundle .scene-card__viewport,
 .app-shell--fullwidth-scene .scene-card--ray-bundle .scene-svg {
   min-height: min(82vh, 1040px);
+}
+
+.app-shell--fullwidth-scene .scene-card__viewport--stacked {
+  min-height: min(92vh, 1360px);
 }
 
 .app-shell--fullwidth-scene .scene-card--sweep .scene-card__viewport,
@@ -910,6 +919,10 @@ select {
 
 .scene-toolbar--compact {
   justify-content: space-between;
+}
+
+.scene-toolbar--presentation {
+  justify-content: flex-start;
 }
 
 .scene-toolbar__group {

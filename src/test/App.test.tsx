@@ -14,8 +14,8 @@ describe("App", () => {
     expect(screen.getAllByText("Export PNG").length).toBeGreaterThan(0);
     expect(screen.getByText("Model Transparency")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Split Compare" })).toHaveClass(
-      "pill",
-      "pill--active",
+      "scene-toolbar__button",
+      "scene-toolbar__button--active",
     );
     expect(screen.getByRole("textbox", { name: "Observer height value" })).toHaveValue("2");
   });

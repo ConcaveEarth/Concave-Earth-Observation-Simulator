@@ -9,6 +9,7 @@ import {
 import { hydrateStateFromSearch, appReducer, serializeStateToSearch } from "./state/appState";
 import { AnalysisTabs } from "./ui/components/AnalysisTabs";
 import { ControlsPanel } from "./ui/components/ControlsPanel";
+import { PresentationToolbar } from "./ui/components/PresentationToolbar";
 import { RayBundleView } from "./ui/components/RayBundleView";
 import { RightPanel } from "./ui/components/RightPanel";
 import { SceneLegendOverlay } from "./ui/components/SceneLegendOverlay";
@@ -189,6 +190,8 @@ export default function App() {
         ? "stacked"
         : "side-by-side"
       : state.sceneViewport.compareLayout;
+  const stackedCompareView =
+    state.viewMode === "compare" && resolvedCompareLayout === "stacked";
   const shouldShowLegendOverlay =
     deferredState.analysisTab === "cross-section" &&
     state.workspaceMode === "professional" &&
@@ -337,6 +340,12 @@ export default function App() {
                   onChange={(value) => dispatch({ type: "setAnalysisTab", value })}
                 />
 
+                <PresentationToolbar
+                  state={state}
+                  dispatch={dispatch}
+                  language={state.language}
+                />
+
                 {state.analysisTab === "cross-section" ? (
                   <SceneToolbar
                     state={state}
@@ -385,8 +394,12 @@ export default function App() {
               <div
                 className={
                   shouldShowLegendOverlay
-                    ? "scene-card__viewport scene-card__viewport--with-legend"
-                    : "scene-card__viewport"
+                    ? stackedCompareView
+                      ? "scene-card__viewport scene-card__viewport--with-legend scene-card__viewport--stacked"
+                      : "scene-card__viewport scene-card__viewport--with-legend"
+                    : stackedCompareView
+                      ? "scene-card__viewport scene-card__viewport--stacked"
+                      : "scene-card__viewport"
                 }
               >
                 <div className="scene-card__canvas">
@@ -438,7 +451,13 @@ export default function App() {
                 />
               </div>
             ) : state.analysisTab === "ray-bundle" ? (
-              <div className="scene-card__viewport scene-card__viewport--analysis">
+              <div
+                className={
+                  stackedCompareView
+                    ? "scene-card__viewport scene-card__viewport--analysis scene-card__viewport--stacked"
+                    : "scene-card__viewport scene-card__viewport--analysis"
+                }
+              >
                 <div className="scene-card__canvas">
                   <RayBundleView
                     panels={bundlePanels}
@@ -449,7 +468,13 @@ export default function App() {
                 </div>
               </div>
             ) : (
-              <div className="scene-card__viewport scene-card__viewport--analysis">
+              <div
+                className={
+                  stackedCompareView
+                    ? "scene-card__viewport scene-card__viewport--analysis scene-card__viewport--stacked"
+                    : "scene-card__viewport scene-card__viewport--analysis"
+                }
+              >
                 <div className="scene-card__canvas">
                   <SweepChart data={sweepData} units={state.unitPreferences} />
                 </div>

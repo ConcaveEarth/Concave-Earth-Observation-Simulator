@@ -457,20 +457,6 @@ export function ControlsPanel({
             />
           </label>
 
-          <label className="field">
-            <span>{t(language, "panelLayout")}</span>
-            <ViewPills
-              value={state.viewMode}
-              options={[
-                { label: t(language, "singlePanel"), value: "cross-section" },
-                { label: t(language, "splitCompare"), value: "compare" },
-              ]}
-              onChange={(value) =>
-                dispatch({ type: "setViewMode", value: value as ViewMode })
-              }
-            />
-          </label>
-
           {state.analysisTab === "cross-section" ? (
             <p className="field__hint">{t(language, "centerLayoutHint")}</p>
           ) : state.analysisTab === "ray-bundle" ? (
@@ -560,115 +546,7 @@ export function ControlsPanel({
             </>
           ) : null}
 
-          {state.viewMode === "cross-section" ? (
-            <>
-              <p className="field__hint">{t(language, "singlePanelModel")}</p>
-              <ViewPills
-                value={state.focusedModel}
-                options={[
-                  { label: t(language, "primaryModelShort"), value: "primary" },
-                  { label: t(language, "comparisonModelShort"), value: "comparison" },
-                ]}
-                onChange={(value) =>
-                  dispatch({ type: "setFocusedModel", value: value as FocusedModel })
-                }
-              />
-            </>
-          ) : (
-            <label className="field">
-              <span>{t(language, "compareLayout")}</span>
-              <select
-                value={state.sceneViewport.compareLayout}
-                onChange={(event) =>
-                  dispatch({
-                    type: "setViewportField",
-                    key: "compareLayout",
-                    value: event.target.value,
-                  })
-                }
-              >
-                <option value="auto">{t(language, "auto")}</option>
-                <option value="side-by-side">{t(language, "sideBySide")}</option>
-                <option value="stacked">{t(language, "stacked")}</option>
-              </select>
-            </label>
-          )}
-
-          {state.viewMode === "compare" ? (
-            <label className="switch">
-              <input
-                type="checkbox"
-                checked={state.sceneViewport.compareLayout === "stacked"}
-                onChange={(event) =>
-                  dispatch({
-                    type: "setViewportField",
-                    key: "compareLayout",
-                    value: event.target.checked ? "stacked" : "side-by-side",
-                  })
-                }
-              />
-              <span>{t(language, "stackComparePanels")}</span>
-            </label>
-          ) : null}
-
-          {state.analysisTab === "cross-section" ? (
-            <>
-              <label className="switch">
-                <input
-                  type="checkbox"
-                  checked={state.annotated}
-                  onChange={(event) =>
-                    dispatch({ type: "setAnnotated", value: event.target.checked })
-                  }
-                />
-                <span>{t(language, "annotatedMode")}</span>
-              </label>
-
-              <label className="field">
-                <span>{t(language, "labelDensity")}</span>
-                <select
-                  value={state.labelDensity}
-                  onChange={(event) =>
-                    dispatch({
-                      type: "setLabelDensity",
-                      value: event.target.value as AppState["labelDensity"],
-                    })
-                  }
-                >
-                  <option value="adaptive">{t(language, "adaptive")}</option>
-                  <option value="full">{t(language, "full")}</option>
-                </select>
-              </label>
-            </>
-          ) : null}
-
-          {state.analysisTab !== "sweep" ? (
-            <label className="switch">
-              <input
-                type="checkbox"
-                checked={state.showScaleGuides}
-                onChange={(event) =>
-                  dispatch({ type: "setShowScaleGuides", value: event.target.checked })
-                }
-              />
-              <span>{t(language, "scaleGuides")}</span>
-            </label>
-          ) : null}
-
-          {state.analysisTab === "cross-section" ? (
-            <label className="switch">
-              <input
-                type="checkbox"
-                checked={state.showTerrainOverlay}
-                onChange={(event) =>
-                  dispatch({ type: "setShowTerrainOverlay", value: event.target.checked })
-                }
-              />
-              <span>{t(language, "profileOverlay")}</span>
-            </label>
-          ) : null}
-
-          <p className="field__hint">{t(language, "centerLayoutHint")}</p>
+          <p className="field__hint">{t(language, "presentationMovedHint")}</p>
         </PanelSection>
 
         <PanelSection
