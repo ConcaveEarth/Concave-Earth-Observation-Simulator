@@ -86,6 +86,40 @@ export function getTerrainProfileByPresetId(
   return terrainProfiles.find((profile) => profile.id === presetId) ?? null;
 }
 
+export function sampleTerrainProfileHeight(
+  profile: TerrainProfilePreset,
+  distanceM: number,
+): number | null {
+  const samples = [...profile.samples].sort((left, right) => left.distanceM - right.distanceM);
+
+  if (!samples.length) {
+    return null;
+  }
+
+  if (distanceM < samples[0].distanceM || distanceM > samples[samples.length - 1].distanceM) {
+    return null;
+  }
+
+  if (distanceM === samples[0].distanceM) {
+    return samples[0].heightM;
+  }
+
+  for (let index = 0; index < samples.length - 1; index += 1) {
+    const left = samples[index];
+    const right = samples[index + 1];
+
+    if (distanceM < left.distanceM || distanceM > right.distanceM) {
+      continue;
+    }
+
+    const fraction =
+      (distanceM - left.distanceM) / Math.max(right.distanceM - left.distanceM, 1e-6);
+    return left.heightM + (right.heightM - left.heightM) * fraction;
+  }
+
+  return samples[samples.length - 1].heightM;
+}
+
 export function createGenericTargetProfile(
   presetId: string,
   surfaceDistanceM: number,

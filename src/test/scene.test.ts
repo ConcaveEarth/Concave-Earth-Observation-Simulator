@@ -8,17 +8,26 @@ import {
 import { defaultUnitPreferences } from "../domain/units";
 
 describe("scene view model", () => {
+  const baseScenario = {
+    observerHeightM: 45,
+    targetHeightM: 35,
+    surfaceDistanceM: 58_000,
+    radiusM: 6_371_000,
+    targetSampleCount: 18,
+    presetId: "elevated-observer",
+    units: "metric" as const,
+    coordinates: {
+      enabled: false,
+      observerLatDeg: 0,
+      observerLonDeg: 0,
+      targetLatDeg: 0,
+      targetLonDeg: 0,
+    },
+  };
+
   it("creates a generic profile overlay when no preset-specific profile exists", () => {
     const result = solveVisibility(
-      {
-        observerHeightM: 45,
-        targetHeightM: 35,
-        surfaceDistanceM: 58_000,
-        radiusM: 6_371_000,
-        targetSampleCount: 18,
-        presetId: "elevated-observer",
-        units: "metric",
-      },
+      baseScenario,
       defaultPrimaryModel,
     );
 
@@ -36,15 +45,7 @@ describe("scene view model", () => {
 
   it("labels the core convex construction families", () => {
     const result = solveVisibility(
-      {
-        observerHeightM: 45,
-        targetHeightM: 35,
-        surfaceDistanceM: 58_000,
-        radiusM: 6_371_000,
-        targetSampleCount: 18,
-        presetId: "elevated-observer",
-        units: "metric",
-      },
+      baseScenario,
       defaultPrimaryModel,
     );
 
@@ -80,15 +81,7 @@ describe("scene view model", () => {
 
   it("uses a curvilinear tangent label for the concave reference curve", () => {
     const result = solveVisibility(
-      {
-        observerHeightM: 45,
-        targetHeightM: 35,
-        surfaceDistanceM: 58_000,
-        radiusM: 6_371_000,
-        targetSampleCount: 18,
-        presetId: "elevated-observer",
-        units: "metric",
-      },
+      baseScenario,
       defaultComparisonModel,
     );
 
@@ -114,15 +107,7 @@ describe("scene view model", () => {
 
   it("respects advanced line behavior overrides for scene construction", () => {
     const result = solveVisibility(
-      {
-        observerHeightM: 45,
-        targetHeightM: 35,
-        surfaceDistanceM: 58_000,
-        radiusM: 6_371_000,
-        targetSampleCount: 18,
-        presetId: "elevated-observer",
-        units: "metric",
-      },
+      baseScenario,
       {
         ...defaultPrimaryModel,
         lineBehavior: {

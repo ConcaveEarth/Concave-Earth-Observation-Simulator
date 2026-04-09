@@ -7,6 +7,11 @@ import {
 } from "../domain/presets";
 import { defaultSweepConfig } from "../domain/analysis";
 import { clampAtmosphereCoefficient } from "../domain/curvature";
+import {
+  getGreatCircleRouteMetrics,
+  normalizeLatitudeDeg,
+  normalizeLongitudeDeg,
+} from "../domain/geodesy";
 import type { LanguageMode } from "../i18n";
 import { clamp, defaultUnitPreferences } from "../domain/units";
 import type {
@@ -18,6 +23,7 @@ import type {
   ModelConfig,
   PathDisplayMode,
   ReferenceConstructionMode,
+  ScenarioCoordinateInput,
   ScenarioInput,
   ViewMode,
 } from "../domain/types";
@@ -66,6 +72,7 @@ export interface AppState {
   fitContentHeight: boolean;
   showScaleGuides: boolean;
   showTerrainOverlay: boolean;
+  useTerrainObstruction: boolean;
   selectedSceneKey: FocusedModel | null;
   selectedFeatureId: string | null;
   hoveredSceneKey: FocusedModel | null;
@@ -117,6 +124,11 @@ export type AppAction =
       key: keyof UnitPreferences;
       value: HeightUnit | DistanceUnit | RadiusUnit;
     }
+  | {
+      type: "setCoordinateField";
+      key: keyof ScenarioCoordinateInput;
+      value: number | boolean;
+    }
   | { type: "setAnnotated"; value: boolean }
   | { type: "setLabelDensity"; value: LabelDensityMode }
   | { type: "setTheme"; value: ThemeMode }
@@ -126,6 +138,7 @@ export type AppAction =
   | { type: "setFitContentHeight"; value: boolean }
   | { type: "setShowScaleGuides"; value: boolean }
   | { type: "setShowTerrainOverlay"; value: boolean }
+  | { type: "setUseTerrainObstruction"; value: boolean }
   | { type: "setSelectedFeature"; sceneKey: FocusedModel | null; value: string | null }
   | { type: "clearSelectedFeature" }
   | { type: "setHoveredFeature"; sceneKey: FocusedModel | null; value: string | null }
@@ -159,6 +172,7 @@ export function createDefaultState(): AppState {
     fitContentHeight: true,
     showScaleGuides: true,
     showTerrainOverlay: true,
+    useTerrainObstruction: true,
     selectedSceneKey: null,
     selectedFeatureId: null,
     hoveredSceneKey: null,
@@ -331,6 +345,25 @@ function normalizeLanguageMode(value: string): LanguageMode {
   }
 }
 
+function deriveCoordinateDistance(scenario: ScenarioInput): ScenarioInput {
+  if (!scenario.coordinates.enabled) {
+    return scenario;
+  }
+
+  const route = getGreatCircleRouteMetrics({
+    observerLatDeg: scenario.coordinates.observerLatDeg,
+    observerLonDeg: scenario.coordinates.observerLonDeg,
+    targetLatDeg: scenario.coordinates.targetLatDeg,
+    targetLonDeg: scenario.coordinates.targetLonDeg,
+    radiusM: scenario.radiusM,
+  });
+
+  return {
+    ...scenario,
+    surfaceDistanceM: route.distanceM,
+  };
+}
+
 function updateModel(
   model: ModelConfig,
   action: Extract<AppAction, { type: "setModelField" }>,
@@ -403,13 +436,29 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case "setScenarioField":
       return {
         ...state,
-        scenario: {
+        scenario: deriveCoordinateDistance({
           ...state.scenario,
           [action.key]:
             action.key === "presetId" || action.key === "units"
               ? action.value
               : Number(action.value),
-        },
+        }),
+      };
+    case "setCoordinateField":
+      return {
+        ...state,
+        scenario: deriveCoordinateDistance({
+          ...state.scenario,
+          coordinates: {
+            ...state.scenario.coordinates,
+            [action.key]:
+              action.key === "enabled"
+                ? Boolean(action.value)
+                : action.key === "observerLatDeg" || action.key === "targetLatDeg"
+                  ? normalizeLatitudeDeg(Number(action.value))
+                  : normalizeLongitudeDeg(Number(action.value)),
+          },
+        }),
       };
     case "setModelField":
       return action.target === "primary"
@@ -539,6 +588,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, showScaleGuides: action.value };
     case "setShowTerrainOverlay":
       return { ...state, showTerrainOverlay: action.value };
+    case "setUseTerrainObstruction":
+      return { ...state, useTerrainObstruction: action.value };
     case "setSelectedFeature":
       return {
         ...state,
@@ -561,7 +612,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       const preset = getPresetById(action.presetId);
       return {
         ...state,
-        scenario: preset.scenario,
+        scenario: deriveCoordinateDistance(preset.scenario),
         primaryModel: applyPresetToModel(defaultPrimaryModel, preset.primaryModel),
         comparisonModel: applyPresetToModel(
           defaultComparisonModel,
@@ -709,11 +760,17 @@ export function serializeStateToSearch(state: AppState): string {
   params.set("fitHeight", state.fitContentHeight ? "1" : "0");
   params.set("scales", state.showScaleGuides ? "1" : "0");
   params.set("terrain", state.showTerrainOverlay ? "1" : "0");
+  params.set("terrainBlock", state.useTerrainObstruction ? "1" : "0");
   params.set("observer", String(state.scenario.observerHeightM));
   params.set("target", String(state.scenario.targetHeightM));
   params.set("distance", String(state.scenario.surfaceDistanceM));
   params.set("radius", String(state.scenario.radiusM));
   params.set("samples", String(state.scenario.targetSampleCount));
+  params.set("coords", state.scenario.coordinates.enabled ? "1" : "0");
+  params.set("observerLat", String(state.scenario.coordinates.observerLatDeg));
+  params.set("observerLon", String(state.scenario.coordinates.observerLonDeg));
+  params.set("targetLat", String(state.scenario.coordinates.targetLatDeg));
+  params.set("targetLon", String(state.scenario.coordinates.targetLonDeg));
   serializeModel("primary", state.primaryModel, params);
   serializeModel("compare", state.comparisonModel, params);
   return `?${params.toString()}`;
@@ -741,7 +798,7 @@ export function hydrateStateFromSearch(search: string): AppState {
   );
 
   return {
-    scenario: {
+    scenario: deriveCoordinateDistance({
       ...preset.scenario,
       observerHeightM: parseNumber(params, "observer", preset.scenario.observerHeightM),
       targetHeightM: parseNumber(params, "target", preset.scenario.targetHeightM),
@@ -753,7 +810,25 @@ export function hydrateStateFromSearch(search: string): AppState {
         preset.scenario.targetSampleCount,
       ),
       presetId,
-    },
+      coordinates: {
+        enabled:
+          params.get("coords") == null
+            ? preset.scenario.coordinates.enabled
+            : params.get("coords") !== "0",
+        observerLatDeg: normalizeLatitudeDeg(
+          parseNumber(params, "observerLat", preset.scenario.coordinates.observerLatDeg),
+        ),
+        observerLonDeg: normalizeLongitudeDeg(
+          parseNumber(params, "observerLon", preset.scenario.coordinates.observerLonDeg),
+        ),
+        targetLatDeg: normalizeLatitudeDeg(
+          parseNumber(params, "targetLat", preset.scenario.coordinates.targetLatDeg),
+        ),
+        targetLonDeg: normalizeLongitudeDeg(
+          parseNumber(params, "targetLon", preset.scenario.coordinates.targetLonDeg),
+        ),
+      },
+    }),
     primaryModel,
     comparisonModel,
     analysisTab: normalizeAnalysisTab(params.get("tab") ?? defaults.analysisTab),
@@ -814,6 +889,7 @@ export function hydrateStateFromSearch(search: string): AppState {
     fitContentHeight: params.get("fitHeight") !== "0",
     showScaleGuides: params.get("scales") !== "0",
     showTerrainOverlay: params.get("terrain") !== "0",
+    useTerrainObstruction: params.get("terrainBlock") !== "0",
     selectedSceneKey: null,
     selectedFeatureId: null,
     hoveredSceneKey: null,

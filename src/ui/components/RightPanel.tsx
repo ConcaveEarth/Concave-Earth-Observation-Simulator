@@ -1247,6 +1247,14 @@ export function RightPanel({
             {state.unitPreferences.distance} | radius {state.unitPreferences.radius}
           </p>
           <p>
+            <strong>Route:</strong>{" "}
+            {activeResult.scenario.coordinates.enabled ? "Coordinate-derived" : "Manual distance"}
+          </p>
+          <p>
+            <strong>Terrain obstruction:</strong>{" "}
+            {activeResult.terrainProfile ? activeResult.terrainProfile.name : "Off / none"}
+          </p>
+          <p>
             <strong>Vertical display:</strong>{" "}
             {state.sceneViewport.scaleMode === "true-scale"
               ? `${state.sceneViewport.verticalZoom.toFixed(2)}x true-scale factor`
@@ -1391,7 +1399,9 @@ export function RightPanel({
                   Profile overlay: {activeScene.terrainOverlay.name}. This layer is
                   aligned to the scenario distances for diagram readability in the
                   cross-section view, and the dedicated Profile Visibility analysis
-                  tab now samples that profile through the shared solver.
+                  tab now samples that profile through the shared solver. When
+                  terrain obstruction is enabled and a preset-specific profile
+                  exists, that profile can also block rays along the traced path.
                 </p>
               ) : null}
             </div>

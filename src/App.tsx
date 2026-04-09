@@ -15,6 +15,7 @@ import {
   buildSceneViewModel,
   buildSweepChartData,
   formatSweepParameterValue,
+  getTerrainProfileByPresetId,
   solveVisibility,
 } from "./domain";
 import { hydrateStateFromSearch, appReducer, serializeStateToSearch } from "./state/appState";
@@ -82,6 +83,14 @@ export default function App() {
   const [windowWidth, setWindowWidth] = useState(() => window.innerWidth);
   const [windowHeight, setWindowHeight] = useState(() => window.innerHeight);
 
+  const terrainObstructionProfile = useMemo(
+    () =>
+      state.useTerrainObstruction
+        ? getTerrainProfileByPresetId(deferredState.scenario.presetId)
+        : null,
+    [deferredState.scenario.presetId, state.useTerrainObstruction],
+  );
+
   useEffect(() => {
     const search = serializeStateToSearch(state);
     window.history.replaceState({}, "", `${window.location.pathname}${search}`);
@@ -115,12 +124,22 @@ export default function App() {
   }, []);
 
   const primaryResult = useMemo(
-    () => solveVisibility(deferredState.scenario, deferredState.primaryModel),
-    [deferredState],
+    () =>
+      solveVisibility(
+        deferredState.scenario,
+        deferredState.primaryModel,
+        terrainObstructionProfile,
+      ),
+    [deferredState, terrainObstructionProfile],
   );
   const comparisonResult = useMemo(
-    () => solveVisibility(deferredState.scenario, deferredState.comparisonModel),
-    [deferredState],
+    () =>
+      solveVisibility(
+        deferredState.scenario,
+        deferredState.comparisonModel,
+        terrainObstructionProfile,
+      ),
+    [deferredState, terrainObstructionProfile],
   );
 
   const primaryScene = useMemo(
@@ -205,6 +224,7 @@ export default function App() {
         scenario: deferredState.scenario,
         primaryModel: deferredState.primaryModel,
         comparisonModel: deferredState.comparisonModel,
+        terrainProfile: terrainObstructionProfile,
         focusedModel: deferredState.focusedModel,
         compareMode: deferredState.viewMode === "compare",
         config: deferredState.sweepConfig,
@@ -214,6 +234,7 @@ export default function App() {
       deferredState.scenario,
       deferredState.primaryModel,
       deferredState.comparisonModel,
+      terrainObstructionProfile,
       deferredState.focusedModel,
       deferredState.viewMode,
       deferredState.sweepConfig,

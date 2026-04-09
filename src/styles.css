@@ -819,6 +819,13 @@ select {
   font-variant-numeric: tabular-nums;
 }
 
+.field__value input:disabled,
+.field__unit-select:disabled,
+.coordinate-grid input:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+}
+
 .field__unit-select {
   min-width: 70px;
   padding: 9px 10px;
@@ -833,6 +840,23 @@ select {
   font-size: 0.76rem;
   text-align: right;
   flex: 1 1 140px;
+}
+
+.field__stats {
+  display: grid;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.coordinate-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.coordinate-grid input {
+  width: 100%;
 }
 
 .pill-group {
@@ -1602,6 +1626,10 @@ select {
 
   .metrics-grid,
   .pill-group {
+    grid-template-columns: 1fr;
+  }
+
+  .coordinate-grid {
     grid-template-columns: 1fr;
   }
 

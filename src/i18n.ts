@@ -38,6 +38,19 @@ const en: TranslationDictionary = {
   surfaceDistance: "Surface distance",
   shellSphereRadius: "Shell / sphere radius",
   targetSamples: "Target samples",
+  routeCoordinates: "Route coordinates",
+  useCoordinateDistance: "Use coordinate-derived distance",
+  observerLatitude: "Observer latitude",
+  observerLongitude: "Observer longitude",
+  targetLatitude: "Target latitude",
+  targetLongitude: "Target longitude",
+  derivedDistance: "Derived distance",
+  initialBearing: "Initial bearing",
+  coordinateDistanceHint:
+    "Surface distance is being derived from the coordinate route: {distance} • initial bearing {bearing}°.",
+  routeCoordinateHint:
+    "This is the first step toward map-backed scenarios: enter observer and target coordinates to derive a great-circle route using the active shell / sphere radius.",
+  terrainBlocksRays: "Terrain / profile blocks rays",
   dragMicrocopy: "Drag for sweep, use +/- for fine adjustment.",
   crossSection: "Cross-section",
   rayBundle: "Ray Bundle",
@@ -78,7 +91,7 @@ const en: TranslationDictionary = {
   observerViewIntro:
     "A perceptual reconstruction built from solved apparent elevations, showing the apparent horizon and the visible silhouette the observer would actually receive.",
   profileVisibilityIntro:
-    "Terrain/profile samples are now solved through the shared visibility engine so shoreline, skyline, and mountain silhouettes can participate in the analysis rather than remain purely illustrative.",
+    "Terrain/profile samples now participate in the shared visibility engine, including terrain-aware obstruction along the traced path rather than remaining purely illustrative.",
   sweepIntro:
     "A controlled parameter sweep driven by repeated solver runs across the active models.",
   rayBundleSummaryTitle: "Ray Bundle Envelope",

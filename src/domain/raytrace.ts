@@ -11,8 +11,15 @@ import {
   vec,
 } from "./geometry";
 import { getTurnRatePerMeter } from "./curvature";
+import { sampleTerrainProfileHeight } from "./profiles";
 import { clamp, lerp } from "./units";
-import type { ModelConfig, RayPoint, RayTrace, ScenarioInput } from "./types";
+import type {
+  ModelConfig,
+  RayPoint,
+  RayTrace,
+  ScenarioInput,
+  TerrainProfilePreset,
+} from "./types";
 
 interface TraceState {
   x: number;
@@ -23,6 +30,7 @@ interface TraceState {
 export interface TraceRayOptions {
   scenario: ScenarioInput;
   model: ModelConfig;
+  terrainProfile?: TerrainProfilePreset | null;
   launchAngleRad: number;
   targetAngleRad?: number | null;
   maxArcLengthM?: number;
@@ -100,6 +108,7 @@ function makeRayPoint(state: TraceState, s: number): RayPoint {
 export function traceRay({
   scenario,
   model,
+  terrainProfile = null,
   launchAngleRad,
   targetAngleRad = getTargetAngle(scenario.surfaceDistanceM, scenario.radiusM),
   stepM = getDefaultStepM(scenario),
@@ -126,14 +135,25 @@ export function traceRay({
     scenario.radiusM,
     model.geometryMode,
   );
+  let minTerrainClearanceM = Number.POSITIVE_INFINITY;
 
   const points: RayPoint[] = [makeRayPoint(state, 0)];
 
   while (arcLength < maxArcLengthM) {
     const previousState = state;
     const previousRadius = length(previousState);
+    const previousHeightM = heightFromRadius(
+      previousRadius,
+      scenario.radiusM,
+      model.geometryMode,
+    );
     const nextState = rk4Step(previousState, stepM, scenario, model);
     const nextRadius = length(nextState);
+    const nextHeightM = heightFromRadius(
+      nextRadius,
+      scenario.radiusM,
+      model.geometryMode,
+    );
     const nextAngle = unwrapAngle(Math.atan2(nextState.y, nextState.x), previousAngle);
 
     minSurfaceClearanceM = Math.min(
@@ -156,6 +176,58 @@ export function traceRay({
       );
     }
 
+    let terrainFraction: number | null = null;
+    let terrainIntersection:
+      | {
+          surfaceDistanceM: number;
+          terrainHeightM: number;
+          rayHeightM: number;
+        }
+      | null = null;
+
+    if (terrainProfile) {
+      const previousDistanceM = Math.max(0, scenario.radiusM * previousAngle);
+      const nextDistanceM = Math.max(0, scenario.radiusM * nextAngle);
+      const previousTerrainHeightM =
+        sampleTerrainProfileHeight(terrainProfile, previousDistanceM) ?? 0;
+      const nextTerrainHeightM = sampleTerrainProfileHeight(terrainProfile, nextDistanceM) ?? 0;
+      const previousTerrainClearanceM = previousHeightM - previousTerrainHeightM;
+      const nextTerrainClearanceM = nextHeightM - nextTerrainHeightM;
+
+      minTerrainClearanceM = Math.min(
+        minTerrainClearanceM,
+        previousTerrainClearanceM,
+        nextTerrainClearanceM,
+      );
+
+      const crossedTerrain =
+        (previousTerrainHeightM > 0 || nextTerrainHeightM > 0) &&
+        previousTerrainClearanceM > 0 &&
+        nextTerrainClearanceM <= 0;
+
+      if (
+        crossedTerrain &&
+        Math.abs(previousTerrainClearanceM - nextTerrainClearanceM) > 1e-9
+      ) {
+        terrainFraction = clamp(
+          previousTerrainClearanceM /
+            (previousTerrainClearanceM - nextTerrainClearanceM),
+          0,
+          1,
+        );
+        const intersectionDistanceM = lerp(previousDistanceM, nextDistanceM, terrainFraction);
+        const terrainHeightM =
+          sampleTerrainProfileHeight(terrainProfile, intersectionDistanceM) ??
+          lerp(previousTerrainHeightM, nextTerrainHeightM, terrainFraction);
+        const rayHeightM = lerp(previousHeightM, nextHeightM, terrainFraction);
+        terrainIntersection = {
+          surfaceDistanceM: intersectionDistanceM,
+          terrainHeightM,
+          rayHeightM,
+        };
+      }
+    }
+
     let targetFraction: number | null = null;
     const angleDelta = nextAngle - previousAngle;
 
@@ -168,9 +240,13 @@ export function traceRay({
       targetFraction = clamp((targetAngleRad - previousAngle) / angleDelta, 0, 1);
     }
 
+    const earliestFraction = Math.min(
+      targetFraction ?? Number.POSITIVE_INFINITY,
+      terrainFraction ?? Number.POSITIVE_INFINITY,
+      surfaceFraction ?? Number.POSITIVE_INFINITY,
+    );
     const shouldTakeTarget =
-      targetFraction != null &&
-      (surfaceFraction == null || targetFraction <= surfaceFraction);
+      targetFraction != null && targetFraction === earliestFraction;
 
     if (shouldTakeTarget && targetFraction != null) {
       const crossingState = {
@@ -201,6 +277,40 @@ export function traceRay({
       };
     }
 
+    if (terrainFraction != null && terrainFraction === earliestFraction && terrainIntersection) {
+      const intersectionState = {
+        x: lerp(previousState.x, nextState.x, terrainFraction),
+        y: lerp(previousState.y, nextState.y, terrainFraction),
+        headingRad: lerp(previousState.headingRad, nextState.headingRad, terrainFraction),
+      };
+      const intersectionPoint = makeRayPoint(
+        intersectionState,
+        arcLength + stepM * terrainFraction,
+      );
+
+      points.push(intersectionPoint);
+
+      return {
+        launchAngleRad,
+        points,
+        incomingHeadingRad: intersectionState.headingRad,
+        totalBendRad: intersectionState.headingRad - initialHeading,
+        terminationReason: "terrain-intersection",
+        firstTerrainIntersection: {
+          position: vec(intersectionPoint.x, intersectionPoint.y),
+          surfaceDistanceM: terrainIntersection.surfaceDistanceM,
+          terrainHeightM: terrainIntersection.terrainHeightM,
+          rayHeightM: terrainIntersection.rayHeightM,
+          arcLengthM: intersectionPoint.s,
+          fraction: terrainFraction,
+        },
+        minSurfaceClearanceM,
+        minTerrainClearanceM: Number.isFinite(minTerrainClearanceM)
+          ? minTerrainClearanceM
+          : undefined,
+      };
+    }
+
     if (surfaceFraction != null) {
       const intersectionState = {
         x: lerp(previousState.x, nextState.x, surfaceFraction),
@@ -223,6 +333,9 @@ export function traceRay({
         firstSurfaceIntersection: vec(intersectionPoint.x, intersectionPoint.y),
         firstSurfaceArcLengthM: intersectionPoint.s,
         minSurfaceClearanceM,
+        minTerrainClearanceM: Number.isFinite(minTerrainClearanceM)
+          ? minTerrainClearanceM
+          : undefined,
       };
     }
 
@@ -239,5 +352,8 @@ export function traceRay({
     totalBendRad: state.headingRad - initialHeading,
     terminationReason: "max-arc",
     minSurfaceClearanceM,
+    minTerrainClearanceM: Number.isFinite(minTerrainClearanceM)
+      ? minTerrainClearanceM
+      : undefined,
   };
 }

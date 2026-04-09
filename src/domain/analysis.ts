@@ -10,13 +10,18 @@ import {
   getDefaultStepM,
   traceRay,
 } from "./raytrace";
-import { getTerrainProfileByPresetId, createGenericTargetProfile } from "./profiles";
+import {
+  createGenericTargetProfile,
+  getTerrainProfileByPresetId,
+  sampleTerrainProfileHeight,
+} from "./profiles";
 import { solveTargetPointVisibility, solveVisibility } from "./solver";
 import { clamp, formatAngle, formatDistance, formatFraction, formatHeight, lerp } from "./units";
 import type {
   FocusedModel,
   ModelConfig,
   ScenarioInput,
+  TerrainProfilePreset,
   VisibilitySample,
   VisibilitySolveResult,
   Vec2,
@@ -429,6 +434,7 @@ export function buildSweepChartData(args: {
   scenario: ScenarioInput;
   primaryModel: ModelConfig;
   comparisonModel: ModelConfig;
+  terrainProfile?: TerrainProfilePreset | null;
   focusedModel: FocusedModel;
   compareMode: boolean;
   config: SweepConfig;
@@ -474,7 +480,11 @@ export function buildSweepChartData(args: {
         args.config.sampleCount === 1 ? 0 : index / (args.config.sampleCount - 1);
       const value = lerp(baseRange.min, baseRange.max, fraction);
       const applied = applySweepValue(args.scenario, target.model, args.config.parameter, value);
-      const result = solveVisibility(applied.scenario, applied.model);
+      const result = solveVisibility(
+        applied.scenario,
+        applied.model,
+        args.terrainProfile ?? null,
+      );
       return {
         x: value,
         y: getBundleMetricValue(result, args.config.metric),
@@ -741,34 +751,6 @@ export function buildRayBundlePanelData(
   };
 }
 
-function interpolateProfileHeight(
-  profileSamples: Array<{ distanceM: number; heightM: number }>,
-  distanceM: number,
-) {
-  if (distanceM <= profileSamples[0].distanceM) {
-    return profileSamples[0].heightM;
-  }
-
-  if (distanceM >= profileSamples[profileSamples.length - 1].distanceM) {
-    return profileSamples[profileSamples.length - 1].heightM;
-  }
-
-  for (let index = 0; index < profileSamples.length - 1; index += 1) {
-    const left = profileSamples[index];
-    const right = profileSamples[index + 1];
-
-    if (distanceM < left.distanceM || distanceM > right.distanceM) {
-      continue;
-    }
-
-    const fraction =
-      (distanceM - left.distanceM) / Math.max(right.distanceM - left.distanceM, 1e-6);
-    return lerp(left.heightM, right.heightM, fraction);
-  }
-
-  return profileSamples[profileSamples.length - 1].heightM;
-}
-
 function sampleProfileForAnalysis(result: VisibilitySolveResult) {
   const profile =
     getTerrainProfileByPresetId(result.scenario.presetId) ??
@@ -791,7 +773,7 @@ function sampleProfileForAnalysis(result: VisibilitySolveResult) {
     const distanceM = lerp(minDistanceM, maxDistanceM, fraction);
     return {
       distanceM,
-      heightM: interpolateProfileHeight(sortedSamples, distanceM),
+      heightM: sampleTerrainProfileHeight(profile, distanceM) ?? 0,
     };
   });
 
@@ -820,6 +802,7 @@ function solveProfileSamplesForAnalysis(result: VisibilitySolveResult) {
       result.model,
       sample.distanceM,
       sample.heightM,
+      result.terrainProfile,
     );
 
     return {
@@ -956,7 +939,9 @@ export function buildProfileVisibilityPanelData(
   return {
     sceneKey,
     title,
-    subtitle: `${profile.name} • ${visibleSamples}/${samplePoints.length} sampled profile points reach the observer`,
+    subtitle: `${profile.name} - ${visibleSamples}/${samplePoints.length} sampled profile points reach the observer${
+      result.terrainProfile ? " - terrain-aware obstruction active" : ""
+    }`,
     bounds: collectBounds(
       [
         ...surfacePoints,
@@ -1086,7 +1071,9 @@ export function buildObserverViewPanelData(
   return {
     sceneKey,
     title,
-    subtitle: `${profile.name} reconstructed into apparent elevation space`,
+    subtitle: `${profile.name} reconstructed into apparent elevation space${
+      result.terrainProfile ? " - terrain-aware obstruction active" : ""
+    }`,
     bounds,
     horizonElevationRad,
     eyeLevelElevationRad: 0,

@@ -18,6 +18,13 @@ export const defaultScenario: ScenarioInput = {
   targetSampleCount: 18,
   presetId: "low-ship",
   units: "metric",
+  coordinates: {
+    enabled: false,
+    observerLatDeg: 0,
+    observerLonDeg: 0,
+    targetLatDeg: 0,
+    targetLonDeg: 0,
+  },
 };
 
 export const defaultPrimaryModel: ModelConfig = {

@@ -17,8 +17,10 @@ describe("URL state round-tripping", () => {
       language: "it" as const,
       workspaceMode: "simple" as const,
       fullWidthScene: false,
+      fitContentHeight: false,
       showScaleGuides: false,
       showTerrainOverlay: false,
+      useTerrainObstruction: false,
       sceneViewport: {
         ...createDefaultState().sceneViewport,
         framingMode: "full" as const,
@@ -39,6 +41,13 @@ describe("URL state round-tripping", () => {
         observerHeightM: 34,
         targetHeightM: 93,
         surfaceDistanceM: 77_000,
+        coordinates: {
+          enabled: true,
+          observerLatDeg: 29.95,
+          observerLonDeg: -90.07,
+          targetLatDeg: 30.31,
+          targetLonDeg: -89.8,
+        },
       },
       primaryModel: {
         ...createDefaultState().primaryModel,
@@ -61,8 +70,10 @@ describe("URL state round-tripping", () => {
     expect(hydrated.language).toBe("it");
     expect(hydrated.workspaceMode).toBe("simple");
     expect(hydrated.fullWidthScene).toBe(false);
+    expect(hydrated.fitContentHeight).toBe(false);
     expect(hydrated.showScaleGuides).toBe(false);
     expect(hydrated.showTerrainOverlay).toBe(false);
+    expect(hydrated.useTerrainObstruction).toBe(false);
     expect(hydrated.sceneViewport.framingMode).toBe("full");
     expect(hydrated.sceneViewport.scaleMode).toBe("diagram");
     expect(hydrated.sceneViewport.compareLayout).toBe("stacked");
@@ -75,7 +86,12 @@ describe("URL state round-tripping", () => {
     expect(hydrated.unitPreferences.radius).toBe("mi");
     expect(hydrated.scenario.observerHeightM).toBe(34);
     expect(hydrated.scenario.targetHeightM).toBe(93);
-    expect(hydrated.scenario.surfaceDistanceM).toBe(77_000);
+    expect(hydrated.scenario.coordinates.enabled).toBe(true);
+    expect(hydrated.scenario.coordinates.observerLatDeg).toBeCloseTo(29.95);
+    expect(hydrated.scenario.coordinates.observerLonDeg).toBeCloseTo(-90.07);
+    expect(hydrated.scenario.coordinates.targetLatDeg).toBeCloseTo(30.31);
+    expect(hydrated.scenario.coordinates.targetLonDeg).toBeCloseTo(-89.8);
+    expect(hydrated.scenario.surfaceDistanceM).toBeGreaterThan(0);
     expect(hydrated.primaryModel.lineBehavior.referenceConstruction).toBe(
       "straight-horizontal",
     );

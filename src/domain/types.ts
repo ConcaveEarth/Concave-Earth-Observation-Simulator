@@ -25,6 +25,15 @@ export interface ScenarioInput {
   targetSampleCount: number;
   presetId: string;
   units: "metric";
+  coordinates: ScenarioCoordinateInput;
+}
+
+export interface ScenarioCoordinateInput {
+  enabled: boolean;
+  observerLatDeg: number;
+  observerLonDeg: number;
+  targetLatDeg: number;
+  targetLonDeg: number;
 }
 
 export interface AtmosphereConfig {
@@ -71,11 +80,26 @@ export interface RayTrace {
   points: RayPoint[];
   incomingHeadingRad: number;
   totalBendRad: number;
-  terminationReason: "target-angle" | "surface-intersection" | "max-arc";
+  terminationReason:
+    | "target-angle"
+    | "surface-intersection"
+    | "terrain-intersection"
+    | "max-arc";
   firstSurfaceIntersection?: Vec2;
   firstSurfaceArcLengthM?: number;
+  firstTerrainIntersection?: RayTerrainIntersection;
   targetCrossing?: RayTargetCrossing;
   minSurfaceClearanceM: number;
+  minTerrainClearanceM?: number;
+}
+
+export interface RayTerrainIntersection {
+  position: Vec2;
+  surfaceDistanceM: number;
+  terrainHeightM: number;
+  rayHeightM: number;
+  arcLengthM: number;
+  fraction: number;
 }
 
 export interface VisibilitySample {
@@ -108,6 +132,7 @@ export interface SolverMetadata {
 export interface VisibilitySolveResult {
   scenario: ScenarioInput;
   model: ModelConfig;
+  terrainProfile: TerrainProfilePreset | null;
   observerPoint: Vec2;
   observerSurfacePoint: Vec2;
   targetBasePoint: Vec2;

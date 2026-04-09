@@ -4,9 +4,12 @@ import {
   ATMOSPHERE_COEFFICIENT_MAX,
   ATMOSPHERE_COEFFICIENT_MIN,
 } from "../../domain/curvature";
+import { getGreatCircleRouteMetrics } from "../../domain/geodesy";
 import { getPresetById, scenarioPresets } from "../../domain/presets";
 import {
   distanceUnitToMeters,
+  formatDistance,
+  formatAngle,
   getDisplayStepMeters,
   getUnitLabel,
   heightUnitToMeters,
@@ -70,6 +73,7 @@ function NumberField({
   onChange,
   toDisplayValue,
   toBaseValue,
+  disabled,
   language,
 }: {
   label: string;
@@ -85,6 +89,7 @@ function NumberField({
   onChange: (value: number) => void;
   toDisplayValue?: (value: number, unit: string) => number;
   toBaseValue?: (value: number, unit: string) => number;
+  disabled?: boolean;
   language: LanguageMode;
 }) {
   const displayFromBase = toDisplayValue ?? ((baseValue: number) => baseValue);
@@ -149,7 +154,7 @@ function NumberField({
             type="button"
             className="field__reset"
             onClick={onReset}
-            disabled={resetValue === value}
+            disabled={disabled || resetValue === value}
           >
             {t(language, "reset")}
           </button>
@@ -160,7 +165,7 @@ function NumberField({
           type="button"
           className="field__stepper"
           onClick={() => updateFromDisplay(displayedValue - displayedSliderStep)}
-          disabled={displayedValue <= displayedMin}
+          disabled={disabled || displayedValue <= displayedMin}
           aria-label={`Decrease ${label}`}
         >
           -
@@ -171,13 +176,14 @@ function NumberField({
           max={displayedMax}
           step={displayedSliderStep}
           value={roundTo(displayedValue, sliderDecimals)}
+          disabled={disabled}
           onChange={(event) => updateFromDisplay(Number(event.target.value))}
         />
         <button
           type="button"
           className="field__stepper"
           onClick={() => updateFromDisplay(displayedValue + displayedSliderStep)}
-          disabled={displayedMax == null ? false : displayedValue >= displayedMax}
+          disabled={disabled || (displayedMax == null ? false : displayedValue >= displayedMax)}
           aria-label={`Increase ${label}`}
         >
           +
@@ -190,6 +196,7 @@ function NumberField({
             inputMode="decimal"
             value={draftValue}
             style={{ width: `${Math.max(6, draftValue.length + 1)}ch` }}
+            disabled={disabled}
             onChange={(event) => {
               const nextDraft = event.target.value;
               setDraftValue(nextDraft);
@@ -206,6 +213,7 @@ function NumberField({
             <select
               className="field__unit-select"
               value={unit}
+              disabled={disabled}
               onChange={(event) => onUnitChange(event.target.value)}
             >
               {unitOptions.map((option) => (
@@ -215,7 +223,7 @@ function NumberField({
               ))}
             </select>
           ) : (
-            <span>{getUnitLabel(unit as DistanceUnit | HeightUnit | RadiusUnit)}</span>
+            <span>{unit === "pts" || unit === "k" || unit === "°" ? unit : getUnitLabel(unit as DistanceUnit | HeightUnit | RadiusUnit)}</span>
           )}
         </div>
         <span className="field__microcopy">{t(language, "dragMicrocopy")}</span>
@@ -496,12 +504,19 @@ export function ControlsPanel({
   onCopyLink,
   language,
 }: ControlsPanelProps) {
+  type ScenarioNumericField =
+    | "observerHeightM"
+    | "targetHeightM"
+    | "surfaceDistanceM"
+    | "radiusM"
+    | "targetSampleCount";
   const [collapsedSections, setCollapsedSections] = useState({
     scenario: false,
     model1: false,
     model2: false,
     export: false,
   });
+  const [coordinatesCollapsed, setCoordinatesCollapsed] = useState(true);
   const heightUnitOptions = [
     { label: "m", value: "m" },
     { label: "ft", value: "ft" },
@@ -517,7 +532,24 @@ export function ControlsPanel({
     { label: "mi", value: "mi" },
   ] as const;
   const presetDefaults = getPresetById(state.scenario.presetId).scenario;
-  const setScenarioValue = <K extends keyof ScenarioInput>(
+  const routeMetrics = useMemo(
+    () =>
+      getGreatCircleRouteMetrics({
+        observerLatDeg: state.scenario.coordinates.observerLatDeg,
+        observerLonDeg: state.scenario.coordinates.observerLonDeg,
+        targetLatDeg: state.scenario.coordinates.targetLatDeg,
+        targetLonDeg: state.scenario.coordinates.targetLonDeg,
+        radiusM: state.scenario.radiusM,
+      }),
+    [
+      state.scenario.coordinates.observerLatDeg,
+      state.scenario.coordinates.observerLonDeg,
+      state.scenario.coordinates.targetLatDeg,
+      state.scenario.coordinates.targetLonDeg,
+      state.scenario.radiusM,
+    ],
+  );
+  const setScenarioValue = <K extends ScenarioNumericField>(
     key: K,
     value: ScenarioInput[K],
   ) => {
@@ -651,8 +683,17 @@ export function ControlsPanel({
               distanceUnitToMeters(displayValue, nextUnit as DistanceUnit)
             }
             onChange={(nextValue) => setScenarioValue("surfaceDistanceM", nextValue)}
+            disabled={state.scenario.coordinates.enabled}
             language={language}
           />
+          {state.scenario.coordinates.enabled ? (
+            <p className="field__hint">
+              {t(language, "coordinateDistanceHint", {
+                distance: formatDistance(routeMetrics.distanceM, state.unitPreferences.distance),
+                bearing: routeMetrics.initialBearingDeg.toFixed(1),
+              })}
+            </p>
+          ) : null}
           <NumberField
             label={t(language, "shellSphereRadius")}
             value={state.scenario.radiusM}
@@ -693,6 +734,128 @@ export function ControlsPanel({
             onChange={(nextValue) => setScenarioValue("targetSampleCount", nextValue)}
             language={language}
           />
+
+          <PanelSection
+            title={t(language, "routeCoordinates")}
+            sectionId="control-route-coordinates"
+            className="panel-section--nested"
+            collapsible
+            collapsed={coordinatesCollapsed}
+            onToggleCollapsed={() => setCoordinatesCollapsed((current) => !current)}
+          >
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={state.scenario.coordinates.enabled}
+                onChange={(event) =>
+                  dispatch({
+                    type: "setCoordinateField",
+                    key: "enabled",
+                    value: event.target.checked,
+                  })
+                }
+              />
+              <span>{t(language, "useCoordinateDistance")}</span>
+            </label>
+
+            <div className="coordinate-grid">
+              <label className="field">
+                <span>{t(language, "observerLatitude")}</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.0001"
+                  min={-90}
+                  max={90}
+                  value={state.scenario.coordinates.observerLatDeg}
+                  onChange={(event) =>
+                    dispatch({
+                      type: "setCoordinateField",
+                      key: "observerLatDeg",
+                      value: Number(event.target.value),
+                    })
+                  }
+                />
+              </label>
+              <label className="field">
+                <span>{t(language, "observerLongitude")}</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.0001"
+                  min={-180}
+                  max={180}
+                  value={state.scenario.coordinates.observerLonDeg}
+                  onChange={(event) =>
+                    dispatch({
+                      type: "setCoordinateField",
+                      key: "observerLonDeg",
+                      value: Number(event.target.value),
+                    })
+                  }
+                />
+              </label>
+              <label className="field">
+                <span>{t(language, "targetLatitude")}</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.0001"
+                  min={-90}
+                  max={90}
+                  value={state.scenario.coordinates.targetLatDeg}
+                  onChange={(event) =>
+                    dispatch({
+                      type: "setCoordinateField",
+                      key: "targetLatDeg",
+                      value: Number(event.target.value),
+                    })
+                  }
+                />
+              </label>
+              <label className="field">
+                <span>{t(language, "targetLongitude")}</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.0001"
+                  min={-180}
+                  max={180}
+                  value={state.scenario.coordinates.targetLonDeg}
+                  onChange={(event) =>
+                    dispatch({
+                      type: "setCoordinateField",
+                      key: "targetLonDeg",
+                      value: Number(event.target.value),
+                    })
+                  }
+                />
+              </label>
+            </div>
+
+            <div className="field__stats">
+              <span>
+                <strong>{t(language, "derivedDistance")}:</strong>{" "}
+                {formatDistance(routeMetrics.distanceM, state.unitPreferences.distance)}
+              </span>
+              <span>
+                <strong>{t(language, "initialBearing")}:</strong>{" "}
+                {formatAngle((routeMetrics.initialBearingDeg * Math.PI) / 180)}
+              </span>
+            </div>
+            <p className="field__hint">{t(language, "routeCoordinateHint")}</p>
+          </PanelSection>
+
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={state.useTerrainObstruction}
+              onChange={(event) =>
+                dispatch({ type: "setUseTerrainObstruction", value: event.target.checked })
+              }
+            />
+            <span>{t(language, "terrainBlocksRays")}</span>
+          </label>
           </PanelSection>
 
           <ModelEditor

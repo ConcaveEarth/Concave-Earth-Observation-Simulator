@@ -1,6 +1,6 @@
 import { getTurnRatePerMeter } from "../domain/curvature";
 import { angleOf, localTangentAtAngle, pointAtSurfaceHeight } from "../domain/geometry";
-import type { ModelConfig } from "../domain/types";
+import type { ModelConfig, TerrainProfilePreset } from "../domain/types";
 import {
   applyPresetToModel,
   defaultComparisonModel,
@@ -190,5 +190,44 @@ describe("visibility solver", () => {
     expect(result.visibleHeightM).toBeGreaterThan(0);
     expect(result.visibilityFraction).toBeGreaterThan(0);
     expect(result.visibilityFraction).toBeLessThan(1);
+  });
+
+  it("lets terrain obstruction block rays before they reach the target", () => {
+    const terrainWall: TerrainProfilePreset = {
+      id: "terrain-wall",
+      name: "Terrain wall",
+      description: "A synthetic obstruction positioned between observer and target.",
+      samples: [
+        { distanceM: 0, heightM: 0 },
+        { distanceM: 900, heightM: 0 },
+        { distanceM: 1_050, heightM: 120 },
+        { distanceM: 1_200, heightM: 120 },
+        { distanceM: 1_350, heightM: 0 },
+        { distanceM: 2_000, heightM: 0 },
+      ],
+    };
+    const scenario = {
+      ...defaultScenario,
+      observerHeightM: 2,
+      targetHeightM: 30,
+      surfaceDistanceM: 2_000,
+      targetSampleCount: 12,
+    };
+
+    const withoutTerrain = solveVisibility(
+      scenario,
+      { ...defaultPrimaryModel, atmosphere: { mode: "none", coefficient: 0 } },
+      null,
+    );
+    const withTerrain = solveVisibility(
+      scenario,
+      { ...defaultPrimaryModel, atmosphere: { mode: "none", coefficient: 0 } },
+      terrainWall,
+    );
+
+    expect(withoutTerrain.visibilityFraction).toBeGreaterThan(withTerrain.visibilityFraction);
+    expect(withTerrain.terrainProfile?.id).toBe("terrain-wall");
+    expect(withTerrain.hiddenHeightM).toBeGreaterThan(withoutTerrain.hiddenHeightM);
+    expect(withTerrain.visibleHeightM).toBeLessThan(withoutTerrain.visibleHeightM);
   });
 });

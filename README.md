@@ -27,6 +27,11 @@ comparison-first observation lab milestone:
 - Shared viewport utilities and workstation-style scroll areas that unify
   analysis sizing, pan/zoom behavior, and panel scrolling across the newer
   analysis tools
+- Coordinate-derived scenario routing groundwork, so observer/target latitude
+  and longitude can drive great-circle distance and bearing
+- Terrain-aware obstruction support in the shared solver, allowing preset-linked
+  terrain/profile silhouettes to block rays along the traced path instead of
+  remaining purely illustrative
 
 This milestone is the baseline we can safely build on before deeper analytical
 features such as full terrain-aware obstruction and map workflows.
@@ -42,6 +47,8 @@ features such as full terrain-aware obstruction and map workflows.
 - Ray Bundle analysis view driven by sampled target-point visibility solutions
 - Profile Visibility analysis view that samples terrain/profile silhouettes through
   the shared solver instead of treating them as pure decoration
+- Optional coordinate route inputs that derive surface distance from latitude /
+  longitude and the active shell or sphere radius
 - Observer View analysis tab that reconstructs the apparent horizon and visible
   silhouette from solved sample elevations
 - Sweep analysis view for parameter-vs-output comparison curves

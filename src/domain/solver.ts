@@ -17,6 +17,7 @@ import type {
   ModelConfig,
   RayTrace,
   ScenarioInput,
+  TerrainProfilePreset,
   Vec2,
   VisibilitySample,
   VisibilitySolveResult,
@@ -88,6 +89,7 @@ function solveConvexOpticalHorizon(
   observerPoint: Vec2,
   observerTangent: Vec2,
   observerUp: Vec2,
+  terrainProfile: TerrainProfilePreset | null,
 ): HorizonResult | null {
   if (model.geometryMode !== "convex") {
     return null;
@@ -126,6 +128,7 @@ function solveConvexOpticalHorizon(
       const trace = traceRay({
         scenario,
         model,
+        terrainProfile,
         launchAngleRad,
         targetAngleRad: null,
         maxArcLengthM,
@@ -203,6 +206,7 @@ function evaluateRayAtHeight(
   model: ModelConfig,
   targetDistanceM: number,
   sampleHeightM: number,
+  terrainProfile: TerrainProfilePreset | null = null,
 ): SolvedRay | null {
   const observerPoint = getObserverPoint(scenario, model);
   const observerTangent = localTangentAtAngle(0);
@@ -223,6 +227,7 @@ function evaluateRayAtHeight(
     const trace = traceRay({
       scenario,
       model,
+      terrainProfile,
       launchAngleRad: angle,
       targetAngleRad,
     });
@@ -270,6 +275,7 @@ function evaluateRayAtHeight(
       const trace = traceRay({
         scenario,
         model,
+        terrainProfile,
         launchAngleRad: angle,
         targetAngleRad,
       });
@@ -316,6 +322,7 @@ export function solveTargetPointVisibility(
   model: ModelConfig,
   targetDistanceM: number,
   sampleHeightM: number,
+  terrainProfile: TerrainProfilePreset | null = null,
 ): VisibilitySample {
   const observerPoint = getObserverPoint(scenario, model);
   const observerTangent = localTangentAtAngle(0);
@@ -324,7 +331,13 @@ export function solveTargetPointVisibility(
   const targetPoint = getTargetPoint(scenario, model, targetDistanceM, sampleHeightM);
   const localTarget = toObserverFrame(targetPoint, observerPoint, observerTangent, observerUp);
   const actualElevationRad = Math.atan2(localTarget.y, localTarget.x);
-  const solved = evaluateRayAtHeight(scenario, model, targetDistanceM, sampleHeightM);
+  const solved = evaluateRayAtHeight(
+    scenario,
+    model,
+    targetDistanceM,
+    sampleHeightM,
+    terrainProfile,
+  );
 
   return {
     targetDistanceM,
@@ -345,6 +358,7 @@ function solveOpticalHorizon(
   observerPoint: Vec2,
   observerTangent: Vec2,
   observerUp: Vec2,
+  terrainProfile: TerrainProfilePreset | null,
 ): HorizonResult | null {
   if (model.geometryMode === "convex") {
     return solveConvexOpticalHorizon(
@@ -353,6 +367,7 @@ function solveOpticalHorizon(
       observerPoint,
       observerTangent,
       observerUp,
+      terrainProfile,
     );
   }
 
@@ -368,6 +383,7 @@ function solveOpticalHorizon(
       const trace = traceRay({
         scenario,
         model,
+        terrainProfile,
         launchAngleRad,
         targetAngleRad: null,
         maxArcLengthM,
@@ -421,6 +437,7 @@ function refineHiddenHeightBoundary(
   scenario: ScenarioInput,
   model: ModelConfig,
   targetSamples: VisibilitySample[],
+  terrainProfile: TerrainProfilePreset | null,
 ): number {
   const lowestVisibleIndex = targetSamples.findIndex((sample) => sample.visible);
 
@@ -451,6 +468,7 @@ function refineHiddenHeightBoundary(
       model,
       scenario.surfaceDistanceM,
       middle,
+      terrainProfile,
     );
 
     if (sample.visible) {
@@ -467,6 +485,7 @@ function refineHiddenHeightBoundary(
 export function solveVisibility(
   scenario: ScenarioInput,
   model: ModelConfig,
+  terrainProfile: TerrainProfilePreset | null = null,
 ): VisibilitySolveResult {
   const observerPoint = getObserverPoint(scenario, model);
   const observerSurfacePoint = pointAtSurfaceHeight(
@@ -498,6 +517,7 @@ export function solveVisibility(
     observerPoint,
     observerTangent,
     observerUp,
+    terrainProfile,
   );
 
   const sampleCount = Math.max(4, scenario.targetSampleCount);
@@ -512,6 +532,7 @@ export function solveVisibility(
       model,
       scenario.surfaceDistanceM,
       sampleHeightM,
+      terrainProfile,
     );
 
     if (sample.visible) {
@@ -525,7 +546,7 @@ export function solveVisibility(
   const lowestVisible = visibleSamples[0];
   const highestVisible = visibleSamples[visibleSamples.length - 1];
   const hiddenHeightM = lowestVisible
-    ? refineHiddenHeightBoundary(scenario, model, targetSamples)
+    ? refineHiddenHeightBoundary(scenario, model, targetSamples, terrainProfile)
     : scenario.targetHeightM;
   const visibleHeightM = Math.max(0, scenario.targetHeightM - hiddenHeightM);
   const visibilityFraction =
@@ -538,6 +559,7 @@ export function solveVisibility(
   return {
     scenario,
     model,
+    terrainProfile,
     observerPoint,
     observerSurfacePoint,
     targetBasePoint,
