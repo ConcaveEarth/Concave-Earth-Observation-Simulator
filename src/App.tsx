@@ -19,6 +19,13 @@ import {
   solveVisibility,
 } from "./domain";
 import { hydrateStateFromSearch, appReducer, serializeStateToSearch } from "./state/appState";
+import type {
+  FocusedModel,
+  ObserverViewPanelData,
+  ProfileVisibilityPanelData,
+  RayBundlePanelData,
+  SweepChartData,
+} from "./domain";
 import { AnalysisTabs } from "./ui/components/AnalysisTabs";
 import { ControlsPanel } from "./ui/components/ControlsPanel";
 import { PresentationToolbar } from "./ui/components/PresentationToolbar";
@@ -67,6 +74,111 @@ function AnalysisLoadingFallback({ message }: { message: string }) {
       </div>
     </div>
   );
+}
+
+function createEmptyBundlePanel(
+  sceneKey: FocusedModel,
+  title: string,
+): RayBundlePanelData {
+  return {
+    sceneKey,
+    title,
+    subtitle: "",
+    bounds: { minX: 0, maxX: 1, minY: 0, maxY: 1 },
+    suggestedVerticalScale: 1,
+    surfacePoints: [],
+    targetStem: {
+      base: { x: 0, y: 0 },
+      top: { x: 0, y: 0 },
+      visibleStart: { x: 0, y: 0 },
+    },
+    observerStem: {
+      base: { x: 0, y: 0 },
+      top: { x: 0, y: 0 },
+    },
+    traces: [],
+    markers: [],
+    samplePoints: [],
+    stats: {
+      visibleSamples: 0,
+      blockedSamples: 0,
+      visibilityFractionLabel: "0%",
+      bundleSpanM: 0,
+    },
+  };
+}
+
+function createEmptyProfileVisibilityPanel(
+  sceneKey: FocusedModel,
+  title: string,
+): ProfileVisibilityPanelData {
+  return {
+    sceneKey,
+    title,
+    subtitle: "",
+    bounds: { minX: 0, maxX: 1, minY: 0, maxY: 1 },
+    suggestedVerticalScale: 1,
+    surfacePoints: [],
+    profilePolyline: [],
+    profileSegments: [],
+    observerStem: {
+      base: { x: 0, y: 0 },
+      top: { x: 0, y: 0 },
+    },
+    traces: [],
+    markers: [],
+    samplePoints: [],
+    stats: {
+      visibleSamples: 0,
+      blockedSamples: 0,
+      visibilityFractionLabel: "0%",
+      visibleSpanM: 0,
+      sampleCount: 0,
+      maxProfileHeightM: 0,
+    },
+  };
+}
+
+function createEmptyObserverViewPanel(
+  sceneKey: FocusedModel,
+  title: string,
+): ObserverViewPanelData {
+  return {
+    sceneKey,
+    title,
+    subtitle: "",
+    bounds: { minX: 0, maxX: 1, minY: -1, maxY: 1 },
+    horizonElevationRad: 0,
+    eyeLevelElevationRad: 0,
+    visibleSilhouette: [],
+    ghostSilhouette: [],
+    samplePoints: [],
+    markers: [],
+    stats: {
+      visibleSamples: 0,
+      blockedSamples: 0,
+      visibilityFractionLabel: "0%",
+      horizonDipLabel: "0°",
+      apparentProfileSpanM: 0,
+      topVisibleElevationRad: null,
+      topGhostElevationRad: 0,
+    },
+  };
+}
+
+function createEmptySweepChartData(): SweepChartData {
+  return {
+    parameter: "distance",
+    metric: "hiddenHeight",
+    range: {
+      min: 0,
+      max: 1,
+      current: 0,
+    },
+    series: [],
+    yMin: 0,
+    yMax: 1,
+  };
 }
 
 export default function App() {
@@ -164,73 +276,123 @@ export default function App() {
       ),
     [comparisonResult, deferredState.language, deferredState.unitPreferences],
   );
+  const buildBothModelPanels = deferredState.viewMode === "compare";
+  const buildPrimaryFocusedPanel =
+    buildBothModelPanels || deferredState.focusedModel === "primary";
+  const buildComparisonFocusedPanel =
+    buildBothModelPanels || deferredState.focusedModel === "comparison";
   const primaryBundle = useMemo(
     () =>
-      buildRayBundlePanelData(
-        primaryResult,
-        t(deferredState.language, "primaryModelTitle"),
-        "primary",
-      ),
-    [primaryResult, deferredState.language],
+      deferredState.analysisTab === "ray-bundle" && buildPrimaryFocusedPanel
+        ? buildRayBundlePanelData(
+            primaryResult,
+            t(deferredState.language, "primaryModelTitle"),
+            "primary",
+          )
+        : createEmptyBundlePanel("primary", t(deferredState.language, "primaryModelTitle")),
+    [primaryResult, deferredState.analysisTab, deferredState.language, buildPrimaryFocusedPanel],
   );
   const comparisonBundle = useMemo(
     () =>
-      buildRayBundlePanelData(
-        comparisonResult,
-        t(deferredState.language, "comparisonModelTitle"),
-        "comparison",
-      ),
-    [comparisonResult, deferredState.language],
+      deferredState.analysisTab === "ray-bundle" && buildComparisonFocusedPanel
+        ? buildRayBundlePanelData(
+            comparisonResult,
+            t(deferredState.language, "comparisonModelTitle"),
+            "comparison",
+          )
+        : createEmptyBundlePanel(
+            "comparison",
+            t(deferredState.language, "comparisonModelTitle"),
+          ),
+    [
+      comparisonResult,
+      deferredState.analysisTab,
+      deferredState.language,
+      buildComparisonFocusedPanel,
+    ],
   );
   const primaryProfileVisibility = useMemo(
     () =>
-      buildProfileVisibilityPanelData(
-        primaryResult,
-        t(deferredState.language, "primaryModelTitle"),
-        "primary",
-      ),
-    [primaryResult, deferredState.language],
+      deferredState.analysisTab === "profile-visibility" && buildPrimaryFocusedPanel
+        ? buildProfileVisibilityPanelData(
+            primaryResult,
+            t(deferredState.language, "primaryModelTitle"),
+            "primary",
+          )
+        : createEmptyProfileVisibilityPanel(
+            "primary",
+            t(deferredState.language, "primaryModelTitle"),
+          ),
+    [primaryResult, deferredState.analysisTab, deferredState.language, buildPrimaryFocusedPanel],
   );
   const comparisonProfileVisibility = useMemo(
     () =>
-      buildProfileVisibilityPanelData(
-        comparisonResult,
-        t(deferredState.language, "comparisonModelTitle"),
-        "comparison",
-      ),
-    [comparisonResult, deferredState.language],
+      deferredState.analysisTab === "profile-visibility" && buildComparisonFocusedPanel
+        ? buildProfileVisibilityPanelData(
+            comparisonResult,
+            t(deferredState.language, "comparisonModelTitle"),
+            "comparison",
+          )
+        : createEmptyProfileVisibilityPanel(
+            "comparison",
+            t(deferredState.language, "comparisonModelTitle"),
+          ),
+    [
+      comparisonResult,
+      deferredState.analysisTab,
+      deferredState.language,
+      buildComparisonFocusedPanel,
+    ],
   );
   const primaryObserverView = useMemo(
     () =>
-      buildObserverViewPanelData(
-        primaryResult,
-        t(deferredState.language, "primaryModelTitle"),
-        "primary",
-      ),
-    [primaryResult, deferredState.language],
+      deferredState.analysisTab === "observer-view" && buildPrimaryFocusedPanel
+        ? buildObserverViewPanelData(
+            primaryResult,
+            t(deferredState.language, "primaryModelTitle"),
+            "primary",
+          )
+        : createEmptyObserverViewPanel(
+            "primary",
+            t(deferredState.language, "primaryModelTitle"),
+          ),
+    [primaryResult, deferredState.analysisTab, deferredState.language, buildPrimaryFocusedPanel],
   );
   const comparisonObserverView = useMemo(
     () =>
-      buildObserverViewPanelData(
-        comparisonResult,
-        t(deferredState.language, "comparisonModelTitle"),
-        "comparison",
-      ),
-    [comparisonResult, deferredState.language],
+      deferredState.analysisTab === "observer-view" && buildComparisonFocusedPanel
+        ? buildObserverViewPanelData(
+            comparisonResult,
+            t(deferredState.language, "comparisonModelTitle"),
+            "comparison",
+          )
+        : createEmptyObserverViewPanel(
+            "comparison",
+            t(deferredState.language, "comparisonModelTitle"),
+          ),
+    [
+      comparisonResult,
+      deferredState.analysisTab,
+      deferredState.language,
+      buildComparisonFocusedPanel,
+    ],
   );
   const sweepData = useMemo(
     () =>
-      buildSweepChartData({
-        scenario: deferredState.scenario,
-        primaryModel: deferredState.primaryModel,
-        comparisonModel: deferredState.comparisonModel,
-        terrainProfile: terrainObstructionProfile,
-        focusedModel: deferredState.focusedModel,
-        compareMode: deferredState.viewMode === "compare",
-        config: deferredState.sweepConfig,
-        language: deferredState.language,
-      }),
+      deferredState.analysisTab === "sweep"
+        ? buildSweepChartData({
+            scenario: deferredState.scenario,
+            primaryModel: deferredState.primaryModel,
+            comparisonModel: deferredState.comparisonModel,
+            terrainProfile: terrainObstructionProfile,
+            focusedModel: deferredState.focusedModel,
+            compareMode: deferredState.viewMode === "compare",
+            config: deferredState.sweepConfig,
+            language: deferredState.language,
+          })
+        : createEmptySweepChartData(),
     [
+      deferredState.analysisTab,
       deferredState.scenario,
       deferredState.primaryModel,
       deferredState.comparisonModel,

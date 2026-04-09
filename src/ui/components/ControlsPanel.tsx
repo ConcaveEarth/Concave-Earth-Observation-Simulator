@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch } from "react";
 import {
   ATMOSPHERE_COEFFICIENT_MAX,
@@ -135,20 +135,55 @@ function NumberField({
     [displayedValue, inputDecimals],
   );
   const [draftValue, setDraftValue] = useState(formattedDisplayedValue);
+  const sliderFrameRef = useRef<number | null>(null);
+  const sliderPendingValueRef = useRef<number | null>(null);
 
   useEffect(() => {
     setDraftValue(formattedDisplayedValue);
   }, [formattedDisplayedValue]);
 
+  useEffect(
+    () => () => {
+      if (sliderFrameRef.current != null) {
+        cancelAnimationFrame(sliderFrameRef.current);
+      }
+    },
+    [],
+  );
+
   const clampBaseValue = (nextValue: number) =>
     Math.min(max ?? Number.POSITIVE_INFINITY, Math.max(min, nextValue));
 
-  const updateFromDisplay = (nextDisplayedValue: number) => {
+  const commitFromDisplay = (nextDisplayedValue: number) => {
     if (!Number.isFinite(nextDisplayedValue)) {
       return;
     }
 
-    onChange(clampBaseValue(baseFromDisplay(nextDisplayedValue, unit)));
+    startTransition(() => {
+      onChange(clampBaseValue(baseFromDisplay(nextDisplayedValue, unit)));
+    });
+  };
+
+  const scheduleFromDisplay = (nextDisplayedValue: number) => {
+    if (!Number.isFinite(nextDisplayedValue)) {
+      return;
+    }
+
+    sliderPendingValueRef.current = nextDisplayedValue;
+
+    if (sliderFrameRef.current != null) {
+      return;
+    }
+
+    sliderFrameRef.current = requestAnimationFrame(() => {
+      sliderFrameRef.current = null;
+      const pendingValue = sliderPendingValueRef.current;
+      sliderPendingValueRef.current = null;
+
+      if (pendingValue != null) {
+        commitFromDisplay(pendingValue);
+      }
+    });
   };
 
   return (
@@ -170,7 +205,7 @@ function NumberField({
         <button
           type="button"
           className="field__stepper"
-          onClick={() => updateFromDisplay(displayedValue - displayedSliderStep)}
+          onClick={() => commitFromDisplay(displayedValue - displayedSliderStep)}
           disabled={disabled || displayedValue <= displayedMin}
           aria-label={`Decrease ${label}`}
         >
@@ -183,12 +218,12 @@ function NumberField({
           step={displayedSliderStep}
           value={roundTo(displayedValue, sliderDecimals)}
           disabled={disabled}
-          onChange={(event) => updateFromDisplay(Number(event.target.value))}
+          onChange={(event) => scheduleFromDisplay(Number(event.target.value))}
         />
         <button
           type="button"
           className="field__stepper"
-          onClick={() => updateFromDisplay(displayedValue + displayedSliderStep)}
+          onClick={() => commitFromDisplay(displayedValue + displayedSliderStep)}
           disabled={disabled || (displayedMax == null ? false : displayedValue >= displayedMax)}
           aria-label={`Increase ${label}`}
         >
@@ -209,7 +244,7 @@ function NumberField({
               const parsed = Number(nextDraft.replace(",", "."));
 
               if (Number.isFinite(parsed)) {
-                updateFromDisplay(parsed);
+                commitFromDisplay(parsed);
               }
             }}
             onBlur={() => setDraftValue(formattedDisplayedValue)}
