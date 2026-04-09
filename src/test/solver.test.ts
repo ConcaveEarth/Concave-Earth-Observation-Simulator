@@ -157,6 +157,23 @@ describe("visibility solver", () => {
     expect(result.opticalHorizon!.distanceM).toBeGreaterThan(0);
   });
 
+  it("refines partial visibility between sample slices for the convex Aconcagua case", () => {
+    const preset = getPresetById("aconcagua-study");
+    const result = solveVisibility(
+      preset.scenario,
+      applyPresetToModel(defaultPrimaryModel, preset.primaryModel),
+    );
+    const lowestVisibleIndex = result.targetSamples.findIndex((sample) => sample.visible);
+
+    expect(lowestVisibleIndex).toBeGreaterThan(0);
+    expect(result.hiddenHeightM).toBeGreaterThan(
+      result.targetSamples[lowestVisibleIndex - 1].sampleHeightM,
+    );
+    expect(result.hiddenHeightM).toBeLessThan(
+      result.targetSamples[lowestVisibleIndex].sampleHeightM,
+    );
+  });
+
   it("keeps the Roxas-inspired Aconcagua concave preset partially visible with a traced horizon", () => {
     const preset = getPresetById("aconcagua-study");
     const result = solveVisibility(

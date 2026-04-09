@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyPresetToModel,
   buildObserverViewPanelData,
   buildProfileVisibilityPanelData,
   buildRayBundlePanelData,
@@ -7,6 +8,7 @@ import {
   defaultComparisonModel,
   defaultPrimaryModel,
   defaultScenario,
+  getPresetById,
   solveVisibility,
 } from "../domain";
 
@@ -29,6 +31,31 @@ describe("analysis helpers", () => {
     expect(data.series).toHaveLength(2);
     expect(data.series[0].points).toHaveLength(12);
     expect(data.range.max).toBeGreaterThan(data.range.min);
+  });
+
+  it("keeps the convex Aconcagua visibility sweep monotonic as distance increases", () => {
+    const preset = getPresetById("aconcagua-study");
+    const data = buildSweepChartData({
+      scenario: preset.scenario,
+      primaryModel: applyPresetToModel(defaultPrimaryModel, preset.primaryModel),
+      comparisonModel: applyPresetToModel(defaultComparisonModel, preset.comparisonModel),
+      focusedModel: "primary",
+      compareMode: false,
+      config: {
+        parameter: "distance",
+        metric: "visibilityFraction",
+        rangeMode: "operational",
+        sampleCount: 18,
+      },
+    });
+
+    const values = data.series[0].points
+      .map((point) => point.y)
+      .filter((value): value is number => value != null);
+
+    for (let index = 1; index < values.length; index += 1) {
+      expect(values[index]).toBeLessThanOrEqual(values[index - 1] + 1e-6);
+    }
   });
 
   it("builds a ray bundle panel from shared solver outputs", () => {

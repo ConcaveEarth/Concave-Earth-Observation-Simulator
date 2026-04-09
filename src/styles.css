@@ -1104,7 +1104,7 @@ select {
 .app-shell--fullwidth-scene .scene-card--sweep .scene-card__viewport,
 .app-shell--fullwidth-scene .scene-card--sweep .scene-svg,
 .app-shell--fullwidth-scene .scene-card--sweep .scene-chart {
-  min-height: clamp(560px, 66vh, 980px);
+  min-height: clamp(400px, 48vh, 700px);
 }
 
 .scene-legend-overlay {
@@ -1259,6 +1259,20 @@ select {
 
 .sweep-chart {
   cursor: grab;
+  min-height: clamp(360px, 44vh, 620px);
+  aspect-ratio: 16 / 7;
+}
+
+.scene-card--sweep .scene-card__viewport--analysis {
+  min-height: clamp(420px, 50vh, 720px);
+}
+
+.scene-card--sweep.scene-card--fit-content .scene-card__viewport--analysis {
+  min-height: 0;
+}
+
+.scene-card--sweep.scene-card--fit-content .sweep-chart {
+  min-height: clamp(340px, 40vh, 560px);
 }
 
 .scene-svg:active,

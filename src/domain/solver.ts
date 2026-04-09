@@ -417,6 +417,53 @@ function solveOpticalHorizon(
   );
 }
 
+function refineHiddenHeightBoundary(
+  scenario: ScenarioInput,
+  model: ModelConfig,
+  targetSamples: VisibilitySample[],
+): number {
+  const lowestVisibleIndex = targetSamples.findIndex((sample) => sample.visible);
+
+  if (lowestVisibleIndex < 0) {
+    return scenario.targetHeightM;
+  }
+
+  if (lowestVisibleIndex === 0) {
+    return 0;
+  }
+
+  const blockedBelow = targetSamples[lowestVisibleIndex - 1];
+  const visibleAbove = targetSamples[lowestVisibleIndex];
+
+  if (!blockedBelow || blockedBelow.visible || !visibleAbove?.visible) {
+    return visibleAbove?.sampleHeightM ?? scenario.targetHeightM;
+  }
+
+  let low = blockedBelow.sampleHeightM;
+  let high = visibleAbove.sampleHeightM;
+  let bestVisible = high;
+  const toleranceM = Math.max(0.05, Math.min(0.5, scenario.targetHeightM / 10_000));
+
+  for (let iteration = 0; iteration < 16 && high - low > toleranceM; iteration += 1) {
+    const middle = (low + high) / 2;
+    const sample = solveTargetPointVisibility(
+      scenario,
+      model,
+      scenario.surfaceDistanceM,
+      middle,
+    );
+
+    if (sample.visible) {
+      bestVisible = middle;
+      high = middle;
+    } else {
+      low = middle;
+    }
+  }
+
+  return bestVisible;
+}
+
 export function solveVisibility(
   scenario: ScenarioInput,
   model: ModelConfig,
@@ -477,7 +524,9 @@ export function solveVisibility(
   const visibleSamples = targetSamples.filter((sample) => sample.visible);
   const lowestVisible = visibleSamples[0];
   const highestVisible = visibleSamples[visibleSamples.length - 1];
-  const hiddenHeightM = lowestVisible ? lowestVisible.sampleHeightM : scenario.targetHeightM;
+  const hiddenHeightM = lowestVisible
+    ? refineHiddenHeightBoundary(scenario, model, targetSamples)
+    : scenario.targetHeightM;
   const visibleHeightM = Math.max(0, scenario.targetHeightM - hiddenHeightM);
   const visibilityFraction =
     scenario.targetHeightM > 0
