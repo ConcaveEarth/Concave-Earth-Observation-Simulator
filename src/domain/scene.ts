@@ -461,14 +461,14 @@ function buildTerrainOverlay(
       "terrain-profile",
       terrainProfile.strokeColor ?? featurePalette.terrainProfile,
       profilePoints,
-      2.3,
+      3.25,
       false,
       terrainProfile.name,
     ),
     fill: {
       id: "terrain-profile-fill",
-      fill: terrainProfile.fillColor ?? "rgba(174, 132, 71, 0.24)",
-      opacity: 0.94,
+      fill: terrainProfile.fillColor ?? "rgba(188, 140, 77, 0.34)",
+      opacity: 0.98,
       points: [...profilePoints, ...baselinePoints.slice().reverse()],
     },
   };
@@ -513,6 +513,13 @@ function createFocusBounds(result: VisibilitySolveResult, points: Vec2[]): Scene
     minTopPad: Math.max(260, getTargetTopElevationM(result.scenario) * 0.22),
     minBottomPad: Math.max(260, getTargetTopElevationM(result.scenario) * 0.22),
   });
+}
+
+function offsetSurfaceBand(points: Vec2[], thickness: number) {
+  return points.map((point) => ({
+    x: point.x,
+    y: point.y + thickness,
+  }));
 }
 
 function placeLabel(
@@ -827,11 +834,12 @@ export function buildSceneViewModel(
           ? highestVisibleSample?.apparentElevationRad ?? result.apparentElevationRad
           : result.apparentElevationRad;
   const visibilityPolygons: SceneViewModel["visibilityPolygons"] = [];
-  if (
-    result.model.geometryMode === "concave" &&
-    opticalHorizonPoint &&
-    apparentElevationForDisplay != null
-  ) {
+  if (result.model.geometryMode === "concave" && opticalHorizonPoint) {
+    const bandThickness = clamp(
+      getTargetTopElevationM(result.scenario) * verticalExaggeration * 0.02,
+      Math.max(18, verticalExaggeration * 0.3),
+      Math.max(220, verticalExaggeration * 4.5),
+    );
     const visibleSurfaceArc = [
       observerBase,
       ...surfaceSamples.filter(
@@ -841,23 +849,21 @@ export function buildSceneViewModel(
     ];
 
     if (visibleSurfaceArc.length >= 2) {
+      const visibleBandTop = offsetSurfaceBand(visibleSurfaceArc, bandThickness);
       visibilityPolygons.push({
         id: "visible-surface-region",
-        fill: "rgba(241, 215, 108, 0.12)",
+        fill: "rgba(241, 215, 108, 0.18)",
         opacity: 1,
-        points: [{ x: 0, y: 0 }, opticalHorizonPoint, ...visibleSurfaceArc.slice().reverse()],
+        points: [...visibleBandTop, ...visibleSurfaceArc.slice().reverse()],
       });
     }
 
-    const shadowExtentX = forwardDistanceM * 0.94;
+    const shadowExtentX = clamp(
+      targetBase?.x ?? forwardDistanceM * 0.94,
+      opticalHorizonPoint.x + 60,
+      forwardDistanceM * 0.97,
+    );
     if (shadowExtentX > opticalHorizonPoint.x + 50) {
-      const apparentShadowEnd = {
-        x: shadowExtentX,
-        y:
-          Math.sin(apparentElevationForDisplay) *
-          shadowExtentX *
-          verticalExaggeration,
-      };
       const hiddenSurfaceArc = [
         opticalHorizonPoint,
         ...surfaceSamples.filter(
@@ -871,11 +877,12 @@ export function buildSceneViewModel(
       );
 
       if (hiddenSurfaceArc.length >= 2) {
+        const shadowBandTop = offsetSurfaceBand(hiddenSurfaceArc, bandThickness * 0.92);
         visibilityPolygons.push({
           id: "shadow-surface-region",
-          fill: "rgba(255, 108, 131, 0.11)",
+          fill: "rgba(117, 208, 255, 0.12)",
           opacity: 1,
-          points: [opticalHorizonPoint, apparentShadowEnd, ...hiddenSurfaceArc.slice().reverse()],
+          points: [...shadowBandTop, ...hiddenSurfaceArc.slice().reverse()],
         });
       }
     }

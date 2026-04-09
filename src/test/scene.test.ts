@@ -108,6 +108,19 @@ describe("scene view model", () => {
       ),
     ).toBe(true);
     expect(scene.visibilityPolygons?.length ?? 0).toBeGreaterThanOrEqual(1);
+    const visibleRegion = scene.visibilityPolygons?.find(
+      (polygon) => polygon.id === "visible-surface-region",
+    );
+    const shadowRegion = scene.visibilityPolygons?.find(
+      (polygon) => polygon.id === "shadow-surface-region",
+    );
+    expect(visibleRegion).toBeDefined();
+    expect(shadowRegion).toBeDefined();
+    expect(
+      visibleRegion?.points.some(
+        (point) => Math.abs(point.x) < 1e-6 && Math.abs(point.y) < 1e-6,
+      ) ?? false,
+    ).toBe(false);
   });
 
   it("respects advanced line behavior overrides for scene construction", () => {

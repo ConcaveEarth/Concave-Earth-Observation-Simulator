@@ -165,8 +165,20 @@ function renderLine(
     selectedSceneKey,
   );
   const showEmphasis = isActive || isSelected;
+  const isTerrainProfile = line.featureId === "terrain-profile";
   return (
     <g key={line.id}>
+      {isTerrainProfile ? (
+        <polyline
+          points={polygonPoints(line.points.map(project))}
+          fill="none"
+          stroke="rgba(30, 20, 10, 0.55)"
+          strokeWidth={line.width + 5.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity={activeFeatureId !== null && !isActive && !isSelected ? 0.32 : 0.88}
+        />
+      ) : null}
       {showEmphasis ? (
         <polyline
           points={polygonPoints(line.points.map(project))}
@@ -179,19 +191,41 @@ function renderLine(
           opacity={isActive ? 0.92 : 0.75}
         />
       ) : null}
-      <polyline
-        points={polygonPoints(line.points.map(project))}
-        fill="none"
-        stroke={line.color}
-        strokeWidth={isActive ? line.width + 1.85 : isSelected ? line.width + 1.1 : line.width}
-        strokeDasharray={line.dashed ? "12 12" : undefined}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        opacity={activeFeatureId !== null && !isActive ? 0.16 : isSelected ? 1 : 0.96}
-        filter={showEmphasis || (line.featureId === "actual-ray" && activeFeatureId == null) ? "url(#glow)" : undefined}
-        onMouseEnter={() => onHoverFeature(sceneKey, line.featureId)}
-        onMouseLeave={() => onHoverFeature(null, null)}
-        onClick={(event) => {
+        <polyline
+          points={polygonPoints(line.points.map(project))}
+          fill="none"
+          stroke={line.color}
+          strokeWidth={
+            isActive
+              ? line.width + 1.85
+              : isSelected
+                ? line.width + 1.1
+                : line.width
+          }
+          strokeDasharray={line.dashed ? "12 12" : undefined}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity={
+            activeFeatureId !== null && !isActive
+              ? isTerrainProfile
+                ? 0.42
+                : 0.16
+              : isSelected
+                ? 1
+                : isTerrainProfile
+                  ? 0.98
+                  : 0.96
+          }
+          filter={
+            showEmphasis ||
+            line.featureId === "actual-ray" && activeFeatureId == null ||
+            isTerrainProfile
+              ? "url(#glow)"
+              : undefined
+          }
+          onMouseEnter={() => onHoverFeature(sceneKey, line.featureId)}
+          onMouseLeave={() => onHoverFeature(null, null)}
+          onClick={(event) => {
           event.stopPropagation();
           onSelectFeature(sceneKey, line.featureId);
         }}
