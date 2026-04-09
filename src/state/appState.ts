@@ -103,7 +103,14 @@ export type AppAction =
   | {
       type: "setAtmosphereField";
       target: FocusedModel;
-      key: "mode" | "coefficient";
+      key:
+        | "mode"
+        | "coefficient"
+        | "upperCoefficient"
+        | "transitionHeightM"
+        | "inversionStrength"
+        | "inversionBaseHeightM"
+        | "inversionDepthM";
       value: number | string;
     }
   | {
@@ -304,10 +311,22 @@ function normalizeAnalysisTab(value: string): AnalysisTab {
     case "ray-bundle":
     case "observer-view":
     case "profile-visibility":
+    case "route-map":
+    case "sky-wrap":
     case "sweep":
       return value;
     default:
       return "cross-section";
+  }
+}
+
+function normalizeAtmosphereMode(value: string) {
+  switch (value) {
+    case "none":
+    case "layered":
+      return value;
+    default:
+      return "simpleCoefficient";
   }
 }
 
@@ -409,14 +428,29 @@ function updateAtmosphere(
   model: ModelConfig,
   action: Extract<AppAction, { type: "setAtmosphereField" }>,
 ): ModelConfig {
+  const numericKeys = new Set([
+    "coefficient",
+    "upperCoefficient",
+    "transitionHeightM",
+    "inversionStrength",
+    "inversionBaseHeightM",
+    "inversionDepthM",
+  ]);
+
   return {
     ...model,
     atmosphere: {
       ...model.atmosphere,
       [action.key]:
         action.key === "mode"
-          ? action.value
-          : clampAtmosphereCoefficient(Number(action.value)),
+          ? normalizeAtmosphereMode(String(action.value))
+          : numericKeys.has(action.key)
+            ? action.key === "coefficient" ||
+              action.key === "upperCoefficient" ||
+              action.key === "inversionStrength"
+              ? clampAtmosphereCoefficient(Number(action.value))
+              : Math.max(0, Number(action.value))
+            : Number(action.value),
     },
   };
 }
@@ -684,6 +718,23 @@ function serializeModel(prefix: string, model: ModelConfig, params: URLSearchPar
   params.set(`${prefix}IntrinsicValue`, String(model.intrinsicCurvaturePerM));
   params.set(`${prefix}AtmosphereMode`, model.atmosphere.mode);
   params.set(`${prefix}AtmosphereK`, String(model.atmosphere.coefficient));
+  params.set(`${prefix}AtmosphereUpperK`, String(model.atmosphere.upperCoefficient));
+  params.set(
+    `${prefix}AtmosphereTransitionHeight`,
+    String(model.atmosphere.transitionHeightM),
+  );
+  params.set(
+    `${prefix}AtmosphereInversionStrength`,
+    String(model.atmosphere.inversionStrength),
+  );
+  params.set(
+    `${prefix}AtmosphereInversionBase`,
+    String(model.atmosphere.inversionBaseHeightM),
+  );
+  params.set(
+    `${prefix}AtmosphereInversionDepth`,
+    String(model.atmosphere.inversionDepthM),
+  );
   params.set(
     `${prefix}ReferenceConstruction`,
     model.lineBehavior.referenceConstruction,
@@ -736,13 +787,50 @@ function hydrateModel(
       fallback.intrinsicCurvaturePerM,
     ),
     atmosphere: {
-      mode:
-        atmosphereMode === "none" ? "none" : fallback.atmosphere.mode,
+      mode: normalizeAtmosphereMode(atmosphereMode ?? fallback.atmosphere.mode),
       coefficient: clampAtmosphereCoefficient(
         parseNumber(
           params,
           `${prefix}AtmosphereK`,
           fallback.atmosphere.coefficient,
+        ),
+      ),
+      upperCoefficient: clampAtmosphereCoefficient(
+        parseNumber(
+          params,
+          `${prefix}AtmosphereUpperK`,
+          fallback.atmosphere.upperCoefficient,
+        ),
+      ),
+      transitionHeightM: Math.max(
+        0,
+        parseNumber(
+          params,
+          `${prefix}AtmosphereTransitionHeight`,
+          fallback.atmosphere.transitionHeightM,
+        ),
+      ),
+      inversionStrength: clampAtmosphereCoefficient(
+        parseNumber(
+          params,
+          `${prefix}AtmosphereInversionStrength`,
+          fallback.atmosphere.inversionStrength,
+        ),
+      ),
+      inversionBaseHeightM: Math.max(
+        0,
+        parseNumber(
+          params,
+          `${prefix}AtmosphereInversionBase`,
+          fallback.atmosphere.inversionBaseHeightM,
+        ),
+      ),
+      inversionDepthM: Math.max(
+        0,
+        parseNumber(
+          params,
+          `${prefix}AtmosphereInversionDepth`,
+          fallback.atmosphere.inversionDepthM,
         ),
       ),
     },

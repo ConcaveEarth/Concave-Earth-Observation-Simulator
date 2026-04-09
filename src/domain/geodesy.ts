@@ -6,6 +6,12 @@ export interface GreatCircleRouteMetrics {
   initialBearingDeg: number;
 }
 
+export interface GreatCircleRoutePoint {
+  latDeg: number;
+  lonDeg: number;
+  distanceM: number;
+}
+
 export function degToRad(value: number): number {
   return (value * Math.PI) / 180;
 }
@@ -52,4 +58,71 @@ export function getGreatCircleRouteMetrics(args: {
     distanceM: args.radiusM * centralAngleRad,
     initialBearingDeg,
   };
+}
+
+function sphericalToCartesian(latRad: number, lonRad: number) {
+  const cosLat = Math.cos(latRad);
+  return {
+    x: cosLat * Math.cos(lonRad),
+    y: cosLat * Math.sin(lonRad),
+    z: Math.sin(latRad),
+  };
+}
+
+function cartesianToSpherical(point: { x: number; y: number; z: number }) {
+  const magnitude = Math.hypot(point.x, point.y, point.z) || 1;
+  const x = point.x / magnitude;
+  const y = point.y / magnitude;
+  const z = point.z / magnitude;
+  return {
+    latDeg: radToDeg(Math.asin(z)),
+    lonDeg: normalizeLongitudeDeg(radToDeg(Math.atan2(y, x))),
+  };
+}
+
+export function interpolateGreatCircleRoute(args: {
+  observerLatDeg: number;
+  observerLonDeg: number;
+  targetLatDeg: number;
+  targetLonDeg: number;
+  radiusM: number;
+  sampleCount?: number;
+}): GreatCircleRoutePoint[] {
+  const sampleCount = Math.max(2, args.sampleCount ?? 64);
+  const observerLatRad = degToRad(normalizeLatitudeDeg(args.observerLatDeg));
+  const observerLonRad = degToRad(normalizeLongitudeDeg(args.observerLonDeg));
+  const targetLatRad = degToRad(normalizeLatitudeDeg(args.targetLatDeg));
+  const targetLonRad = degToRad(normalizeLongitudeDeg(args.targetLonDeg));
+  const route = getGreatCircleRouteMetrics(args);
+  const start = sphericalToCartesian(observerLatRad, observerLonRad);
+  const end = sphericalToCartesian(targetLatRad, targetLonRad);
+  const omega = route.centralAngleRad;
+  const sinOmega = Math.sin(omega);
+
+  return Array.from({ length: sampleCount }, (_, index) => {
+    const fraction = sampleCount === 1 ? 0 : index / (sampleCount - 1);
+
+    if (sinOmega < 1e-6) {
+      return {
+        latDeg: args.observerLatDeg,
+        lonDeg: args.observerLonDeg,
+        distanceM: route.distanceM * fraction,
+      };
+    }
+
+    const weightA = Math.sin((1 - fraction) * omega) / sinOmega;
+    const weightB = Math.sin(fraction * omega) / sinOmega;
+    const point = {
+      x: start.x * weightA + end.x * weightB,
+      y: start.y * weightA + end.y * weightB,
+      z: start.z * weightA + end.z * weightB,
+    };
+    const spherical = cartesianToSpherical(point);
+
+    return {
+      latDeg: spherical.latDeg,
+      lonDeg: spherical.lonDeg,
+      distanceM: route.distanceM * fraction,
+    };
+  });
 }

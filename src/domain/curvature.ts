@@ -59,7 +59,44 @@ export function getAtmosphereCurvatureMagnitude(
     return 0;
   }
 
-  return (1 / scenario.radiusM) * clampAtmosphereCoefficient(model.atmosphere.coefficient);
+  return getAtmosphereCurvatureMagnitudeAtHeight(model, scenario, 0);
+}
+
+function getLayeredAtmosphereCoefficient(
+  model: ModelConfig,
+  heightAboveSurfaceM: number,
+): number {
+  const height = Math.max(0, heightAboveSurfaceM);
+  const transitionHeightM = Math.max(1, model.atmosphere.transitionHeightM);
+  const baseMix = clamp(height / transitionHeightM, 0, 1);
+  const baselineCoefficient =
+    model.atmosphere.coefficient +
+    (model.atmosphere.upperCoefficient - model.atmosphere.coefficient) * baseMix;
+  const inversionBaseM = Math.max(0, model.atmosphere.inversionBaseHeightM);
+  const inversionDepthM = Math.max(1, model.atmosphere.inversionDepthM);
+  const inversionPeakM = inversionBaseM + inversionDepthM / 2;
+  const distanceFromPeak = Math.abs(height - inversionPeakM);
+  const normalizedDistance = clamp(distanceFromPeak / (inversionDepthM / 2), 0, 1);
+  const inversionProfile = 1 - normalizedDistance;
+
+  return baselineCoefficient + model.atmosphere.inversionStrength * inversionProfile;
+}
+
+export function getAtmosphereCurvatureMagnitudeAtHeight(
+  model: ModelConfig,
+  scenario: ScenarioInput,
+  heightAboveSurfaceM: number,
+): number {
+  if (model.atmosphere.mode === "none") {
+    return 0;
+  }
+
+  const coefficient =
+    model.atmosphere.mode === "layered"
+      ? getLayeredAtmosphereCoefficient(model, heightAboveSurfaceM)
+      : model.atmosphere.coefficient;
+
+  return (1 / scenario.radiusM) * clampAtmosphereCoefficient(coefficient);
 }
 
 export function getTurnRatePerMeter(
@@ -68,6 +105,11 @@ export function getTurnRatePerMeter(
   scenario: ScenarioInput,
   model: ModelConfig,
 ): number {
+  const radialDistanceM = Math.hypot(point.x, point.y);
+  const heightAboveSurfaceM =
+    model.geometryMode === "concave"
+      ? Math.max(0, scenario.radiusM - radialDistanceM)
+      : Math.max(0, radialDistanceM - scenario.radiusM);
   const intrinsic =
     model.geometryMode === "concave"
       ? signedTurnRate(
@@ -79,7 +121,7 @@ export function getTurnRatePerMeter(
 
   const atmosphere = signedTurnRate(
     headingRad,
-    getAtmosphereCurvatureMagnitude(model, scenario),
+    getAtmosphereCurvatureMagnitudeAtHeight(model, scenario, heightAboveSurfaceM),
     localGroundAtPoint(point, model.geometryMode),
   );
 

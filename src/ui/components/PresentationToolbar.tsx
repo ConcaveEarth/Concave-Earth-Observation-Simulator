@@ -35,23 +35,27 @@ export function PresentationToolbar({
   dispatch,
   language,
 }: PresentationToolbarProps) {
+  const showsPanelCompareControls = state.analysisTab !== "route-map";
+
   return (
     <div className="scene-toolbar scene-toolbar--presentation">
-      <div className="scene-toolbar__group">
-        <span className="scene-toolbar__label">{t(language, "panelLayout")}</span>
-        <ControlButton
-          label={t(language, "singlePanel")}
-          active={state.viewMode === "cross-section"}
-          onClick={() => dispatch({ type: "setViewMode", value: "cross-section" })}
-        />
-        <ControlButton
-          label={t(language, "splitCompare")}
-          active={state.viewMode === "compare"}
-          onClick={() => dispatch({ type: "setViewMode", value: "compare" })}
-        />
-      </div>
+      {showsPanelCompareControls ? (
+        <div className="scene-toolbar__group">
+          <span className="scene-toolbar__label">{t(language, "panelLayout")}</span>
+          <ControlButton
+            label={t(language, "singlePanel")}
+            active={state.viewMode === "cross-section"}
+            onClick={() => dispatch({ type: "setViewMode", value: "cross-section" })}
+          />
+          <ControlButton
+            label={t(language, "splitCompare")}
+            active={state.viewMode === "compare"}
+            onClick={() => dispatch({ type: "setViewMode", value: "compare" })}
+          />
+        </div>
+      ) : null}
 
-      {state.viewMode === "cross-section" ? (
+      {showsPanelCompareControls && state.viewMode === "cross-section" ? (
         <div className="scene-toolbar__group">
           <span className="scene-toolbar__label">{t(language, "singlePanelModel")}</span>
           <ControlButton
@@ -67,7 +71,7 @@ export function PresentationToolbar({
             }
           />
         </div>
-      ) : (
+      ) : showsPanelCompareControls ? (
         <div className="scene-toolbar__group">
           <span className="scene-toolbar__label">{t(language, "compareLayout")}</span>
           <ControlButton
@@ -104,7 +108,7 @@ export function PresentationToolbar({
             }
           />
         </div>
-      )}
+      ) : null}
 
       {state.analysisTab === "cross-section" ? (
         <>
@@ -159,7 +163,7 @@ export function PresentationToolbar({
             }
           />
         </div>
-      ) : state.analysisTab === "observer-view" ? (
+      ) : state.analysisTab === "observer-view" || state.analysisTab === "sky-wrap" ? (
         <>
           <div className="scene-toolbar__group">
             <span className="scene-toolbar__label">{t(language, "annotations")}</span>
@@ -169,17 +173,23 @@ export function PresentationToolbar({
               onClick={() => dispatch({ type: "setAnnotated", value: !state.annotated })}
             />
           </div>
-          <div className="scene-toolbar__group">
-            <span className="scene-toolbar__label">{t(language, "guides")}</span>
-            <ControlButton
-              label={t(language, "scaleGuides")}
-              active={state.showScaleGuides}
-              onClick={() =>
-                dispatch({ type: "setShowScaleGuides", value: !state.showScaleGuides })
-              }
-            />
-          </div>
+          {state.analysisTab === "observer-view" ? (
+            <div className="scene-toolbar__group">
+              <span className="scene-toolbar__label">{t(language, "guides")}</span>
+              <ControlButton
+                label={t(language, "scaleGuides")}
+                active={state.showScaleGuides}
+                onClick={() =>
+                  dispatch({ type: "setShowScaleGuides", value: !state.showScaleGuides })
+                }
+              />
+            </div>
+          ) : null}
         </>
+      ) : state.analysisTab === "route-map" ? (
+        <div className="scene-toolbar__group scene-toolbar__group--meta">
+          <span className="scene-toolbar__meta">{t(language, "routeMapIntro")}</span>
+        </div>
       ) : state.analysisTab === "profile-visibility" ? (
         <div className="scene-toolbar__group">
           <span className="scene-toolbar__label">{t(language, "guides")}</span>

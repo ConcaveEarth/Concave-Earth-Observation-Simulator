@@ -1,6 +1,6 @@
 export type GeometryMode = "convex" | "concave";
 export type IntrinsicCurvatureMode = "none" | "1/R" | "2/R" | "constant";
-export type AtmosphereMode = "none" | "simpleCoefficient";
+export type AtmosphereMode = "none" | "simpleCoefficient" | "layered";
 export type ViewMode = "cross-section" | "compare";
 export type FocusedModel = "primary" | "comparison";
 export type ScenarioMode = "simple" | "field";
@@ -44,6 +44,11 @@ export interface ScenarioCoordinateInput {
 export interface AtmosphereConfig {
   mode: AtmosphereMode;
   coefficient: number;
+  upperCoefficient: number;
+  transitionHeightM: number;
+  inversionStrength: number;
+  inversionBaseHeightM: number;
+  inversionDepthM: number;
 }
 
 export interface LineBehaviorConfig {

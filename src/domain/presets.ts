@@ -1,7 +1,17 @@
 import { ATMOSPHERE_COEFFICIENT_DEFAULT } from "./curvature";
-import type { ModelConfig, ScenarioInput } from "./types";
+import type {
+  AtmosphereConfig,
+  LineBehaviorConfig,
+  ModelConfig,
+  ScenarioInput,
+} from "./types";
 
 export type PresetVerificationStatus = "verified" | "source-inspired" | "illustrative";
+
+type PresetModelOverride = Omit<Partial<ModelConfig>, "atmosphere" | "lineBehavior"> & {
+  atmosphere?: Partial<AtmosphereConfig>;
+  lineBehavior?: Partial<LineBehaviorConfig>;
+};
 
 export interface ScenarioPreset {
   id: string;
@@ -12,8 +22,8 @@ export interface ScenarioPreset {
   provenance?: string;
   sourceUrl?: string;
   assumptions?: string[];
-  primaryModel?: Partial<ModelConfig>;
-  comparisonModel?: Partial<ModelConfig>;
+  primaryModel?: PresetModelOverride;
+  comparisonModel?: PresetModelOverride;
 }
 
 export const defaultScenario: ScenarioInput = {
@@ -46,6 +56,11 @@ export const defaultPrimaryModel: ModelConfig = {
   atmosphere: {
     mode: "simpleCoefficient",
     coefficient: ATMOSPHERE_COEFFICIENT_DEFAULT,
+    upperCoefficient: 0.02,
+    transitionHeightM: 12_000,
+    inversionStrength: 0,
+    inversionBaseHeightM: 50,
+    inversionDepthM: 200,
   },
   lineBehavior: {
     referenceConstruction: "curved-altitude",
@@ -67,6 +82,11 @@ export const defaultComparisonModel: ModelConfig = {
   atmosphere: {
     mode: "simpleCoefficient",
     coefficient: ATMOSPHERE_COEFFICIENT_DEFAULT,
+    upperCoefficient: 0.02,
+    transitionHeightM: 12_000,
+    inversionStrength: 0,
+    inversionBaseHeightM: 50,
+    inversionDepthM: 200,
   },
   lineBehavior: {
     referenceConstruction: "curvilinear-tangent",
@@ -311,7 +331,7 @@ export function getPresetById(id: string): ScenarioPreset {
 
 export function applyPresetToModel(
   baseModel: ModelConfig,
-  override: Partial<ModelConfig> | undefined,
+  override: PresetModelOverride | undefined,
 ): ModelConfig {
   if (!override) {
     return baseModel;

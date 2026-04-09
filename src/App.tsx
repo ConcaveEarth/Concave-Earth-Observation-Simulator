@@ -1,6 +1,7 @@
 import {
   Suspense,
   lazy,
+  startTransition,
   useDeferredValue,
   useEffect,
   useMemo,
@@ -12,7 +13,9 @@ import {
   buildObserverViewPanelData,
   buildProfileVisibilityPanelData,
   buildRayBundlePanelData,
+  buildRouteMapPanelData,
   buildSceneViewModel,
+  buildSkyWrapPanelData,
   buildSweepChartData,
   formatSweepParameterValue,
   getTerrainProfileByPresetId,
@@ -24,6 +27,8 @@ import type {
   ObserverViewPanelData,
   ProfileVisibilityPanelData,
   RayBundlePanelData,
+  RouteMapPanelData,
+  SkyWrapPanelData,
   SweepChartData,
 } from "./domain";
 import { AnalysisTabs } from "./ui/components/AnalysisTabs";
@@ -36,7 +41,8 @@ import { SceneToolbar } from "./ui/components/SceneToolbar";
 import { TopNav } from "./ui/components/TopNav";
 import { AppFooter } from "./ui/components/AppFooter";
 import { downloadSvgAsPng } from "./ui/exportSvg";
-import { t } from "./i18n";
+import { downloadHtmlReport, downloadJson } from "./ui/exportReport";
+import { getModelLabel, t } from "./i18n";
 
 const RayBundleView = lazy(() =>
   import("./ui/components/RayBundleView").then((module) => ({
@@ -53,6 +59,16 @@ const ProfileVisibilityView = lazy(() =>
     default: module.ProfileVisibilityView,
   })),
 );
+const RouteMapView = lazy(() =>
+  import("./ui/components/RouteMapView").then((module) => ({
+    default: module.RouteMapView,
+  })),
+);
+const SkyWrapView = lazy(() =>
+  import("./ui/components/SkyWrapView").then((module) => ({
+    default: module.SkyWrapView,
+  })),
+);
 const SweepChart = lazy(() =>
   import("./ui/components/SweepChart").then((module) => ({
     default: module.SweepChart,
@@ -61,6 +77,10 @@ const SweepChart = lazy(() =>
 
 function getSceneFilename(analysisTab: string, viewMode: string): string {
   return `observation-geometry-lab-${analysisTab}-${viewMode}.png`;
+}
+
+function getExportBasename(analysisTab: string, viewMode: string) {
+  return `observation-geometry-lab-${analysisTab}-${viewMode}`;
 }
 
 function AnalysisLoadingFallback({ message }: { message: string }) {
@@ -178,6 +198,43 @@ function createEmptySweepChartData(): SweepChartData {
     series: [],
     yMin: 0,
     yMax: 1,
+  };
+}
+
+function createEmptyRouteMapPanel(
+  sceneKey: FocusedModel,
+  title: string,
+): RouteMapPanelData {
+  return {
+    sceneKey,
+    title,
+    subtitle: "",
+    routeDistanceM: 0,
+    bearingDeg: 0,
+    routePoints: [],
+    observerPoint: { latDeg: 0, lonDeg: 0 },
+    targetPoint: { latDeg: 0, lonDeg: 0 },
+    coordinatesEnabled: false,
+  };
+}
+
+function createEmptySkyWrapPanel(
+  sceneKey: FocusedModel,
+  title: string,
+): SkyWrapPanelData {
+  return {
+    sceneKey,
+    title,
+    subtitle: "",
+    bounds: { minX: -1, maxX: 1, minY: -1, maxY: 1 },
+    domeRadius: 1,
+    gridCurves: [],
+    rayCurves: [],
+    stats: {
+      intrinsicLabel: "0 / R",
+      atmosphereLabel: "0 / R",
+      netLabel: "0 / R",
+    },
   };
 }
 
@@ -377,6 +434,47 @@ export default function App() {
       buildComparisonFocusedPanel,
     ],
   );
+  const routeMapPanel = useMemo(
+    () =>
+      deferredState.analysisTab === "route-map"
+        ? buildRouteMapPanelData(
+            primaryResult,
+            t(deferredState.language, "routeMap"),
+            "primary",
+          )
+        : createEmptyRouteMapPanel("primary", t(deferredState.language, "routeMap")),
+    [primaryResult, deferredState.analysisTab, deferredState.language],
+  );
+  const primarySkyWrap = useMemo(
+    () =>
+      deferredState.analysisTab === "sky-wrap" && buildPrimaryFocusedPanel
+        ? buildSkyWrapPanelData(
+            primaryResult,
+            t(deferredState.language, "primaryModelTitle"),
+            "primary",
+          )
+        : createEmptySkyWrapPanel("primary", t(deferredState.language, "primaryModelTitle")),
+    [primaryResult, deferredState.analysisTab, deferredState.language, buildPrimaryFocusedPanel],
+  );
+  const comparisonSkyWrap = useMemo(
+    () =>
+      deferredState.analysisTab === "sky-wrap" && buildComparisonFocusedPanel
+        ? buildSkyWrapPanelData(
+            comparisonResult,
+            t(deferredState.language, "comparisonModelTitle"),
+            "comparison",
+          )
+        : createEmptySkyWrapPanel(
+            "comparison",
+            t(deferredState.language, "comparisonModelTitle"),
+          ),
+    [
+      comparisonResult,
+      deferredState.analysisTab,
+      deferredState.language,
+      buildComparisonFocusedPanel,
+    ],
+  );
   const sweepData = useMemo(
     () =>
       deferredState.analysisTab === "sweep"
@@ -428,6 +526,14 @@ export default function App() {
             ? primaryObserverView
             : comparisonObserverView,
         ];
+  const skyWrapPanels =
+    deferredState.viewMode === "compare"
+      ? [primarySkyWrap, comparisonSkyWrap]
+      : [
+          deferredState.focusedModel === "primary"
+            ? primarySkyWrap
+            : comparisonSkyWrap,
+        ];
 
   const visibleSceneKeys = new Set(scenes.map((scene) => scene.sceneKey));
   const hoveredSceneVisible =
@@ -464,6 +570,8 @@ export default function App() {
       : comparisonProfileVisibility;
   const inspectedObserverPanel =
     inspectedSceneKey === "primary" ? primaryObserverView : comparisonObserverView;
+  const inspectedSkyWrapPanel =
+    inspectedSceneKey === "primary" ? primarySkyWrap : comparisonSkyWrap;
   const isFeaturePinned =
     selectedSceneVisible && state.selectedFeatureId !== null && state.selectedSceneKey !== null;
   const displayedScenes = scenes;
@@ -542,6 +650,92 @@ export default function App() {
       setMessage("Share link copied to the clipboard.");
     } catch {
       setMessage(url);
+    }
+  }
+
+  function handleExportJson() {
+    try {
+      const exportPayload = {
+        exportedAt: new Date().toISOString(),
+        analysisTab: state.analysisTab,
+        viewMode: state.viewMode,
+        state,
+        routeMap: routeMapPanel,
+        primaryResult: {
+          model: getModelLabel(state.language, primaryResult.model),
+          hiddenHeightM: primaryResult.hiddenHeightM,
+          visibleHeightM: primaryResult.visibleHeightM,
+          visibilityFraction: primaryResult.visibilityFraction,
+          apparentElevationRad: primaryResult.apparentElevationRad,
+          actualElevationRad: primaryResult.actualElevationRad,
+          opticalHorizonDistanceM: primaryResult.opticalHorizon?.distanceM ?? null,
+        },
+        comparisonResult: {
+          model: getModelLabel(state.language, comparisonResult.model),
+          hiddenHeightM: comparisonResult.hiddenHeightM,
+          visibleHeightM: comparisonResult.visibleHeightM,
+          visibilityFraction: comparisonResult.visibilityFraction,
+          apparentElevationRad: comparisonResult.apparentElevationRad,
+          actualElevationRad: comparisonResult.actualElevationRad,
+          opticalHorizonDistanceM: comparisonResult.opticalHorizon?.distanceM ?? null,
+        },
+      };
+
+      downloadJson(`${getExportBasename(state.analysisTab, state.viewMode)}.json`, exportPayload);
+      setMessage("JSON scenario snapshot exported.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "JSON export failed unexpectedly.");
+    }
+  }
+
+  function handleExportReport() {
+    try {
+      downloadHtmlReport(`${getExportBasename(state.analysisTab, state.viewMode)}.html`, {
+        title: "Observation Geometry Lab Report",
+        generatedAt: new Date().toLocaleString(),
+        sections: [
+          {
+            title: "Scenario",
+            rows: [
+              { label: "Preset", value: deferredState.scenario.presetId },
+              { label: "Analysis", value: t(state.language, state.analysisTab === "cross-section" ? "crossSection" : state.analysisTab === "ray-bundle" ? "rayBundle" : state.analysisTab === "observer-view" ? "observerView" : state.analysisTab === "profile-visibility" ? "profileVisibility" : state.analysisTab === "route-map" ? "routeMap" : state.analysisTab === "sky-wrap" ? "skyWrap" : "sweep") },
+              { label: "Scenario mode", value: deferredState.scenario.scenarioMode },
+              { label: "Surface distance", value: `${deferredState.scenario.surfaceDistanceM.toFixed(0)} m` },
+              { label: "Radius", value: `${deferredState.scenario.radiusM.toFixed(0)} m` },
+            ],
+          },
+          {
+            title: "Route",
+            rows: [
+              { label: "Coordinate route", value: routeMapPanel.coordinatesEnabled ? "Enabled" : "Disabled" },
+              { label: "Derived distance", value: `${routeMapPanel.routeDistanceM.toFixed(0)} m` },
+              { label: "Initial bearing", value: `${routeMapPanel.bearingDeg.toFixed(2)} deg` },
+              { label: "Route samples", value: String(routeMapPanel.routePoints.length) },
+            ],
+          },
+          {
+            title: "Model 1",
+            rows: [
+              { label: "Label", value: getModelLabel(state.language, primaryResult.model) },
+              { label: "Hidden height", value: `${primaryResult.hiddenHeightM.toFixed(2)} m` },
+              { label: "Visibility fraction", value: primaryResult.visibilityFraction.toFixed(4) },
+              { label: "Optical horizon", value: primaryResult.opticalHorizon ? `${primaryResult.opticalHorizon.distanceM.toFixed(2)} m` : "N/A" },
+            ],
+          },
+          {
+            title: "Model 2",
+            rows: [
+              { label: "Label", value: getModelLabel(state.language, comparisonResult.model) },
+              { label: "Hidden height", value: `${comparisonResult.hiddenHeightM.toFixed(2)} m` },
+              { label: "Visibility fraction", value: comparisonResult.visibilityFraction.toFixed(4) },
+              { label: "Optical horizon", value: comparisonResult.opticalHorizon ? `${comparisonResult.opticalHorizon.distanceM.toFixed(2)} m` : "N/A" },
+            ],
+          },
+        ],
+      });
+      setMessage("HTML observation report exported.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Report export failed unexpectedly.");
     }
   }
 
@@ -630,6 +824,8 @@ export default function App() {
           state={state}
           dispatch={dispatch}
           onExport={handleExport}
+          onExportJson={handleExportJson}
+          onExportReport={handleExportReport}
           onCopyLink={handleCopyLink}
           language={state.language}
         />
@@ -643,6 +839,14 @@ export default function App() {
                     }`
                   : deferredState.analysisTab === "profile-visibility"
                     ? `scene-card scene-card--profile-visibility panel${
+                        state.fitContentHeight ? " scene-card--fit-content" : ""
+                      }`
+                  : deferredState.analysisTab === "route-map"
+                    ? `scene-card scene-card--route-map panel${
+                        state.fitContentHeight ? " scene-card--fit-content" : ""
+                      }`
+                  : deferredState.analysisTab === "sky-wrap"
+                    ? `scene-card scene-card--sky-wrap panel${
                         state.fitContentHeight ? " scene-card--fit-content" : ""
                       }`
                   : deferredState.analysisTab === "sweep"
@@ -696,6 +900,10 @@ export default function App() {
                             ? t(state.language, "observerViewIntro")
                           : state.analysisTab === "profile-visibility"
                             ? t(state.language, "profileVisibilityIntro")
+                          : state.analysisTab === "route-map"
+                            ? t(state.language, "routeMapIntro")
+                          : state.analysisTab === "sky-wrap"
+                            ? t(state.language, "skyWrapIntro")
                           : `${t(state.language, "sweepIntro")} ${formatSweepParameterValue(
                               sweepData.range.min,
                               sweepData.parameter,
@@ -1123,6 +1331,96 @@ export default function App() {
                       )}
                     </div>
                   </div>
+                ) : state.analysisTab === "route-map" ? (
+                  <div className="scene-card__viewport scene-card__viewport--analysis">
+                    <div className="scene-card__canvas">
+                      <RouteMapView
+                        panel={routeMapPanel}
+                        language={state.language}
+                        onCoordinateChange={(point, coords) => {
+                          startTransition(() => {
+                            dispatch({
+                              type: "setCoordinateField",
+                              key:
+                                point === "observer" ? "observerLatDeg" : "targetLatDeg",
+                              value: coords.latDeg,
+                            });
+                            dispatch({
+                              type: "setCoordinateField",
+                              key:
+                                point === "observer" ? "observerLonDeg" : "targetLonDeg",
+                              value: coords.lonDeg,
+                            });
+                          });
+                        }}
+                      />
+                    </div>
+                  </div>
+                ) : state.analysisTab === "sky-wrap" ? (
+                  <div
+                    className={
+                      stackedCompareView
+                        ? "scene-card__viewport scene-card__viewport--analysis scene-card__viewport--stacked-list"
+                        : "scene-card__viewport scene-card__viewport--analysis"
+                    }
+                  >
+                    <div
+                      className={
+                        stackedCompareView
+                          ? "scene-stack-list"
+                          : "scene-card__canvas"
+                      }
+                    >
+                      {stackedCompareView ? (
+                        skyWrapPanels.map((panel) => (
+                          <div
+                            key={panel.sceneKey}
+                            className="scene-stack-item scene-stack-item--analysis"
+                          >
+                            <SkyWrapView
+                              panels={[panel]}
+                              compareLayout="side-by-side"
+                              language={state.language}
+                              fitContentHeight={state.fitContentHeight}
+                              zoom={state.sceneViewport.zoom}
+                              verticalZoom={state.sceneViewport.verticalZoom}
+                              panX={state.sceneViewport.panX}
+                              panY={state.sceneViewport.panY}
+                              onPanBy={(deltaX, deltaY) =>
+                                dispatch({ type: "panViewport", deltaX, deltaY })
+                              }
+                              onAdjustZoom={(delta) =>
+                                dispatch({ type: "adjustViewportZoom", delta })
+                              }
+                              onAdjustVerticalZoom={(delta) =>
+                                dispatch({ type: "adjustViewportVerticalZoom", delta })
+                              }
+                            />
+                          </div>
+                        ))
+                      ) : (
+                        <SkyWrapView
+                          panels={skyWrapPanels}
+                          compareLayout={resolvedCompareLayout}
+                          language={state.language}
+                          fitContentHeight={state.fitContentHeight}
+                          zoom={state.sceneViewport.zoom}
+                          verticalZoom={state.sceneViewport.verticalZoom}
+                          panX={state.sceneViewport.panX}
+                          panY={state.sceneViewport.panY}
+                          onPanBy={(deltaX, deltaY) =>
+                            dispatch({ type: "panViewport", deltaX, deltaY })
+                          }
+                          onAdjustZoom={(delta) =>
+                            dispatch({ type: "adjustViewportZoom", delta })
+                          }
+                          onAdjustVerticalZoom={(delta) =>
+                            dispatch({ type: "adjustViewportVerticalZoom", delta })
+                          }
+                        />
+                      )}
+                    </div>
+                  </div>
                 ) : (
                   <div className="scene-card__viewport scene-card__viewport--analysis">
                     <div className="scene-card__canvas">
@@ -1160,6 +1458,8 @@ export default function App() {
           activeBundlePanel={inspectedBundlePanel}
           activeProfilePanel={inspectedProfilePanel}
           activeObserverPanel={inspectedObserverPanel}
+          activeRouteMapPanel={routeMapPanel}
+          activeSkyWrapPanel={inspectedSkyWrapPanel}
           sweepData={sweepData}
           inspectedSceneKey={inspectedSceneKey}
           activeFeatureId={activeFeatureId}
@@ -1167,6 +1467,8 @@ export default function App() {
           onClearSelection={() => dispatch({ type: "clearSelectedFeature" })}
           workspaceMode={state.workspaceMode}
           onExport={handleExport}
+          onExportJson={handleExportJson}
+          onExportReport={handleExportReport}
           onCopyLink={handleCopyLink}
           message={message}
           language={state.language}

@@ -21,7 +21,7 @@ describe("visibility solver", () => {
       },
       {
         ...defaultPrimaryModel,
-        atmosphere: { mode: "none", coefficient: 0 },
+        atmosphere: { ...defaultPrimaryModel.atmosphere, mode: "none", coefficient: 0 },
       },
     );
 
@@ -80,12 +80,16 @@ describe("visibility solver", () => {
     };
     const concaveNoAtmosphere: ModelConfig = {
       ...defaultComparisonModel,
-      atmosphere: { mode: "none", coefficient: 0 },
+      atmosphere: { ...defaultComparisonModel.atmosphere, mode: "none", coefficient: 0 },
       intrinsicCurvatureMode: "2/R",
     };
     const concaveStrongAtmosphere: ModelConfig = {
       ...defaultComparisonModel,
-      atmosphere: { mode: "simpleCoefficient", coefficient: 0.99 },
+      atmosphere: {
+        ...defaultComparisonModel.atmosphere,
+        mode: "simpleCoefficient",
+        coefficient: 0.99,
+      },
       intrinsicCurvatureMode: "2/R",
     };
     const point = pointAtSurfaceHeight(
@@ -120,11 +124,19 @@ describe("visibility solver", () => {
     };
     const downwardModel: ModelConfig = {
       ...defaultPrimaryModel,
-      atmosphere: { mode: "simpleCoefficient", coefficient: 0.15 },
+      atmosphere: {
+        ...defaultPrimaryModel.atmosphere,
+        mode: "simpleCoefficient",
+        coefficient: 0.15,
+      },
     };
     const upwardModel: ModelConfig = {
       ...defaultPrimaryModel,
-      atmosphere: { mode: "simpleCoefficient", coefficient: -0.15 },
+      atmosphere: {
+        ...defaultPrimaryModel.atmosphere,
+        mode: "simpleCoefficient",
+        coefficient: -0.15,
+      },
     };
 
     const downwardResult = solveVisibility(scenario, downwardModel);
@@ -148,7 +160,11 @@ describe("visibility solver", () => {
   it("builds a traced convex optical horizon ray under atmospheric refraction", () => {
     const result = solveVisibility(defaultScenario, {
       ...defaultPrimaryModel,
-      atmosphere: { mode: "simpleCoefficient", coefficient: 0.15 },
+      atmosphere: {
+        ...defaultPrimaryModel.atmosphere,
+        mode: "simpleCoefficient",
+        coefficient: 0.15,
+      },
     });
 
     expect(result.opticalHorizon).not.toBeNull();
@@ -262,12 +278,18 @@ describe("visibility solver", () => {
 
     const withoutTerrain = solveVisibility(
       scenario,
-      { ...defaultPrimaryModel, atmosphere: { mode: "none", coefficient: 0 } },
+      {
+        ...defaultPrimaryModel,
+        atmosphere: { ...defaultPrimaryModel.atmosphere, mode: "none", coefficient: 0 },
+      },
       null,
     );
     const withTerrain = solveVisibility(
       scenario,
-      { ...defaultPrimaryModel, atmosphere: { mode: "none", coefficient: 0 } },
+      {
+        ...defaultPrimaryModel,
+        atmosphere: { ...defaultPrimaryModel.atmosphere, mode: "none", coefficient: 0 },
+      },
       terrainWall,
     );
 

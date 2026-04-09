@@ -4,6 +4,8 @@ import {
   buildObserverViewPanelData,
   buildProfileVisibilityPanelData,
   buildRayBundlePanelData,
+  buildRouteMapPanelData,
+  buildSkyWrapPanelData,
   buildSweepChartData,
   defaultComparisonModel,
   defaultPrimaryModel,
@@ -91,5 +93,39 @@ describe("analysis helpers", () => {
     expect(panel.samplePoints.length).toBeGreaterThan(10);
     expect(panel.bounds.maxX).toBeGreaterThan(panel.bounds.minX);
     expect(panel.bounds.maxY).toBeGreaterThan(panel.bounds.minY);
+  });
+
+  it("builds a coordinate route-map panel from scenario coordinates", () => {
+    const result = solveVisibility(
+      {
+        ...defaultScenario,
+        coordinates: {
+          enabled: true,
+          observerLatDeg: 29.95,
+          observerLonDeg: -90.07,
+          targetLatDeg: 30.02,
+          targetLonDeg: -89.78,
+        },
+      },
+      defaultPrimaryModel,
+    );
+    const panel = buildRouteMapPanelData(result, "Route Map", "primary");
+
+    expect(panel.coordinatesEnabled).toBe(true);
+    expect(panel.routeDistanceM).toBeGreaterThan(0);
+    expect(panel.routePoints.length).toBeGreaterThan(10);
+    expect(panel.bearingDeg).toBeGreaterThanOrEqual(0);
+    expect(panel.bearingDeg).toBeLessThanOrEqual(360);
+  });
+
+  it("builds a sky-wrap panel with grid and ray families", () => {
+    const result = solveVisibility(defaultScenario, defaultComparisonModel);
+    const panel = buildSkyWrapPanelData(result, "Sky Wrap", "comparison");
+
+    expect(panel.gridCurves.length).toBeGreaterThan(2);
+    expect(panel.rayCurves.length).toBeGreaterThan(3);
+    expect(panel.bounds.maxX).toBeGreaterThan(panel.bounds.minX);
+    expect(panel.bounds.maxY).toBeGreaterThan(panel.bounds.minY);
+    expect(panel.domeRadius).toBeGreaterThan(0);
   });
 });

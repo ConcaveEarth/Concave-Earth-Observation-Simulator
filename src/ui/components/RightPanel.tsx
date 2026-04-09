@@ -8,6 +8,8 @@ import {
   type ObserverViewPanelData,
   type ProfileVisibilityPanelData,
   type RayBundlePanelData,
+  type RouteMapPanelData,
+  type SkyWrapPanelData,
   type SweepChartData,
 } from "../../domain/analysis";
 import { pointAtSurfaceHeight, toObserverFrame } from "../../domain/geometry";
@@ -39,6 +41,8 @@ interface RightPanelProps {
   activeBundlePanel: RayBundlePanelData;
   activeProfilePanel: ProfileVisibilityPanelData;
   activeObserverPanel: ObserverViewPanelData;
+  activeRouteMapPanel: RouteMapPanelData;
+  activeSkyWrapPanel: SkyWrapPanelData;
   sweepData: SweepChartData;
   inspectedSceneKey: FocusedModel;
   activeFeatureId: string | null;
@@ -46,6 +50,8 @@ interface RightPanelProps {
   workspaceMode: WorkspaceMode;
   onClearSelection: () => void;
   onExport: () => void;
+  onExportJson: () => void;
+  onExportReport: () => void;
   onCopyLink: () => void;
   message: string | null;
   language: LanguageMode;
@@ -170,6 +176,10 @@ function getAnalysisTabLabel(language: LanguageMode, analysisTab: AppState["anal
       return t(language, "observerView");
     case "profile-visibility":
       return t(language, "profileVisibility");
+    case "route-map":
+      return t(language, "routeMap");
+    case "sky-wrap":
+      return t(language, "skyWrap");
     case "sweep":
       return t(language, "sweep");
     case "cross-section":
@@ -225,10 +235,22 @@ function getCurrentOutputCards(args: {
   activeBundlePanel: RayBundlePanelData;
   activeProfilePanel: ProfileVisibilityPanelData;
   activeObserverPanel: ObserverViewPanelData;
+  activeRouteMapPanel: RouteMapPanelData;
+  activeSkyWrapPanel: SkyWrapPanelData;
   sweepData: SweepChartData;
   language: LanguageMode;
 }) {
-  const { state, activeResult, activeBundlePanel, activeProfilePanel, activeObserverPanel, sweepData, language } = args;
+  const {
+    state,
+    activeResult,
+    activeBundlePanel,
+    activeProfilePanel,
+    activeObserverPanel,
+    activeRouteMapPanel,
+    activeSkyWrapPanel,
+    sweepData,
+    language,
+  } = args;
   const units = state.unitPreferences;
 
   if (state.analysisTab === "ray-bundle") {
@@ -367,6 +389,64 @@ function getCurrentOutputCards(args: {
     ];
   }
 
+  if (state.analysisTab === "route-map") {
+    return [
+      {
+        label: t(language, "routeDistance"),
+        value: formatDistance(activeRouteMapPanel.routeDistanceM, units.distance),
+      },
+      {
+        label: t(language, "initialBearing"),
+        value: formatAngle((activeRouteMapPanel.bearingDeg * Math.PI) / 180),
+      },
+      {
+        label: t(language, "routePointCount"),
+        value: String(activeRouteMapPanel.routePoints.length),
+      },
+      {
+        label: t(language, "coordinatesEnabledLabel"),
+        value: activeRouteMapPanel.coordinatesEnabled ? "On" : "Off",
+      },
+      {
+        label: t(language, "observerLatitude"),
+        value: `${activeRouteMapPanel.observerPoint.latDeg.toFixed(3)}°`,
+      },
+      {
+        label: t(language, "targetLatitude"),
+        value: `${activeRouteMapPanel.targetPoint.latDeg.toFixed(3)}°`,
+      },
+    ];
+  }
+
+  if (state.analysisTab === "sky-wrap") {
+    return [
+      {
+        label: t(language, "intrinsicBend"),
+        value: activeSkyWrapPanel.stats.intrinsicLabel,
+      },
+      {
+        label: t(language, "atmosphericBend"),
+        value: activeSkyWrapPanel.stats.atmosphereLabel,
+      },
+      {
+        label: t(language, "netBend"),
+        value: activeSkyWrapPanel.stats.netLabel,
+      },
+      {
+        label: t(language, "skyWrapDomeRadius"),
+        value: formatDistance(activeSkyWrapPanel.domeRadius, units.distance),
+      },
+      {
+        label: t(language, "rayBundle"),
+        value: String(activeSkyWrapPanel.rayCurves.length),
+      },
+      {
+        label: t(language, "guides"),
+        value: String(activeSkyWrapPanel.gridCurves.length),
+      },
+    ];
+  }
+
   return [
     {
       label: t(language, "hiddenHeight"),
@@ -403,10 +483,22 @@ function getAnalysisSummary(args: {
   activeBundlePanel: RayBundlePanelData;
   activeProfilePanel: ProfileVisibilityPanelData;
   activeObserverPanel: ObserverViewPanelData;
+  activeRouteMapPanel: RouteMapPanelData;
+  activeSkyWrapPanel: SkyWrapPanelData;
   sweepData: SweepChartData;
   language: LanguageMode;
 }): { title: string; description: string; metrics: FeatureMetric[] } {
-  const { state, activeResult, activeBundlePanel, activeProfilePanel, activeObserverPanel, sweepData, language } = args;
+  const {
+    state,
+    activeResult,
+    activeBundlePanel,
+    activeProfilePanel,
+    activeObserverPanel,
+    activeRouteMapPanel,
+    activeSkyWrapPanel,
+    sweepData,
+    language,
+  } = args;
   const units = state.unitPreferences;
 
   switch (state.analysisTab) {
@@ -456,6 +548,28 @@ function getAnalysisSummary(args: {
             label: t(language, "maxProfileHeight"),
             value: formatHeight(activeProfilePanel.stats.maxProfileHeightM, units.height),
           },
+        ],
+      };
+    case "route-map":
+      return {
+        title: t(language, "routeMapSummaryTitle"),
+        description: t(language, "routeMapSummaryBody"),
+        metrics: [
+          { label: t(language, "activeAnalysis"), value: getAnalysisTabLabel(language, state.analysisTab) },
+          { label: t(language, "routeDistance"), value: formatDistance(activeRouteMapPanel.routeDistanceM, units.distance) },
+          { label: t(language, "initialBearing"), value: formatAngle((activeRouteMapPanel.bearingDeg * Math.PI) / 180) },
+          { label: t(language, "routePointCount"), value: String(activeRouteMapPanel.routePoints.length) },
+        ],
+      };
+    case "sky-wrap":
+      return {
+        title: t(language, "skyWrapSummaryTitle"),
+        description: t(language, "skyWrapSummaryBody"),
+        metrics: [
+          { label: t(language, "activeAnalysis"), value: getAnalysisTabLabel(language, state.analysisTab) },
+          { label: t(language, "intrinsicBend"), value: activeSkyWrapPanel.stats.intrinsicLabel },
+          { label: t(language, "atmosphericBend"), value: activeSkyWrapPanel.stats.atmosphereLabel },
+          { label: t(language, "netBend"), value: activeSkyWrapPanel.stats.netLabel },
         ],
       };
     case "sweep":
@@ -981,6 +1095,8 @@ function getFieldMetricRows(args: {
   activeBundlePanel: RayBundlePanelData;
   activeProfilePanel: ProfileVisibilityPanelData;
   activeObserverPanel: ObserverViewPanelData;
+  activeRouteMapPanel: RouteMapPanelData;
+  activeSkyWrapPanel: SkyWrapPanelData;
   sweepData: SweepChartData;
   surfaceChordM: number;
   geometricDropM: number;
@@ -992,6 +1108,8 @@ function getFieldMetricRows(args: {
     activeBundlePanel,
     activeProfilePanel,
     activeObserverPanel,
+    activeRouteMapPanel,
+    activeSkyWrapPanel,
     sweepData,
     surfaceChordM,
     geometricDropM,
@@ -1132,6 +1250,64 @@ function getFieldMetricRows(args: {
     ];
   }
 
+  if (state.analysisTab === "route-map") {
+    return [
+      {
+        label: t(language, "routeDistance"),
+        value: formatDistance(activeRouteMapPanel.routeDistanceM, units.distance),
+      },
+      {
+        label: t(language, "initialBearing"),
+        value: formatAngle((activeRouteMapPanel.bearingDeg * Math.PI) / 180),
+      },
+      {
+        label: t(language, "routePointCount"),
+        value: String(activeRouteMapPanel.routePoints.length),
+      },
+      {
+        label: t(language, "observerLatitude"),
+        value: `${activeRouteMapPanel.observerPoint.latDeg.toFixed(3)}°`,
+      },
+      {
+        label: t(language, "targetLatitude"),
+        value: `${activeRouteMapPanel.targetPoint.latDeg.toFixed(3)}°`,
+      },
+      {
+        label: t(language, "coordinatesEnabledLabel"),
+        value: activeRouteMapPanel.coordinatesEnabled ? "On" : "Off",
+      },
+    ];
+  }
+
+  if (state.analysisTab === "sky-wrap") {
+    return [
+      {
+        label: t(language, "skyWrapDomeRadius"),
+        value: formatDistance(activeSkyWrapPanel.domeRadius, units.distance),
+      },
+      {
+        label: t(language, "intrinsicBend"),
+        value: activeSkyWrapPanel.stats.intrinsicLabel,
+      },
+      {
+        label: t(language, "atmosphericBend"),
+        value: activeSkyWrapPanel.stats.atmosphereLabel,
+      },
+      {
+        label: t(language, "netBend"),
+        value: activeSkyWrapPanel.stats.netLabel,
+      },
+      {
+        label: t(language, "rayBundle"),
+        value: String(activeSkyWrapPanel.rayCurves.length),
+      },
+      {
+        label: t(language, "guides"),
+        value: String(activeSkyWrapPanel.gridCurves.length),
+      },
+    ];
+  }
+
   return [
     {
       label: "Surface arc distance",
@@ -1175,6 +1351,8 @@ export function RightPanel({
   activeBundlePanel,
   activeProfilePanel,
   activeObserverPanel,
+  activeRouteMapPanel,
+  activeSkyWrapPanel,
   sweepData,
   inspectedSceneKey,
   activeFeatureId,
@@ -1182,6 +1360,8 @@ export function RightPanel({
   workspaceMode,
   onClearSelection,
   onExport,
+  onExportJson,
+  onExportReport,
   onCopyLink,
   message,
   language,
@@ -1226,6 +1406,8 @@ export function RightPanel({
     activeBundlePanel,
     activeProfilePanel,
     activeObserverPanel,
+    activeRouteMapPanel,
+    activeSkyWrapPanel,
     sweepData,
     language,
   });
@@ -1235,6 +1417,8 @@ export function RightPanel({
     activeBundlePanel,
     activeProfilePanel,
     activeObserverPanel,
+    activeRouteMapPanel,
+    activeSkyWrapPanel,
     sweepData,
     language,
   });
@@ -1244,6 +1428,8 @@ export function RightPanel({
     activeBundlePanel,
     activeProfilePanel,
     activeObserverPanel,
+    activeRouteMapPanel,
+    activeSkyWrapPanel,
     sweepData,
     surfaceChordM,
     geometricDropM,
@@ -1317,8 +1503,42 @@ export function RightPanel({
                 ? t(language, "atmosphericRefractionWithK", {
                     value: activeResult.model.atmosphere.coefficient.toFixed(2),
                   })
+                : activeResult.model.atmosphere.mode === "layered"
+                  ? t(language, "layeredAtmosphericRefractionWithK", {
+                      base: activeResult.model.atmosphere.coefficient.toFixed(2),
+                      upper: activeResult.model.atmosphere.upperCoefficient.toFixed(2),
+                    })
                 : t(language, "none")}
             </p>
+            {activeResult.model.atmosphere.mode === "layered" ? (
+              <>
+                <p>
+                  <strong>{t(language, "transitionHeight")}:</strong>{" "}
+                  {formatHeight(
+                    activeResult.model.atmosphere.transitionHeightM,
+                    state.unitPreferences.height,
+                  )}
+                </p>
+                <p>
+                  <strong>{t(language, "inversionStrength")}:</strong>{" "}
+                  {activeResult.model.atmosphere.inversionStrength.toFixed(2)}
+                </p>
+                <p>
+                  <strong>{t(language, "inversionBaseHeight")}:</strong>{" "}
+                  {formatHeight(
+                    activeResult.model.atmosphere.inversionBaseHeightM,
+                    state.unitPreferences.height,
+                  )}
+                </p>
+                <p>
+                  <strong>{t(language, "inversionDepth")}:</strong>{" "}
+                  {formatHeight(
+                    activeResult.model.atmosphere.inversionDepthM,
+                    state.unitPreferences.height,
+                  )}
+                </p>
+              </>
+            ) : null}
             <p>
               <strong>Curvature law:</strong>{" "}
               {activeResult.model.geometryMode === "concave"
@@ -1556,6 +1776,12 @@ export function RightPanel({
           <div className="action-row">
             <button type="button" className="action-button" onClick={onExport}>
               {t(language, "exportPng")}
+            </button>
+            <button type="button" className="action-button action-button--ghost" onClick={onExportJson}>
+              {t(language, "exportJson")}
+            </button>
+            <button type="button" className="action-button action-button--ghost" onClick={onExportReport}>
+              {t(language, "exportReport")}
             </button>
             <button type="button" className="action-button action-button--ghost" onClick={onCopyLink}>
               {t(language, "copyShareUrl")}

@@ -6,6 +6,14 @@ import {
   toObserverFrame,
 } from "./geometry";
 import {
+  getGreatCircleRouteMetrics,
+  interpolateGreatCircleRoute,
+} from "./geodesy";
+import {
+  getAtmosphereCurvatureMagnitudeAtHeight,
+  getIntrinsicCurvatureMagnitude,
+} from "./curvature";
+import {
   getDefaultMaxArcLengthM,
   getDefaultStepM,
   traceRay,
@@ -38,7 +46,9 @@ export type AnalysisTab =
   | "ray-bundle"
   | "observer-view"
   | "sweep"
-  | "profile-visibility";
+  | "profile-visibility"
+  | "route-map"
+  | "sky-wrap";
 export type SweepParameter =
   | "distance"
   | "observerHeight"
@@ -232,6 +242,45 @@ export interface ObserverViewPanelData {
     apparentProfileSpanM: number;
     topVisibleElevationRad: number | null;
     topGhostElevationRad: number;
+  };
+}
+
+export interface RouteMapPanelData {
+  sceneKey: FocusedModel;
+  title: string;
+  subtitle: string;
+  routeDistanceM: number;
+  bearingDeg: number;
+  routePoints: Array<{ lonDeg: number; latDeg: number; distanceM: number }>;
+  observerPoint: { lonDeg: number; latDeg: number };
+  targetPoint: { lonDeg: number; latDeg: number };
+  coordinatesEnabled: boolean;
+}
+
+export interface SkyWrapCurve {
+  id: string;
+  label: string;
+  color: string;
+  points: Vec2[];
+}
+
+export interface SkyWrapPanelData {
+  sceneKey: FocusedModel;
+  title: string;
+  subtitle: string;
+  bounds: {
+    minX: number;
+    maxX: number;
+    minY: number;
+    maxY: number;
+  };
+  domeRadius: number;
+  gridCurves: SkyWrapCurve[];
+  rayCurves: SkyWrapCurve[];
+  stats: {
+    intrinsicLabel: string;
+    atmosphereLabel: string;
+    netLabel: string;
   };
 }
 
@@ -433,6 +482,7 @@ function applySweepValue(
         model: {
           ...model,
           atmosphere: {
+            ...model.atmosphere,
             mode: "simpleCoefficient",
             coefficient: value,
           },
@@ -1140,6 +1190,137 @@ export function buildObserverViewPanelData(
       apparentProfileSpanM,
       topVisibleElevationRad: topVisiblePoint?.y ?? null,
       topGhostElevationRad: topGhostPoint.y,
+    },
+  };
+}
+
+export function buildRouteMapPanelData(
+  result: VisibilitySolveResult,
+  title: string,
+  sceneKey: FocusedModel,
+): RouteMapPanelData {
+  const routeMetrics = getGreatCircleRouteMetrics({
+    observerLatDeg: result.scenario.coordinates.observerLatDeg,
+    observerLonDeg: result.scenario.coordinates.observerLonDeg,
+    targetLatDeg: result.scenario.coordinates.targetLatDeg,
+    targetLonDeg: result.scenario.coordinates.targetLonDeg,
+    radiusM: result.scenario.radiusM,
+  });
+  const routePoints = interpolateGreatCircleRoute({
+    observerLatDeg: result.scenario.coordinates.observerLatDeg,
+    observerLonDeg: result.scenario.coordinates.observerLonDeg,
+    targetLatDeg: result.scenario.coordinates.targetLatDeg,
+    targetLonDeg: result.scenario.coordinates.targetLonDeg,
+    radiusM: result.scenario.radiusM,
+    sampleCount: 72,
+  });
+
+  return {
+    sceneKey,
+    title,
+    subtitle: result.scenario.coordinates.enabled
+      ? "Interactive route map with coordinate-derived distance and bearing."
+      : "Coordinate route preview. Enable coordinate-derived distance to drive the scenario from the map.",
+    routeDistanceM: routeMetrics.distanceM,
+    bearingDeg: routeMetrics.initialBearingDeg,
+    routePoints,
+    observerPoint: {
+      latDeg: result.scenario.coordinates.observerLatDeg,
+      lonDeg: result.scenario.coordinates.observerLonDeg,
+    },
+    targetPoint: {
+      latDeg: result.scenario.coordinates.targetLatDeg,
+      lonDeg: result.scenario.coordinates.targetLonDeg,
+    },
+    coordinatesEnabled: result.scenario.coordinates.enabled,
+  };
+}
+
+function formatCurvatureLabel(valuePerM: number, radiusM: number) {
+  const ratio = Math.abs(valuePerM * radiusM);
+  const direction = valuePerM >= 0 ? "downward" : "upward";
+  return `${ratio.toFixed(2)} / R ${direction}`;
+}
+
+export function buildSkyWrapPanelData(
+  result: VisibilitySolveResult,
+  title: string,
+  sceneKey: FocusedModel,
+): SkyWrapPanelData {
+  const sampleAnglesDeg = [8, 18, 30, 42, 56, 70, 82];
+  const maxArcLengthM = Math.min(result.scenario.radiusM * 0.1, 900_000);
+  const stepM = Math.min(getDefaultStepM(result.scenario), 2_500);
+  const rayCurves: SkyWrapCurve[] = sampleAnglesDeg.map((angleDeg, index) => {
+    const trace = traceRay({
+      scenario: result.scenario,
+      model: result.model,
+      terrainProfile: null,
+      launchAngleRad: (angleDeg * Math.PI) / 180,
+      targetAngleRad: null,
+      maxArcLengthM,
+      stepM,
+    });
+    const frame = createObserverFrame(result);
+    const points = trace.points.map((point) =>
+      toObserverFrame(point, frame.observerPoint, frame.observerTangent, frame.observerUp),
+    );
+
+    return {
+      id: `${sceneKey}-sky-ray-${index}`,
+      label: `${angleDeg}° launch`,
+      color: index % 2 === 0 ? "#ffd07e" : "#7dd7ff",
+      points,
+    };
+  });
+
+  const gridCurves: SkyWrapCurve[] = [0.15, 0.32, 0.5, 0.68, 0.86].map((fraction, index) => {
+    const radius = maxArcLengthM * fraction;
+    const points = Array.from({ length: 64 }, (_, pointIndex) => {
+      const angle = lerp(0, Math.PI / 2, pointIndex / 63);
+      return {
+        x: radius * Math.cos(angle),
+        y: radius * Math.sin(angle),
+      };
+    });
+
+    return {
+      id: `${sceneKey}-sky-grid-${index}`,
+      label: `Shell ${Math.round(fraction * 100)}%`,
+      color: "rgba(180, 205, 232, 0.28)",
+      points,
+    };
+  });
+
+  const allPoints = [...rayCurves.flatMap((curve) => curve.points), ...gridCurves.flatMap((curve) => curve.points)];
+  const bounds = collectBounds(allPoints, {
+    xPaddingFactor: 0.08,
+    minXPad: 40_000,
+    topPaddingFactor: 0.14,
+    bottomPaddingFactor: 0.08,
+    minTopPad: 40_000,
+    minBottomPad: 20_000,
+  });
+  const intrinsic = result.model.geometryMode === "concave"
+    ? -getIntrinsicCurvatureMagnitude(result.model, result.scenario)
+    : 0;
+  const atmosphere = -getAtmosphereCurvatureMagnitudeAtHeight(result.model, result.scenario, 0);
+  const net = intrinsic + atmosphere;
+
+  return {
+    sceneKey,
+    title,
+    subtitle:
+      result.model.geometryMode === "concave"
+        ? "Sky-wrap workspace showing intrinsic upward bending modified by atmospheric refraction."
+        : "Sky-path workspace showing atmosphere-shaped upward and downward ray behavior from the observer frame.",
+    bounds,
+    domeRadius: maxArcLengthM,
+    gridCurves,
+    rayCurves,
+    stats: {
+      intrinsicLabel: formatCurvatureLabel(intrinsic, result.scenario.radiusM),
+      atmosphereLabel: formatCurvatureLabel(atmosphere, result.scenario.radiusM),
+      netLabel: formatCurvatureLabel(net, result.scenario.radiusM),
     },
   };
 }

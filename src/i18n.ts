@@ -76,6 +76,8 @@ const en: TranslationDictionary = {
   rayBundle: "Ray Bundle",
   observerView: "Observer View",
   profileVisibility: "Profile Visibility",
+  routeMap: "Route Map",
+  skyWrap: "Sky Wrap",
   sweep: "Sweep",
   splitCompare: "Split Compare",
   panelLayout: "Panel layout",
@@ -112,6 +114,10 @@ const en: TranslationDictionary = {
     "A perceptual reconstruction built from solved apparent elevations, showing the apparent horizon and the visible silhouette the observer would actually receive.",
   profileVisibilityIntro:
     "Terrain/profile samples now participate in the shared visibility engine, including terrain-aware obstruction along the traced path rather than remaining purely illustrative.",
+  routeMapIntro:
+    "Map-backed route workspace with draggable observer and target coordinates, derived great-circle distance, and bearing.",
+  skyWrapIntro:
+    "A celestial / sky-wrap workspace tracing how the active curvature law bends upward-looking rays in the observer frame.",
   sweepIntro:
     "A controlled parameter sweep driven by repeated solver runs across the active models.",
   rayBundleSummaryTitle: "Ray Bundle Envelope",
@@ -123,6 +129,12 @@ const en: TranslationDictionary = {
   profileVisibilitySummaryTitle: "Profile Visibility Envelope",
   profileVisibilitySummaryBody:
     "Terrain or structure profile points are sampled through the shared solver so visible spans, blocked sections, and apparent profile behavior can be studied directly.",
+  routeMapSummaryTitle: "Route Map Workspace",
+  routeMapSummaryBody:
+    "Observer and target coordinates are projected into a route workspace so distance, bearing, and map-backed scenario setup can be adjusted directly.",
+  skyWrapSummaryTitle: "Sky-Wrap Workspace",
+  skyWrapSummaryBody:
+    "Upward-looking rays are traced through the active intrinsic and atmospheric curvature law to study dome-like or horizon-to-sky bending behavior.",
   sweepSummaryTitle: "Parameter Sweep Overview",
   sweepSummaryBody:
     "Repeated solves across a controlled range reveal where the active models diverge, plateau, or cross threshold behavior.",
@@ -195,12 +207,25 @@ const en: TranslationDictionary = {
   atmosphere: "Atmosphere",
   atmosphericRefraction: "Atmospheric Refraction",
   atmosphericRefractionWithK: "Atmospheric Refraction (k = {value})",
+  layeredAtmosphere: "Layered atmosphere",
+  layeredAtmosphericRefractionWithK:
+    "Layered Atmospheric Refraction (k0 = {base}, k1 = {upper})",
+  baseAtmosphericCoefficient: "Base atmospheric coefficient",
+  upperAtmosphericCoefficient: "Upper atmospheric coefficient",
+  transitionHeight: "Transition height",
+  inversionStrength: "Inversion strength",
+  inversionBaseHeight: "Inversion base height",
+  inversionDepth: "Inversion depth",
+  layeredAtmosphereHint:
+    "Layered atmosphere blends the near-ground and upper coefficients by altitude, then applies an optional inversion pocket near the selected base height.",
   intrinsicShort: "Intrinsic",
   simpleCoefficient: "Simple coefficient",
   atmosphericCoefficient: "Atmospheric coefficient",
   atmosphereHint:
     "Positive k bends light downward in both models. Negative k bends it upward. In concave mode the atmospheric term modifies the intrinsic upward curvature.",
   exportPng: "Export PNG",
+  exportJson: "Export JSON",
+  exportReport: "Export Report",
   copyShareUrl: "Copy Share URL",
   home: "Home",
   forums: "Concave Earth Forums",
@@ -272,6 +297,15 @@ const en: TranslationDictionary = {
   context: "Context",
   shareExport: "Share / Export",
   output: "Output",
+  routeDistance: "Route distance",
+  routePointCount: "Route points",
+  coordinatesEnabledLabel: "Coordinate route",
+  intrinsicBend: "Intrinsic bend",
+  atmosphericBend: "Atmospheric bend",
+  netBend: "Net bend",
+  skyWrapDomeRadius: "Sky dome radius",
+  observerMarker: "Observer",
+  targetMarker: "Target",
   featureSurfaceSea: "Surface / Sea Level",
   featureSurfaceGround: "Surface / Ground Level",
   featureObserverHorizontal: "Straight Observer Horizontal",
@@ -863,6 +897,11 @@ export function getModelLabel(language: LanguageMode, model: ModelConfig): strin
       ? t(language, "atmosphericRefractionWithK", {
           value: model.atmosphere.coefficient.toFixed(2),
         })
+      : model.atmosphere.mode === "layered"
+        ? t(language, "layeredAtmosphericRefractionWithK", {
+            base: model.atmosphere.coefficient.toFixed(2),
+            upper: model.atmosphere.upperCoefficient.toFixed(2),
+          })
       : null;
 
   if (model.geometryMode === "convex") {

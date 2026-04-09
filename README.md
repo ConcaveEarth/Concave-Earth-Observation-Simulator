@@ -21,6 +21,14 @@ comparison-first observation lab milestone:
   solver-backed terrain/profile overlays
 - Observer-eye reconstruction tab that converts solved apparent elevations into
   a perceptual horizon-and-silhouette view
+- Route Map workspace that uses observer/target coordinates to derive great-circle
+  distance and bearing, with a draggable route preview in the scene area
+- Sky Wrap workspace for inspecting intrinsic and atmospheric bend behavior in a
+  dedicated dome-style view instead of forcing it into the cross-section scene
+- Layered atmosphere controls with base/upper coefficients, transition height,
+  and inversion settings for richer optical experiments
+- Export/report maturity with PNG export, JSON scenario export, and HTML report
+  export for documenting or sharing scenarios
 - Modernized UI and analytics foundation using Radix UI primitives and an
   ECharts-powered sweep workspace, while keeping the custom geometry renderer
   and shared solver domain intact
@@ -34,7 +42,9 @@ comparison-first observation lab milestone:
   remaining purely illustrative
 
 This milestone is the baseline we can safely build on before deeper analytical
-features such as full terrain-aware obstruction and map workflows.
+features such as full map-backed scenario selection, continuous terrain-aware
+obstruction along the whole path, richer observer-eye reconstruction, and later
+sky/celestial modeling.
 
 ## Included Now
 
@@ -49,6 +59,7 @@ features such as full terrain-aware obstruction and map workflows.
   the shared solver instead of treating them as pure decoration
 - Optional coordinate route inputs that derive surface distance from latitude /
   longitude and the active shell or sphere radius
+- Route Map analysis tab for interactive coordinate review and route geometry
 - Scenario modes for both quick experimentation and more field-style studies:
   `Simple` mode keeps total observer/target elevations lightweight, while
   `Field` mode splits observer site elevation, observer eye height, target base
@@ -58,8 +69,11 @@ features such as full terrain-aware obstruction and map workflows.
   clearly distinguished
 - Observer View analysis tab that reconstructs the apparent horizon and visible
   silhouette from solved sample elevations
+- Sky Wrap analysis tab that visualizes intrinsic bending, atmospheric bending,
+  and net dome-style ray families
 - Sweep analysis view for parameter-vs-output comparison curves
-- URL-serializable state plus PNG export
+- Layered atmosphere mode with altitude transition and inversion controls
+- URL-serializable state plus PNG, JSON, and HTML report export
 - Domain, state, and UI separation with Vitest coverage
 - Radix-powered collapsible sections, navigation dropdowns, and analysis tabs
 - Radix ScrollArea-powered control, data, and legend docks
@@ -72,10 +86,13 @@ features such as full terrain-aware obstruction and map workflows.
 
 - Tighten remaining line/path fidelity in the cross-section constructions
 - Deepen ray-bundle analytics and visibility-envelope explanations
-- Expand sweep metrics and scenario controls
+- Expand sweep metrics, performance, and field-style scenario controls
+- Advance the current route-map groundwork into fuller map-backed scenario
+  selection and route editing
 - Deepen terrain/profile obstruction from profile-sampled solver participation into
   more complete obstruction handling along the path
-- Refine observer-eye reconstruction and later add sky-wrap / celestial views
+- Refine observer-eye reconstruction and later extend sky-wrap toward
+  celestial/dome studies
 
 ## Scripts
 

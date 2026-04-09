@@ -38,6 +38,8 @@ interface ControlsPanelProps {
   state: AppState;
   dispatch: Dispatch<AppAction>;
   onExport: () => void;
+  onExportJson: () => void;
+  onExportReport: () => void;
   onCopyLink: () => void;
   language: LanguageMode;
 }
@@ -46,6 +48,7 @@ interface ModelEditorProps {
   title: string;
   target: FocusedModel;
   model: ModelConfig;
+  unitPreferences: AppState["unitPreferences"];
   dispatch: Dispatch<AppAction>;
   sectionId?: string;
   language: LanguageMode;
@@ -53,6 +56,11 @@ interface ModelEditorProps {
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
 }
+
+const heightUnitOptions = [
+  { label: "m", value: "m" },
+  { label: "ft", value: "ft" },
+] as const;
 
 function formatInputValue(value: number, decimals: number): string {
   if (!Number.isFinite(value)) {
@@ -281,6 +289,7 @@ function ModelEditor({
   title,
   target,
   model,
+  unitPreferences,
   dispatch,
   sectionId,
   language,
@@ -373,6 +382,7 @@ function ModelEditor({
         >
           <option value="none">{t(language, "none")}</option>
           <option value="simpleCoefficient">{t(language, "simpleCoefficient")}</option>
+          <option value="layered">{t(language, "layeredAtmosphere")}</option>
         </select>
       </label>
 
@@ -396,6 +406,156 @@ function ModelEditor({
             }
           />
           <p className="field__hint">{t(language, "atmosphereHint")}</p>
+        </>
+      ) : null}
+
+      {model.atmosphere.mode === "layered" ? (
+        <>
+          <NumberField
+            label={t(language, "baseAtmosphericCoefficient")}
+            value={model.atmosphere.coefficient}
+            min={ATMOSPHERE_COEFFICIENT_MIN}
+            max={ATMOSPHERE_COEFFICIENT_MAX}
+            step={0.01}
+            unit="k"
+            language={language}
+            onChange={(value) =>
+              dispatch({
+                type: "setAtmosphereField",
+                target,
+                key: "coefficient",
+                value,
+              })
+            }
+          />
+          <NumberField
+            label={t(language, "upperAtmosphericCoefficient")}
+            value={model.atmosphere.upperCoefficient}
+            min={ATMOSPHERE_COEFFICIENT_MIN}
+            max={ATMOSPHERE_COEFFICIENT_MAX}
+            step={0.01}
+            unit="k"
+            language={language}
+            onChange={(value) =>
+              dispatch({
+                type: "setAtmosphereField",
+                target,
+                key: "upperCoefficient",
+                value,
+              })
+            }
+          />
+          <NumberField
+            label={t(language, "transitionHeight")}
+            value={model.atmosphere.transitionHeightM}
+            min={0}
+            max={120_000}
+            step={100}
+            unit={unitPreferences.height}
+            unitOptions={[...heightUnitOptions]}
+            onUnitChange={(value) =>
+              dispatch({
+                type: "setUnitPreference",
+                key: "height",
+                value: value as HeightUnit,
+              })
+            }
+            toDisplayValue={(baseValue, nextUnit) =>
+              metersToHeightUnit(baseValue, nextUnit as HeightUnit)
+            }
+            toBaseValue={(displayValue, nextUnit) =>
+              heightUnitToMeters(displayValue, nextUnit as HeightUnit)
+            }
+            language={language}
+            onChange={(value) =>
+              dispatch({
+                type: "setAtmosphereField",
+                target,
+                key: "transitionHeightM",
+                value,
+              })
+            }
+          />
+          <NumberField
+            label={t(language, "inversionStrength")}
+            value={model.atmosphere.inversionStrength}
+            min={ATMOSPHERE_COEFFICIENT_MIN}
+            max={ATMOSPHERE_COEFFICIENT_MAX}
+            step={0.01}
+            unit="k"
+            language={language}
+            onChange={(value) =>
+              dispatch({
+                type: "setAtmosphereField",
+                target,
+                key: "inversionStrength",
+                value,
+              })
+            }
+          />
+          <NumberField
+            label={t(language, "inversionBaseHeight")}
+            value={model.atmosphere.inversionBaseHeightM}
+            min={0}
+            max={20_000}
+            step={10}
+            unit={unitPreferences.height}
+            unitOptions={[...heightUnitOptions]}
+            onUnitChange={(value) =>
+              dispatch({
+                type: "setUnitPreference",
+                key: "height",
+                value: value as HeightUnit,
+              })
+            }
+            toDisplayValue={(baseValue, nextUnit) =>
+              metersToHeightUnit(baseValue, nextUnit as HeightUnit)
+            }
+            toBaseValue={(displayValue, nextUnit) =>
+              heightUnitToMeters(displayValue, nextUnit as HeightUnit)
+            }
+            language={language}
+            onChange={(value) =>
+              dispatch({
+                type: "setAtmosphereField",
+                target,
+                key: "inversionBaseHeightM",
+                value,
+              })
+            }
+          />
+          <NumberField
+            label={t(language, "inversionDepth")}
+            value={model.atmosphere.inversionDepthM}
+            min={0}
+            max={10_000}
+            step={10}
+            unit={unitPreferences.height}
+            unitOptions={[...heightUnitOptions]}
+            onUnitChange={(value) =>
+              dispatch({
+                type: "setUnitPreference",
+                key: "height",
+                value: value as HeightUnit,
+              })
+            }
+            toDisplayValue={(baseValue, nextUnit) =>
+              metersToHeightUnit(baseValue, nextUnit as HeightUnit)
+            }
+            toBaseValue={(displayValue, nextUnit) =>
+              heightUnitToMeters(displayValue, nextUnit as HeightUnit)
+            }
+            language={language}
+            onChange={(value) =>
+              dispatch({
+                type: "setAtmosphereField",
+                target,
+                key: "inversionDepthM",
+                value,
+              })
+            }
+          />
+          <p className="field__hint">{t(language, "layeredAtmosphereHint")}</p>
         </>
       ) : null}
 
@@ -546,6 +706,8 @@ export function ControlsPanel({
   state,
   dispatch,
   onExport,
+  onExportJson,
+  onExportReport,
   onCopyLink,
   language,
 }: ControlsPanelProps) {
@@ -565,10 +727,6 @@ export function ControlsPanel({
     export: false,
   });
   const [coordinatesCollapsed, setCoordinatesCollapsed] = useState(true);
-  const heightUnitOptions = [
-    { label: "m", value: "m" },
-    { label: "ft", value: "ft" },
-  ] as const;
   const distanceUnitOptions = [
     { label: "m", value: "m" },
     { label: "km", value: "km" },
@@ -1089,6 +1247,7 @@ export function ControlsPanel({
             title={t(language, "primaryModelTitle")}
             target="primary"
             model={state.primaryModel}
+            unitPreferences={state.unitPreferences}
             dispatch={dispatch}
             sectionId="control-primary-model"
             language={language}
@@ -1101,6 +1260,7 @@ export function ControlsPanel({
             title={t(language, "comparisonModelTitle")}
             target="comparison"
             model={state.comparisonModel}
+            unitPreferences={state.unitPreferences}
             dispatch={dispatch}
             sectionId="control-comparison-model"
             language={language}
@@ -1120,6 +1280,12 @@ export function ControlsPanel({
             <div className="action-row">
               <button type="button" className="action-button" onClick={onExport}>
                 {t(language, "exportPng")}
+              </button>
+              <button type="button" className="action-button action-button--ghost" onClick={onExportJson}>
+                {t(language, "exportJson")}
+              </button>
+              <button type="button" className="action-button action-button--ghost" onClick={onExportReport}>
+                {t(language, "exportReport")}
               </button>
               <button
                 type="button"
