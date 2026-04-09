@@ -38,8 +38,12 @@ describe("URL state round-tripping", () => {
       },
       scenario: {
         ...createDefaultState().scenario,
+        scenarioMode: "field" as const,
         observerHeightM: 34,
-        targetHeightM: 93,
+        observerSurfaceElevationM: 28,
+        observerEyeHeightM: 6,
+        targetBaseElevationM: 40,
+        targetHeightM: 53,
         surfaceDistanceM: 77_000,
         coordinates: {
           enabled: true,
@@ -84,8 +88,12 @@ describe("URL state round-tripping", () => {
     expect(hydrated.unitPreferences.height).toBe("ft");
     expect(hydrated.unitPreferences.distance).toBe("mi");
     expect(hydrated.unitPreferences.radius).toBe("mi");
+    expect(hydrated.scenario.scenarioMode).toBe("field");
     expect(hydrated.scenario.observerHeightM).toBe(34);
-    expect(hydrated.scenario.targetHeightM).toBe(93);
+    expect(hydrated.scenario.observerSurfaceElevationM).toBe(28);
+    expect(hydrated.scenario.observerEyeHeightM).toBe(6);
+    expect(hydrated.scenario.targetBaseElevationM).toBe(40);
+    expect(hydrated.scenario.targetHeightM).toBe(53);
     expect(hydrated.scenario.coordinates.enabled).toBe(true);
     expect(hydrated.scenario.coordinates.observerLatDeg).toBeCloseTo(29.95);
     expect(hydrated.scenario.coordinates.observerLonDeg).toBeCloseTo(-90.07);

@@ -9,8 +9,12 @@ import { defaultUnitPreferences } from "../domain/units";
 
 describe("scene view model", () => {
   const baseScenario = {
+    scenarioMode: "simple" as const,
     observerHeightM: 45,
+    observerSurfaceElevationM: 0,
+    observerEyeHeightM: 45,
     targetHeightM: 35,
+    targetBaseElevationM: 0,
     surfaceDistanceM: 58_000,
     radiusM: 6_371_000,
     targetSampleCount: 18,

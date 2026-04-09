@@ -7,9 +7,14 @@ import {
 import { getGreatCircleRouteMetrics } from "../../domain/geodesy";
 import { getPresetById, scenarioPresets } from "../../domain/presets";
 import {
+  getObserverTotalHeightM,
+  getTargetTopElevationM,
+} from "../../domain/scenario";
+import {
   distanceUnitToMeters,
   formatDistance,
   formatAngle,
+  formatHeight,
   getDisplayStepMeters,
   getUnitLabel,
   heightUnitToMeters,
@@ -23,6 +28,7 @@ import type {
   FocusedModel,
   ModelConfig,
   ScenarioInput,
+  ScenarioMode,
 } from "../../domain/types";
 import type { AppAction, AppState } from "../../state/appState";
 import { PanelSection } from "./PanelSection";
@@ -223,7 +229,11 @@ function NumberField({
               ))}
             </select>
           ) : (
-            <span>{unit === "pts" || unit === "k" || unit === "°" ? unit : getUnitLabel(unit as DistanceUnit | HeightUnit | RadiusUnit)}</span>
+            <span>
+              {unit === "pts" || unit === "k" || unit === "°"
+                ? unit
+                : getUnitLabel(unit as DistanceUnit | HeightUnit | RadiusUnit)}
+            </span>
           )}
         </div>
         <span className="field__microcopy">{t(language, "dragMicrocopy")}</span>
@@ -506,7 +516,10 @@ export function ControlsPanel({
 }: ControlsPanelProps) {
   type ScenarioNumericField =
     | "observerHeightM"
+    | "observerSurfaceElevationM"
+    | "observerEyeHeightM"
     | "targetHeightM"
+    | "targetBaseElevationM"
     | "surfaceDistanceM"
     | "radiusM"
     | "targetSampleCount";
@@ -531,7 +544,20 @@ export function ControlsPanel({
     { label: "km", value: "km" },
     { label: "mi", value: "mi" },
   ] as const;
-  const presetDefaults = getPresetById(state.scenario.presetId).scenario;
+  const preset = getPresetById(state.scenario.presetId);
+  const presetDefaults = preset.scenario;
+  const observerTotalHeightM = getObserverTotalHeightM(state.scenario);
+  const targetTopElevationM = getTargetTopElevationM(state.scenario);
+  const scenarioModeOptions: Array<{ label: string; value: ScenarioMode }> = [
+    { label: t(language, "simpleMode"), value: "simple" },
+    { label: t(language, "fieldMode"), value: "field" },
+  ];
+  const verificationKey =
+    preset.verificationStatus === "verified"
+      ? "presetStatusVerified"
+      : preset.verificationStatus === "source-inspired"
+        ? "presetStatusSourceInspired"
+        : "presetStatusIllustrative";
   const routeMetrics = useMemo(
     () =>
       getGreatCircleRouteMetrics({
@@ -554,6 +580,9 @@ export function ControlsPanel({
     value: ScenarioInput[K],
   ) => {
     dispatch({ type: "setScenarioField", key, value });
+  };
+  const setScenarioMode = (value: ScenarioMode) => {
+    dispatch({ type: "setScenarioMode", value });
   };
   const toggleSection = (key: keyof typeof collapsedSections) =>
     setCollapsedSections((current) => ({ ...current, [key]: !current[key] }));
@@ -607,58 +636,221 @@ export function ControlsPanel({
             </select>
           </label>
 
-          <NumberField
-            label={t(language, "observerHeight")}
-            value={state.scenario.observerHeightM}
-            min={1}
-            max={40000}
-            step={10}
-            unit={state.unitPreferences.height}
-            unitOptions={[...heightUnitOptions]}
-            onUnitChange={(value) =>
-              dispatch({
-                type: "setUnitPreference",
-                key: "height",
-                value: value as HeightUnit,
-              })
-            }
-            resetValue={presetDefaults.observerHeightM}
-            onReset={() => setScenarioValue("observerHeightM", presetDefaults.observerHeightM)}
-            toDisplayValue={(baseValue, nextUnit) =>
-              metersToHeightUnit(baseValue, nextUnit as HeightUnit)
-            }
-            toBaseValue={(displayValue, nextUnit) =>
-              heightUnitToMeters(displayValue, nextUnit as HeightUnit)
-            }
-            onChange={(nextValue) => setScenarioValue("observerHeightM", nextValue)}
-            language={language}
-          />
-          <NumberField
-            label={t(language, "targetHeight")}
-            value={state.scenario.targetHeightM}
-            min={0}
-            max={20000}
-            step={10}
-            unit={state.unitPreferences.height}
-            unitOptions={[...heightUnitOptions]}
-            onUnitChange={(value) =>
-              dispatch({
-                type: "setUnitPreference",
-                key: "height",
-                value: value as HeightUnit,
-              })
-            }
-            resetValue={presetDefaults.targetHeightM}
-            onReset={() => setScenarioValue("targetHeightM", presetDefaults.targetHeightM)}
-            toDisplayValue={(baseValue, nextUnit) =>
-              metersToHeightUnit(baseValue, nextUnit as HeightUnit)
-            }
-            toBaseValue={(displayValue, nextUnit) =>
-              heightUnitToMeters(displayValue, nextUnit as HeightUnit)
-            }
-            onChange={(nextValue) => setScenarioValue("targetHeightM", nextValue)}
-            language={language}
-          />
+          <div className="field__stats">
+            <span>
+              <strong>{t(language, "presetVerification")}:</strong> {t(language, verificationKey)}
+            </span>
+            {preset.provenance ? (
+              <span>
+                <strong>{t(language, "presetProvenance")}:</strong> {preset.provenance}
+              </span>
+            ) : null}
+          </div>
+
+          <label className="field">
+            <span>{t(language, "scenarioMode")}</span>
+            <select
+              value={state.scenario.scenarioMode}
+              onChange={(event) => setScenarioMode(event.target.value as ScenarioMode)}
+            >
+              {scenarioModeOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <p className="field__hint">
+            {state.scenario.scenarioMode === "field"
+              ? t(language, "fieldScenarioHint")
+              : t(language, "simpleScenarioHint")}
+          </p>
+
+          {state.scenario.scenarioMode === "field" ? (
+            <>
+              <NumberField
+                label={t(language, "observerSiteElevation")}
+                value={state.scenario.observerSurfaceElevationM}
+                min={0}
+                max={20_000}
+                step={10}
+                unit={state.unitPreferences.height}
+                unitOptions={[...heightUnitOptions]}
+                onUnitChange={(value) =>
+                  dispatch({
+                    type: "setUnitPreference",
+                    key: "height",
+                    value: value as HeightUnit,
+                  })
+                }
+                resetValue={presetDefaults.observerSurfaceElevationM}
+                onReset={() =>
+                  setScenarioValue(
+                    "observerSurfaceElevationM",
+                    presetDefaults.observerSurfaceElevationM,
+                  )
+                }
+                toDisplayValue={(baseValue, nextUnit) =>
+                  metersToHeightUnit(baseValue, nextUnit as HeightUnit)
+                }
+                toBaseValue={(displayValue, nextUnit) =>
+                  heightUnitToMeters(displayValue, nextUnit as HeightUnit)
+                }
+                onChange={(nextValue) =>
+                  setScenarioValue("observerSurfaceElevationM", nextValue)
+                }
+                language={language}
+              />
+              <NumberField
+                label={t(language, "observerEyeHeight")}
+                value={state.scenario.observerEyeHeightM}
+                min={0}
+                max={100}
+                step={0.5}
+                unit={state.unitPreferences.height}
+                unitOptions={[...heightUnitOptions]}
+                onUnitChange={(value) =>
+                  dispatch({
+                    type: "setUnitPreference",
+                    key: "height",
+                    value: value as HeightUnit,
+                  })
+                }
+                resetValue={presetDefaults.observerEyeHeightM}
+                onReset={() =>
+                  setScenarioValue("observerEyeHeightM", presetDefaults.observerEyeHeightM)
+                }
+                toDisplayValue={(baseValue, nextUnit) =>
+                  metersToHeightUnit(baseValue, nextUnit as HeightUnit)
+                }
+                toBaseValue={(displayValue, nextUnit) =>
+                  heightUnitToMeters(displayValue, nextUnit as HeightUnit)
+                }
+                onChange={(nextValue) => setScenarioValue("observerEyeHeightM", nextValue)}
+                language={language}
+              />
+              <NumberField
+                label={t(language, "targetBaseElevation")}
+                value={state.scenario.targetBaseElevationM}
+                min={0}
+                max={20_000}
+                step={10}
+                unit={state.unitPreferences.height}
+                unitOptions={[...heightUnitOptions]}
+                onUnitChange={(value) =>
+                  dispatch({
+                    type: "setUnitPreference",
+                    key: "height",
+                    value: value as HeightUnit,
+                  })
+                }
+                resetValue={presetDefaults.targetBaseElevationM}
+                onReset={() =>
+                  setScenarioValue("targetBaseElevationM", presetDefaults.targetBaseElevationM)
+                }
+                toDisplayValue={(baseValue, nextUnit) =>
+                  metersToHeightUnit(baseValue, nextUnit as HeightUnit)
+                }
+                toBaseValue={(displayValue, nextUnit) =>
+                  heightUnitToMeters(displayValue, nextUnit as HeightUnit)
+                }
+                onChange={(nextValue) => setScenarioValue("targetBaseElevationM", nextValue)}
+                language={language}
+              />
+              <NumberField
+                label={t(language, "targetObjectHeight")}
+                value={state.scenario.targetHeightM}
+                min={0}
+                max={20_000}
+                step={10}
+                unit={state.unitPreferences.height}
+                unitOptions={[...heightUnitOptions]}
+                onUnitChange={(value) =>
+                  dispatch({
+                    type: "setUnitPreference",
+                    key: "height",
+                    value: value as HeightUnit,
+                  })
+                }
+                resetValue={presetDefaults.targetHeightM}
+                onReset={() => setScenarioValue("targetHeightM", presetDefaults.targetHeightM)}
+                toDisplayValue={(baseValue, nextUnit) =>
+                  metersToHeightUnit(baseValue, nextUnit as HeightUnit)
+                }
+                toBaseValue={(displayValue, nextUnit) =>
+                  heightUnitToMeters(displayValue, nextUnit as HeightUnit)
+                }
+                onChange={(nextValue) => setScenarioValue("targetHeightM", nextValue)}
+                language={language}
+              />
+              <div className="field__stats">
+                <span>
+                  <strong>{t(language, "observerTotalElevation")}:</strong>{" "}
+                  {formatHeight(observerTotalHeightM, state.unitPreferences.height)}
+                </span>
+                <span>
+                  <strong>{t(language, "targetTopElevation")}:</strong>{" "}
+                  {formatHeight(targetTopElevationM, state.unitPreferences.height)}
+                </span>
+              </div>
+            </>
+          ) : (
+            <>
+              <NumberField
+                label={t(language, "observerHeight")}
+                value={state.scenario.observerHeightM}
+                min={1}
+                max={40000}
+                step={10}
+                unit={state.unitPreferences.height}
+                unitOptions={[...heightUnitOptions]}
+                onUnitChange={(value) =>
+                  dispatch({
+                    type: "setUnitPreference",
+                    key: "height",
+                    value: value as HeightUnit,
+                  })
+                }
+                resetValue={presetDefaults.observerHeightM}
+                onReset={() => setScenarioValue("observerHeightM", presetDefaults.observerHeightM)}
+                toDisplayValue={(baseValue, nextUnit) =>
+                  metersToHeightUnit(baseValue, nextUnit as HeightUnit)
+                }
+                toBaseValue={(displayValue, nextUnit) =>
+                  heightUnitToMeters(displayValue, nextUnit as HeightUnit)
+                }
+                onChange={(nextValue) => setScenarioValue("observerHeightM", nextValue)}
+                language={language}
+              />
+              <NumberField
+                label={t(language, "targetTopElevation")}
+                value={state.scenario.targetHeightM}
+                min={0}
+                max={20000}
+                step={10}
+                unit={state.unitPreferences.height}
+                unitOptions={[...heightUnitOptions]}
+                onUnitChange={(value) =>
+                  dispatch({
+                    type: "setUnitPreference",
+                    key: "height",
+                    value: value as HeightUnit,
+                  })
+                }
+                resetValue={presetDefaults.targetHeightM}
+                onReset={() => setScenarioValue("targetHeightM", presetDefaults.targetHeightM)}
+                toDisplayValue={(baseValue, nextUnit) =>
+                  metersToHeightUnit(baseValue, nextUnit as HeightUnit)
+                }
+                toBaseValue={(displayValue, nextUnit) =>
+                  heightUnitToMeters(displayValue, nextUnit as HeightUnit)
+                }
+                onChange={(nextValue) => setScenarioValue("targetHeightM", nextValue)}
+                language={language}
+              />
+            </>
+          )}
           <NumberField
             label={t(language, "surfaceDistance")}
             value={state.scenario.surfaceDistanceM}

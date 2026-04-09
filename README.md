@@ -49,6 +49,13 @@ features such as full terrain-aware obstruction and map workflows.
   the shared solver instead of treating them as pure decoration
 - Optional coordinate route inputs that derive surface distance from latitude /
   longitude and the active shell or sphere radius
+- Scenario modes for both quick experimentation and more field-style studies:
+  `Simple` mode keeps total observer/target elevations lightweight, while
+  `Field` mode splits observer site elevation, observer eye height, target base
+  elevation, and target object height
+- Preset provenance metadata, including verification status, assumptions, and
+  source-inspired notes so demonstration presets and source-derived cases are
+  clearly distinguished
 - Observer View analysis tab that reconstructs the apparent horizon and visible
   silhouette from solved sample elevations
 - Sweep analysis view for parameter-vs-output comparison curves

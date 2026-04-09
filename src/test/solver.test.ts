@@ -192,6 +192,52 @@ describe("visibility solver", () => {
     expect(result.visibilityFraction).toBeLessThan(1);
   });
 
+  it("supports field-mode observer and target elevations without losing total-height geometry", () => {
+    const result = solveVisibility(
+      {
+        ...defaultScenario,
+        scenarioMode: "field",
+        observerSurfaceElevationM: 120,
+        observerEyeHeightM: 1.7,
+        observerHeightM: 121.7,
+        targetBaseElevationM: 480,
+        targetHeightM: 32,
+        surfaceDistanceM: 36_000,
+      },
+      defaultPrimaryModel,
+    );
+
+    expect(result.observerPoint).toEqual(
+      pointAtSurfaceHeight(
+        result.scenario.radiusM,
+        0,
+        result.model.geometryMode,
+        121.7,
+      ),
+    );
+    expect(result.targetBasePoint).toEqual(
+      pointAtSurfaceHeight(
+        result.scenario.radiusM,
+        result.targetAngleRad,
+        result.model.geometryMode,
+        480,
+      ),
+    );
+    expect(result.targetTopPoint).toEqual(
+      pointAtSurfaceHeight(
+        result.scenario.radiusM,
+        result.targetAngleRad,
+        result.model.geometryMode,
+        512,
+      ),
+    );
+    expect(result.targetSamples[0].absoluteHeightM).toBeCloseTo(480, 6);
+    expect(result.targetSamples[result.targetSamples.length - 1].absoluteHeightM).toBeCloseTo(
+      512,
+      6,
+    );
+  });
+
   it("lets terrain obstruction block rays before they reach the target", () => {
     const terrainWall: TerrainProfilePreset = {
       id: "terrain-wall",

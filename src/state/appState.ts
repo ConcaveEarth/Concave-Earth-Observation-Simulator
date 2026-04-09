@@ -12,6 +12,14 @@ import {
   normalizeLatitudeDeg,
   normalizeLongitudeDeg,
 } from "../domain/geodesy";
+import {
+  getObserverEyeHeightM,
+  getObserverSurfaceElevationM,
+  getObserverTotalHeightM,
+  getTargetBaseElevationM,
+  getTargetTopElevationM,
+  normalizeScenarioInput,
+} from "../domain/scenario";
 import type { LanguageMode } from "../i18n";
 import { clamp, defaultUnitPreferences } from "../domain/units";
 import type {
@@ -25,6 +33,7 @@ import type {
   ReferenceConstructionMode,
   ScenarioCoordinateInput,
   ScenarioInput,
+  ScenarioMode,
   ViewMode,
 } from "../domain/types";
 import type {
@@ -81,6 +90,7 @@ export interface AppState {
 
 export type AppAction =
   | { type: "setScenarioField"; key: keyof ScenarioInput; value: number | string }
+  | { type: "setScenarioMode"; value: ScenarioMode }
   | {
       type: "setModelField";
       target: FocusedModel;
@@ -364,6 +374,10 @@ function deriveCoordinateDistance(scenario: ScenarioInput): ScenarioInput {
   };
 }
 
+function normalizeScenarioAfterEdit(scenario: ScenarioInput): ScenarioInput {
+  return deriveCoordinateDistance(normalizeScenarioInput(scenario));
+}
+
 function updateModel(
   model: ModelConfig,
   action: Extract<AppAction, { type: "setModelField" }>,
@@ -436,18 +450,52 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case "setScenarioField":
       return {
         ...state,
-        scenario: deriveCoordinateDistance({
+        scenario: normalizeScenarioAfterEdit({
           ...state.scenario,
           [action.key]:
-            action.key === "presetId" || action.key === "units"
+            action.key === "presetId" || action.key === "units" || action.key === "scenarioMode"
               ? action.value
               : Number(action.value),
         }),
       };
+    case "setScenarioMode": {
+      const current = state.scenario;
+
+      if (action.value === current.scenarioMode) {
+        return state;
+      }
+
+      if (action.value === "field") {
+        return {
+          ...state,
+          scenario: normalizeScenarioAfterEdit({
+            ...current,
+            scenarioMode: "field",
+            observerSurfaceElevationM: getObserverSurfaceElevationM(current),
+            observerEyeHeightM: getObserverEyeHeightM(current),
+            targetBaseElevationM: getTargetBaseElevationM(current),
+            targetHeightM:
+              current.scenarioMode === "field"
+                ? current.targetHeightM
+                : getTargetTopElevationM(current),
+          }),
+        };
+      }
+
+      return {
+        ...state,
+        scenario: normalizeScenarioAfterEdit({
+          ...current,
+          scenarioMode: "simple",
+          observerHeightM: getObserverTotalHeightM(current),
+          targetHeightM: getTargetTopElevationM(current),
+        }),
+      };
+    }
     case "setCoordinateField":
       return {
         ...state,
-        scenario: deriveCoordinateDistance({
+        scenario: normalizeScenarioAfterEdit({
           ...state.scenario,
           coordinates: {
             ...state.scenario.coordinates,
@@ -612,7 +660,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       const preset = getPresetById(action.presetId);
       return {
         ...state,
-        scenario: deriveCoordinateDistance(preset.scenario),
+        scenario: normalizeScenarioAfterEdit(preset.scenario),
         primaryModel: applyPresetToModel(defaultPrimaryModel, preset.primaryModel),
         comparisonModel: applyPresetToModel(
           defaultComparisonModel,
@@ -761,8 +809,12 @@ export function serializeStateToSearch(state: AppState): string {
   params.set("scales", state.showScaleGuides ? "1" : "0");
   params.set("terrain", state.showTerrainOverlay ? "1" : "0");
   params.set("terrainBlock", state.useTerrainObstruction ? "1" : "0");
+  params.set("scenarioMode", state.scenario.scenarioMode);
   params.set("observer", String(state.scenario.observerHeightM));
+  params.set("observerSurface", String(state.scenario.observerSurfaceElevationM));
+  params.set("observerEye", String(state.scenario.observerEyeHeightM));
   params.set("target", String(state.scenario.targetHeightM));
+  params.set("targetBase", String(state.scenario.targetBaseElevationM));
   params.set("distance", String(state.scenario.surfaceDistanceM));
   params.set("radius", String(state.scenario.radiusM));
   params.set("samples", String(state.scenario.targetSampleCount));
@@ -798,10 +850,27 @@ export function hydrateStateFromSearch(search: string): AppState {
   );
 
   return {
-    scenario: deriveCoordinateDistance({
+    scenario: normalizeScenarioAfterEdit({
       ...preset.scenario,
+      scenarioMode:
+        params.get("scenarioMode") === "field" ? "field" : preset.scenario.scenarioMode,
       observerHeightM: parseNumber(params, "observer", preset.scenario.observerHeightM),
+      observerSurfaceElevationM: parseNumber(
+        params,
+        "observerSurface",
+        preset.scenario.observerSurfaceElevationM,
+      ),
+      observerEyeHeightM: parseNumber(
+        params,
+        "observerEye",
+        preset.scenario.observerEyeHeightM,
+      ),
       targetHeightM: parseNumber(params, "target", preset.scenario.targetHeightM),
+      targetBaseElevationM: parseNumber(
+        params,
+        "targetBase",
+        preset.scenario.targetBaseElevationM,
+      ),
       surfaceDistanceM: parseNumber(params, "distance", preset.scenario.surfaceDistanceM),
       radiusM: parseNumber(params, "radius", preset.scenario.radiusM),
       targetSampleCount: parseNumber(

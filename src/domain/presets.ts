@@ -1,18 +1,28 @@
 import { ATMOSPHERE_COEFFICIENT_DEFAULT } from "./curvature";
 import type { ModelConfig, ScenarioInput } from "./types";
 
+export type PresetVerificationStatus = "verified" | "source-inspired" | "illustrative";
+
 export interface ScenarioPreset {
   id: string;
   name: string;
   description: string;
   scenario: ScenarioInput;
+  verificationStatus: PresetVerificationStatus;
+  provenance?: string;
+  sourceUrl?: string;
+  assumptions?: string[];
   primaryModel?: Partial<ModelConfig>;
   comparisonModel?: Partial<ModelConfig>;
 }
 
 export const defaultScenario: ScenarioInput = {
+  scenarioMode: "simple",
   observerHeightM: 2,
+  observerSurfaceElevationM: 0,
+  observerEyeHeightM: 2,
   targetHeightM: 18,
+  targetBaseElevationM: 0,
   surfaceDistanceM: 24_000,
   radiusM: 6_371_000,
   targetSampleCount: 18,
@@ -75,6 +85,12 @@ export const scenarioPresets: ScenarioPreset[] = [
     name: "Low Observer Ship",
     description: "A near-sea-level observer looking toward a ship near the horizon.",
     scenario: defaultScenario,
+    verificationStatus: "illustrative",
+    provenance: "Educational sandbox preset for near-sea-level obstruction behavior.",
+    assumptions: [
+      "Sea-level observer and sea-level target base are assumed.",
+      "Target height is treated as top elevation above the datum in simple mode.",
+    ],
   },
   {
     id: "elevated-observer",
@@ -87,6 +103,8 @@ export const scenarioPresets: ScenarioPreset[] = [
       surfaceDistanceM: 58_000,
       presetId: "elevated-observer",
     },
+    verificationStatus: "illustrative",
+    provenance: "Educational comparison preset emphasizing horizon shift with observer height.",
   },
   {
     id: "aconcagua-study",
@@ -101,6 +119,13 @@ export const scenarioPresets: ScenarioPreset[] = [
       targetSampleCount: 28,
       presetId: "aconcagua-study",
     },
+    verificationStatus: "source-inspired",
+    provenance:
+      "Plate-derived long-range case inspired by the Roxas Aconcagua comparison diagram.",
+    assumptions: [
+      "Observer and target heights are preserved from the plate as simple top elevations.",
+      "Terrain profile is stylized to match the comparative plate rather than full surveyed terrain.",
+    ],
     comparisonModel: {
       intrinsicCurvatureMode: "1/R",
       lineBehavior: {
@@ -126,6 +151,8 @@ export const scenarioPresets: ScenarioPreset[] = [
       targetSampleCount: 24,
       presetId: "oil-rig",
     },
+    verificationStatus: "illustrative",
+    provenance: "Medium-range marine structure preset for lower-obstruction demonstrations.",
   },
   {
     id: "lake-pontchartrain",
@@ -140,6 +167,12 @@ export const scenarioPresets: ScenarioPreset[] = [
       targetSampleCount: 24,
       presetId: "lake-pontchartrain",
     },
+    verificationStatus: "source-inspired",
+    provenance:
+      "Long flat-water observation inspired by Lake Pontchartrain visibility discussions.",
+    assumptions: [
+      "Current values are approximate and intended for comparison-first study rather than documentary reproduction.",
+    ],
   },
   {
     id: "chicago-lake-michigan",
@@ -154,6 +187,12 @@ export const scenarioPresets: ScenarioPreset[] = [
       targetSampleCount: 28,
       presetId: "chicago-lake-michigan",
     },
+    verificationStatus: "source-inspired",
+    provenance:
+      "Skyline-style case inspired by Chicago across Lake Michigan visibility claims.",
+    assumptions: [
+      "Skyline height is simplified into one target top elevation in simple mode.",
+    ],
   },
   {
     id: "balloon-100kft",
@@ -168,6 +207,8 @@ export const scenarioPresets: ScenarioPreset[] = [
       targetSampleCount: 30,
       presetId: "balloon-100kft",
     },
+    verificationStatus: "source-inspired",
+    provenance: "High-altitude balloon horizon case centered on a 100,000 ft observer height.",
     primaryModel: {
       atmosphere: {
         mode: "simpleCoefficient",
@@ -188,6 +229,8 @@ export const scenarioPresets: ScenarioPreset[] = [
       targetSampleCount: 24,
       presetId: "strong-concave-demo",
     },
+    verificationStatus: "illustrative",
+    provenance: "Exploratory preset for stressing intrinsic concave bending behavior.",
     comparisonModel: {
       intrinsicCurvatureMode: "constant",
       intrinsicCurvaturePerM: 3.1e-7,
@@ -210,6 +253,9 @@ export const scenarioPresets: ScenarioPreset[] = [
       targetSampleCount: 8,
       presetId: "six-foot-horizon",
     },
+    verificationStatus: "verified",
+    provenance: "Geometric horizon baseline for a 6 ft sea-level observer.",
+    assumptions: ["Target top elevation is set to the datum to isolate horizon placement."],
   },
   {
     id: "great-orme-blackpool",
@@ -224,6 +270,12 @@ export const scenarioPresets: ScenarioPreset[] = [
       targetSampleCount: 24,
       presetId: "great-orme-blackpool",
     },
+    verificationStatus: "source-inspired",
+    provenance:
+      "Long-range landmark case using approximate published summit and tower heights.",
+    assumptions: [
+      "Observer and target are simplified into one sightline pair without terrain in between.",
+    ],
   },
   {
     id: "canigou-marseille",
@@ -238,6 +290,12 @@ export const scenarioPresets: ScenarioPreset[] = [
       targetSampleCount: 30,
       presetId: "canigou-marseille",
     },
+    verificationStatus: "source-inspired",
+    provenance:
+      "Long-range mountain case inspired by Marseille-to-Canigou visibility reports.",
+    assumptions: [
+      "Current preset values are scenario-study approximations rather than a field-survey package.",
+    ],
     primaryModel: {
       atmosphere: {
         mode: "simpleCoefficient",

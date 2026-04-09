@@ -12,6 +12,7 @@ import {
 } from "./geometry";
 import { getTurnRatePerMeter } from "./curvature";
 import { sampleTerrainProfileHeight } from "./profiles";
+import { getObserverTotalHeightM } from "./scenario";
 import { clamp, lerp } from "./units";
 import type {
   ModelConfig,
@@ -118,7 +119,7 @@ export function traceRay({
     scenario.radiusM,
     0,
     model.geometryMode,
-    scenario.observerHeightM,
+    getObserverTotalHeightM(scenario),
   );
   const initialHeading = angleOf(localTangentAtAngle(0)) - launchAngleRad;
 

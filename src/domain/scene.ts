@@ -9,6 +9,10 @@ import {
   getTerrainProfileByPresetId,
 } from "./profiles";
 import {
+  getObserverTotalHeightM,
+  getTargetTopElevationM,
+} from "./scenario";
+import {
   clamp,
   formatAngle,
   formatDistance,
@@ -403,7 +407,7 @@ function buildTerrainOverlay(
     createGenericTargetProfile(
       result.scenario.presetId,
       result.scenario.surfaceDistanceM,
-      result.scenario.targetHeightM,
+      getTargetTopElevationM(result.scenario),
     );
 
   const samples = terrainProfile.samples
@@ -502,8 +506,8 @@ function createFocusBounds(result: VisibilitySolveResult, points: Vec2[]): Scene
     minXPad: Math.max(1_100, result.scenario.surfaceDistanceM * 0.016),
     topPaddingFactor: 0.24,
     bottomPaddingFactor: 0.24,
-    minTopPad: Math.max(260, result.scenario.targetHeightM * 0.22),
-    minBottomPad: Math.max(260, result.scenario.targetHeightM * 0.22),
+    minTopPad: Math.max(260, getTargetTopElevationM(result.scenario) * 0.22),
+    minBottomPad: Math.max(260, getTargetTopElevationM(result.scenario) * 0.22),
   });
 }
 
@@ -628,7 +632,7 @@ export function buildSceneViewModel(
         result.scenario.radiusM,
         angle,
         result.model.geometryMode,
-        result.scenario.observerHeightM,
+        getObserverTotalHeightM(result.scenario),
       ),
     );
   });
@@ -659,14 +663,16 @@ export function buildSceneViewModel(
           result.scenario.radiusM,
           result.targetAngleRad,
           result.model.geometryMode,
-          referenceVisibleSample.sampleHeightM,
+          referenceVisibleSample.absoluteHeightM,
         ),
       )
     : null;
   const rawReferenceLightPath =
     referenceVisibleSample?.trace?.points.map(rawTransform) ?? [];
   const targetVisibleStartHeight =
-    result.visibleHeightM > 0 ? result.hiddenHeightM : result.scenario.targetHeightM;
+    result.visibleHeightM > 0
+      ? result.scenario.targetBaseElevationM + result.hiddenHeightM
+      : getTargetTopElevationM(result.scenario);
   const rawTargetVisibleStart = rawTransform(
     pointAtSurfaceHeight(
       result.scenario.radiusM,
@@ -762,14 +768,14 @@ export function buildSceneViewModel(
                 ((surfaceMaxAngle - surfaceMinAngle) * index) / 199;
               return exaggerate(
                 rawTransform(
-                  pointAtSurfaceHeight(
-                    result.scenario.radiusM,
-                    angle,
-                    result.model.geometryMode,
-                    Math.max(2_500, result.scenario.observerHeightM + 1_000),
+                    pointAtSurfaceHeight(
+                      result.scenario.radiusM,
+                      angle,
+                      result.model.geometryMode,
+                      Math.max(2_500, getObserverTotalHeightM(result.scenario) + 1_000),
+                    ),
                   ),
-                ),
-              );
+                );
             }),
           ],
         }
@@ -1319,7 +1325,7 @@ export function buildSceneViewModel(
     "observer-height-label",
     "observer-height",
     t(language, "observerHeightShort", {
-      value: formatHeight(result.scenario.observerHeightM, unitPreferences.height),
+      value: formatHeight(getObserverTotalHeightM(result.scenario), unitPreferences.height),
     }),
     pointAlongSegment(observerBase, { x: 0, y: 0 }, 0.56),
     [
@@ -1420,8 +1426,8 @@ export function buildSceneViewModel(
     minXPad: Math.max(950, result.scenario.surfaceDistanceM * 0.014),
     topPaddingFactor: 0.18,
     bottomPaddingFactor: 0.28,
-    minTopPad: Math.max(220, result.scenario.targetHeightM * 0.12),
-    minBottomPad: Math.max(260, result.scenario.targetHeightM * 0.2),
+    minTopPad: Math.max(220, getTargetTopElevationM(result.scenario) * 0.12),
+    minBottomPad: Math.max(260, getTargetTopElevationM(result.scenario) * 0.2),
   });
   const focusBounds = createFocusBounds(result, geometryPoints);
   const visibleFeatureIds = new Set<string>([

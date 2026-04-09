@@ -13,6 +13,13 @@ import {
 import { pointAtSurfaceHeight, toObserverFrame } from "../../domain/geometry";
 import { getPresetById } from "../../domain/presets";
 import {
+  getObserverEyeHeightM,
+  getObserverSurfaceElevationM,
+  getObserverTotalHeightM,
+  getTargetBaseElevationM,
+  getTargetTopElevationM,
+} from "../../domain/scenario";
+import {
   formatAngle,
   formatDistance,
   formatFraction,
@@ -95,6 +102,64 @@ function formatCurvatureRatio(
 ) {
   const ratio = Math.abs(magnitudePerM * radiusM);
   return `${ratio.toFixed(2)} / R ${direction}`;
+}
+
+function getPresetVerificationLabel(language: LanguageMode, status: string) {
+  switch (status) {
+    case "verified":
+      return t(language, "presetStatusVerified");
+    case "source-inspired":
+      return t(language, "presetStatusSourceInspired");
+    default:
+      return t(language, "presetStatusIllustrative");
+  }
+}
+
+function getScenarioStructureMetrics(
+  result: VisibilitySolveResult,
+  state: AppState,
+): FeatureMetric[] {
+  const units = state.unitPreferences;
+
+  if (result.scenario.scenarioMode === "field") {
+    return [
+      {
+        label: t(state.language, "observerSiteElevation"),
+        value: formatHeight(getObserverSurfaceElevationM(result.scenario), units.height),
+      },
+      {
+        label: t(state.language, "observerEyeHeight"),
+        value: formatHeight(getObserverEyeHeightM(result.scenario), units.height),
+      },
+      {
+        label: t(state.language, "observerTotalElevation"),
+        value: formatHeight(getObserverTotalHeightM(result.scenario), units.height),
+      },
+      {
+        label: t(state.language, "targetBaseElevation"),
+        value: formatHeight(getTargetBaseElevationM(result.scenario), units.height),
+      },
+      {
+        label: t(state.language, "targetObjectHeight"),
+        value: formatHeight(result.scenario.targetHeightM, units.height),
+      },
+      {
+        label: t(state.language, "targetTopElevation"),
+        value: formatHeight(getTargetTopElevationM(result.scenario), units.height),
+      },
+    ];
+  }
+
+  return [
+    {
+      label: t(state.language, "observerHeight"),
+      value: formatHeight(getObserverTotalHeightM(result.scenario), units.height),
+    },
+    {
+      label: t(state.language, "targetTopElevation"),
+      value: formatHeight(getTargetTopElevationM(result.scenario), units.height),
+    },
+  ];
 }
 
 function getAnalysisTabLabel(language: LanguageMode, analysisTab: AppState["analysisTab"]) {
@@ -443,7 +508,7 @@ function getFeatureMetrics(
     result.scenario.radiusM,
     result.targetAngleRad,
     result.model.geometryMode,
-    result.scenario.observerHeightM,
+    getObserverTotalHeightM(result.scenario),
   );
   const observerAltitudeLocal = getLocalPoint(result, observerAltitudePoint);
   const geometricDropM = Math.max(0, -targetBaseLocal.y);
@@ -462,7 +527,7 @@ function getFeatureMetrics(
         result.scenario.radiusM,
         result.targetAngleRad,
         result.model.geometryMode,
-        referenceVisibleSample.sampleHeightM,
+        referenceVisibleSample.absoluteHeightM,
       )
     : null;
   const referenceTargetLocal = referenceTargetPoint
@@ -527,8 +592,11 @@ function getFeatureMetrics(
           "A straight local tangent through the observer. This is the Euclidean horizontal reference line.",
         metrics: [
           {
-            label: "Observer height",
-            value: formatHeight(result.scenario.observerHeightM, units.height),
+            label:
+              result.scenario.scenarioMode === "field"
+                ? t(language, "observerTotalElevation")
+                : t(language, "observerHeight"),
+            value: formatHeight(getObserverTotalHeightM(result.scenario), units.height),
           },
           { label: "Reference angle", value: "0 deg tangent" },
           {
@@ -563,7 +631,7 @@ function getFeatureMetrics(
         metrics: [
           {
             label: "Reference height",
-            value: formatHeight(result.scenario.observerHeightM, units.height),
+            value: formatHeight(getObserverTotalHeightM(result.scenario), units.height),
           },
           {
             label: "Target offset from tangent",
@@ -589,7 +657,13 @@ function getFeatureMetrics(
         description:
           "The vertical height construction from the observer's local surface/shell point to the observation point.",
         metrics: [
-          { label: "Observer height", value: formatHeight(result.scenario.observerHeightM, units.height) },
+          {
+            label:
+              result.scenario.scenarioMode === "field"
+                ? t(language, "observerTotalElevation")
+                : t(language, "observerHeight"),
+            value: formatHeight(getObserverTotalHeightM(result.scenario), units.height),
+          },
           { label: "Base point", value: "Observer surface point" },
           { label: "Top point", value: "Observation point" },
           {
@@ -604,7 +678,16 @@ function getFeatureMetrics(
         description:
           "The vertical height construction from the target base on the surface/shell to the top of the target.",
         metrics: [
-          { label: "Target height", value: formatHeight(result.scenario.targetHeightM, units.height) },
+          {
+            label:
+              result.scenario.scenarioMode === "field"
+                ? t(language, "targetObjectHeight")
+                : t(language, "targetTopElevation"),
+            value:
+              result.scenario.scenarioMode === "field"
+                ? formatHeight(result.scenario.targetHeightM, units.height)
+                : formatHeight(getTargetTopElevationM(result.scenario), units.height),
+          },
           { label: "Base point", value: "Target base" },
           { label: "Top point", value: "Target top" },
           {
@@ -939,12 +1022,21 @@ function getFieldMetricRows(args: {
         value: formatHeight(visibleStartHeightM, units.height),
       },
       {
-        label: "Observer height",
-        value: formatHeight(activeResult.scenario.observerHeightM, units.height),
+        label:
+          activeResult.scenario.scenarioMode === "field"
+            ? t(language, "observerTotalElevation")
+            : t(language, "observerHeight"),
+        value: formatHeight(getObserverTotalHeightM(activeResult.scenario), units.height),
       },
       {
-        label: "Target stack height",
-        value: formatHeight(activeResult.scenario.targetHeightM, units.height),
+        label:
+          activeResult.scenario.scenarioMode === "field"
+            ? t(language, "targetObjectHeight")
+            : t(language, "targetTopElevation"),
+        value:
+          activeResult.scenario.scenarioMode === "field"
+            ? formatHeight(activeResult.scenario.targetHeightM, units.height)
+            : formatHeight(getTargetTopElevationM(activeResult.scenario), units.height),
       },
     ];
   }
@@ -1186,82 +1278,103 @@ export function RightPanel({
           className="right-panel__section right-panel__section--assumptions"
         >
           <div className="detail-card">
-          <p>
-            <strong>{t(language, "activeAnalysis")}:</strong>{" "}
-            {getAnalysisTabLabel(language, state.analysisTab)}
-          </p>
-          <p>
-            <strong>Inspecting:</strong> {inspectedSceneKey === "primary" ? `${t(language, "primaryModelTitle")} panel` : `${t(language, "comparisonModelTitle")} panel`}
-          </p>
-          <p>
-            <strong>Geometry:</strong> {activeResult.model.geometryMode === "convex" ? t(language, "convexSphere") : t(language, "concaveShell")}
-          </p>
-          <p>
-            <strong>Intrinsic:</strong> {activeResult.model.intrinsicCurvatureMode}
-          </p>
-          <p>
-            <strong>Model:</strong> {getModelLabel(language, activeResult.model)}
-          </p>
-          <p>
-            <strong>{t(language, "atmosphericRefraction")}:</strong>{" "}
-            {activeResult.model.atmosphere.mode === "simpleCoefficient"
-              ? t(language, "atmosphericRefractionWithK", {
-                  value: activeResult.model.atmosphere.coefficient.toFixed(2),
-                })
-              : t(language, "none")}
-          </p>
-          <p>
-            <strong>Curvature law:</strong>{" "}
-            {activeResult.model.geometryMode === "concave"
-              ? `${formatCurvatureRatio(
-                  intrinsicCurvatureMagnitude,
-                  activeResult.scenario.radiusM,
-                  "upward",
-                )} + ${formatCurvatureRatio(
-                  atmosphereCurvatureMagnitude,
-                  activeResult.scenario.radiusM,
-                  atmosphereDirection,
-                )} = ${formatCurvatureRatio(
-                  netCurvatureMagnitude,
-                  activeResult.scenario.radiusM,
-                  netCurvatureDirection,
-                )}`
-              : formatCurvatureRatio(
-                  atmosphereCurvatureMagnitude,
-                  activeResult.scenario.radiusM,
-                  atmosphereDirection,
-                )}
-          </p>
-          <p>
-            <strong>Radius:</strong> {formatRadius(activeResult.scenario.radiusM, state.unitPreferences.radius)}
-          </p>
-          <p>
-            <strong>Viewport:</strong> {state.sceneViewport.framingMode === "auto" ? "Auto fit" : "Full span"}
-            {` | zoom ${state.sceneViewport.zoom.toFixed(2)}x`}
-          </p>
-          <p>
-            <strong>Scale mode:</strong> {scaleModeLabel}
-          </p>
-          <p>
-            <strong>Units:</strong> height {state.unitPreferences.height} | distance{" "}
-            {state.unitPreferences.distance} | radius {state.unitPreferences.radius}
-          </p>
-          <p>
-            <strong>Route:</strong>{" "}
-            {activeResult.scenario.coordinates.enabled ? "Coordinate-derived" : "Manual distance"}
-          </p>
-          <p>
-            <strong>Terrain obstruction:</strong>{" "}
-            {activeResult.terrainProfile ? activeResult.terrainProfile.name : "Off / none"}
-          </p>
-          <p>
-            <strong>Vertical display:</strong>{" "}
-            {state.sceneViewport.scaleMode === "true-scale"
-              ? `${state.sceneViewport.verticalZoom.toFixed(2)}x true-scale factor`
-              : state.sceneViewport.scaleMode === "survey"
-                ? `${state.sceneViewport.verticalZoom.toFixed(2)}x survey relief factor`
-                : `base x${activeScene.suggestedVerticalScale.toFixed(1)} with control x${state.sceneViewport.verticalZoom.toFixed(2)}`}
-          </p>
+            <p>
+              <strong>{t(language, "activeAnalysis")}:</strong>{" "}
+              {getAnalysisTabLabel(language, state.analysisTab)}
+            </p>
+            <p>
+              <strong>Inspecting:</strong>{" "}
+              {inspectedSceneKey === "primary"
+                ? `${t(language, "primaryModelTitle")} panel`
+                : `${t(language, "comparisonModelTitle")} panel`}
+            </p>
+            <p>
+              <strong>{t(language, "scenarioMode")}:</strong>{" "}
+              {state.scenario.scenarioMode === "field"
+                ? t(language, "fieldMode")
+                : t(language, "simpleMode")}
+            </p>
+            {getScenarioStructureMetrics(activeResult, state).map((metric) => (
+              <p key={metric.label}>
+                <strong>{metric.label}:</strong> {metric.value}
+              </p>
+            ))}
+            <p>
+              <strong>Geometry:</strong>{" "}
+              {activeResult.model.geometryMode === "convex"
+                ? t(language, "convexSphere")
+                : t(language, "concaveShell")}
+            </p>
+            <p>
+              <strong>Intrinsic:</strong> {activeResult.model.intrinsicCurvatureMode}
+            </p>
+            <p>
+              <strong>Model:</strong> {getModelLabel(language, activeResult.model)}
+            </p>
+            <p>
+              <strong>{t(language, "atmosphericRefraction")}:</strong>{" "}
+              {activeResult.model.atmosphere.mode === "simpleCoefficient"
+                ? t(language, "atmosphericRefractionWithK", {
+                    value: activeResult.model.atmosphere.coefficient.toFixed(2),
+                  })
+                : t(language, "none")}
+            </p>
+            <p>
+              <strong>Curvature law:</strong>{" "}
+              {activeResult.model.geometryMode === "concave"
+                ? `${formatCurvatureRatio(
+                    intrinsicCurvatureMagnitude,
+                    activeResult.scenario.radiusM,
+                    "upward",
+                  )} + ${formatCurvatureRatio(
+                    atmosphereCurvatureMagnitude,
+                    activeResult.scenario.radiusM,
+                    atmosphereDirection,
+                  )} = ${formatCurvatureRatio(
+                    netCurvatureMagnitude,
+                    activeResult.scenario.radiusM,
+                    netCurvatureDirection,
+                  )}`
+                : formatCurvatureRatio(
+                    atmosphereCurvatureMagnitude,
+                    activeResult.scenario.radiusM,
+                    atmosphereDirection,
+                  )}
+            </p>
+            <p>
+              <strong>Radius:</strong>{" "}
+              {formatRadius(activeResult.scenario.radiusM, state.unitPreferences.radius)}
+            </p>
+            <p>
+              <strong>Viewport:</strong>{" "}
+              {state.sceneViewport.framingMode === "auto" ? "Auto fit" : "Full span"}
+              {` | zoom ${state.sceneViewport.zoom.toFixed(2)}x`}
+            </p>
+            <p>
+              <strong>Scale mode:</strong> {scaleModeLabel}
+            </p>
+            <p>
+              <strong>Units:</strong> height {state.unitPreferences.height} | distance{" "}
+              {state.unitPreferences.distance} | radius {state.unitPreferences.radius}
+            </p>
+            <p>
+              <strong>Route:</strong>{" "}
+              {activeResult.scenario.coordinates.enabled
+                ? "Coordinate-derived"
+                : "Manual distance"}
+            </p>
+            <p>
+              <strong>Terrain obstruction:</strong>{" "}
+              {activeResult.terrainProfile ? activeResult.terrainProfile.name : "Off / none"}
+            </p>
+            <p>
+              <strong>Vertical display:</strong>{" "}
+              {state.sceneViewport.scaleMode === "true-scale"
+                ? `${state.sceneViewport.verticalZoom.toFixed(2)}x true-scale factor`
+                : state.sceneViewport.scaleMode === "survey"
+                  ? `${state.sceneViewport.verticalZoom.toFixed(2)}x survey relief factor`
+                  : `base x${activeScene.suggestedVerticalScale.toFixed(1)} with control x${state.sceneViewport.verticalZoom.toFixed(2)}`}
+            </p>
           </div>
         </PanelSection>
 
@@ -1394,6 +1507,33 @@ export function RightPanel({
             <div className="detail-card">
               <h4>{getPresetName(language, preset)}</h4>
               <p>{getPresetDescription(language, preset)}</p>
+              <p>
+                <strong>{t(language, "presetVerification")}:</strong>{" "}
+                {getPresetVerificationLabel(language, preset.verificationStatus)}
+              </p>
+              {preset.provenance ? (
+                <p>
+                  <strong>{t(language, "presetProvenance")}:</strong> {preset.provenance}
+                </p>
+              ) : null}
+              {preset.assumptions?.length ? (
+                <div className="detail-card__list-block">
+                  <strong>{t(language, "presetAssumptions")}:</strong>
+                  <ul className="detail-card__list">
+                    {preset.assumptions.map((assumption) => (
+                      <li key={assumption}>{assumption}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {preset.sourceUrl ? (
+                <p>
+                  <strong>{t(language, "presetSource")}:</strong>{" "}
+                  <a href={preset.sourceUrl} target="_blank" rel="noreferrer">
+                    {preset.sourceUrl}
+                  </a>
+                </p>
+              ) : null}
               {activeScene.terrainOverlay ? (
                 <p>
                   Profile overlay: {activeScene.terrainOverlay.name}. This layer is

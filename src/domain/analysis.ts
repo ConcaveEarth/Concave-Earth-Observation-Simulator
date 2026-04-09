@@ -15,6 +15,10 @@ import {
   getTerrainProfileByPresetId,
   sampleTerrainProfileHeight,
 } from "./profiles";
+import {
+  getObserverTotalHeightM,
+  getTargetTopElevationM,
+} from "./scenario";
 import { solveTargetPointVisibility, solveVisibility } from "./solver";
 import { clamp, formatAngle, formatDistance, formatFraction, formatHeight, lerp } from "./units";
 import type {
@@ -292,7 +296,7 @@ function createObserverFrame(result: VisibilitySolveResult) {
     result.scenario.radiusM,
     0,
     result.model.geometryMode,
-    result.scenario.observerHeightM,
+    getObserverTotalHeightM(result.scenario),
   );
   const observerTangent = localTangentAtAngle(0);
   const observerUp = localUpAtAngle(0, result.model.geometryMode);
@@ -360,7 +364,7 @@ export function getSweepRange(
       };
     }
     case "observerHeight": {
-      const current = scenario.observerHeightM;
+      const current = getObserverTotalHeightM(scenario);
       if (config.rangeMode === "focused") {
         return { min: 0, max: Math.max(current * 2.5, 30), current };
       }
@@ -406,8 +410,15 @@ function applySweepValue(
         model,
       };
     case "observerHeight":
-      return {
-        scenario: { ...scenario, observerHeightM: value },
+        return {
+        scenario:
+          scenario.scenarioMode === "field"
+            ? {
+                ...scenario,
+                observerEyeHeightM: Math.max(0, value - scenario.observerSurfaceElevationM),
+                observerHeightM: value,
+              }
+            : { ...scenario, observerHeightM: value },
         model,
       };
     case "targetHeight":
@@ -612,13 +623,13 @@ export function buildRayBundlePanelData(
   result.targetSamples.forEach((sample, index) => {
     const targetPoint = transformToObserverFrame(
       result,
-      pointAtSurfaceHeight(
-        result.scenario.radiusM,
-        targetAngleRad,
-        result.model.geometryMode,
-        sample.sampleHeightM,
-      ),
-    );
+        pointAtSurfaceHeight(
+          result.scenario.radiusM,
+          targetAngleRad,
+          result.model.geometryMode,
+          sample.absoluteHeightM,
+        ),
+      );
     const exTargetPoint = { x: targetPoint.x, y: targetPoint.y * verticalScale };
     samplePoints.push({
       id: `sample-${index}`,
@@ -757,7 +768,7 @@ function sampleProfileForAnalysis(result: VisibilitySolveResult) {
     createGenericTargetProfile(
       result.scenario.presetId,
       result.scenario.surfaceDistanceM,
-      result.scenario.targetHeightM,
+      getTargetTopElevationM(result.scenario),
     );
   const sortedSamples = [...profile.samples].sort((left, right) => left.distanceM - right.distanceM);
   const minDistanceM = sortedSamples[0].distanceM;
@@ -955,7 +966,7 @@ export function buildProfileVisibilityPanelData(
         minXPad: Math.max(1_000, maxDistanceM * 0.025),
         topPaddingFactor: 0.18,
         bottomPaddingFactor: 0.34,
-        minTopPad: Math.max(180, result.scenario.observerHeightM * verticalScale * 0.08),
+        minTopPad: Math.max(180, getObserverTotalHeightM(result.scenario) * verticalScale * 0.08),
         minBottomPad: Math.max(260, Math.max(...profilePolyline.map((point) => Math.abs(point.y))) * 0.12),
       },
     ),

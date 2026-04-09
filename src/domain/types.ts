@@ -3,6 +3,7 @@ export type IntrinsicCurvatureMode = "none" | "1/R" | "2/R" | "constant";
 export type AtmosphereMode = "none" | "simpleCoefficient";
 export type ViewMode = "cross-section" | "compare";
 export type FocusedModel = "primary" | "comparison";
+export type ScenarioMode = "simple" | "field";
 export type ReferenceConstructionMode =
   | "auto"
   | "straight-horizontal"
@@ -18,8 +19,12 @@ export interface Vec2 {
 }
 
 export interface ScenarioInput {
+  scenarioMode: ScenarioMode;
   observerHeightM: number;
+  observerSurfaceElevationM: number;
+  observerEyeHeightM: number;
   targetHeightM: number;
+  targetBaseElevationM: number;
   surfaceDistanceM: number;
   radiusM: number;
   targetSampleCount: number;
@@ -107,6 +112,7 @@ export interface VisibilitySample {
   targetAngleRad: number;
   targetPoint: Vec2;
   sampleHeightM: number;
+  absoluteHeightM: number;
   visible: boolean;
   trace?: RayTrace;
   apparentElevationRad?: number;
