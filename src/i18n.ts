@@ -340,12 +340,12 @@ const en: TranslationDictionary = {
   targetHeightShort: "Target height {value}",
   visibilityShort: "Visibility {value}",
   modelConvexSphere: "Convex Sphere",
-  modelConvexSphereAtmosphere: "Convex Sphere + Atmosphere",
+  modelConvexSphereAtmosphere: "Convex Sphere + Atmospheric Refraction",
   modelConcaveShell: "Concave Shell",
   modelConcaveShellIntrinsic: "Concave Shell + Intrinsic",
-  modelConcaveShellAtmosphere: "Concave Shell + Atmospheric Adjustment",
+  modelConcaveShellAtmosphere: "Concave Shell + Atmospheric Refraction",
   modelConcaveShellIntrinsicAtmosphere:
-    "Concave Shell + Intrinsic + Atmospheric Adjustment",
+    "Concave Shell + Intrinsic + Atmospheric Refraction",
 };
 
 const es: Partial<TranslationDictionary> = {

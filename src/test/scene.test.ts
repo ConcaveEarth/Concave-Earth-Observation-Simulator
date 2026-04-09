@@ -107,6 +107,7 @@ describe("scene view model", () => {
           label.text.includes("Curvilinear Tangent"),
       ),
     ).toBe(true);
+    expect(scene.visibilityPolygons?.length ?? 0).toBeGreaterThanOrEqual(1);
   });
 
   it("respects advanced line behavior overrides for scene construction", () => {

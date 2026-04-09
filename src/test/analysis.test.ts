@@ -128,4 +128,12 @@ describe("analysis helpers", () => {
     expect(panel.bounds.maxY).toBeGreaterThan(panel.bounds.minY);
     expect(panel.domeRadius).toBeGreaterThan(0);
   });
+
+  it("reports concave intrinsic as upward and normal atmosphere as downward in sky-wrap stats", () => {
+    const result = solveVisibility(defaultScenario, defaultComparisonModel);
+    const panel = buildSkyWrapPanelData(result, "Sky Wrap", "comparison");
+
+    expect(panel.stats.intrinsicLabel).toContain("upward");
+    expect(panel.stats.atmosphereLabel).toContain("downward");
+  });
 });

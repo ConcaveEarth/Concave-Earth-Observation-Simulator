@@ -1,22 +1,22 @@
 import { t, type LanguageMode } from "../../i18n";
-import type { SurfaceAnnotation } from "../../domain/types";
+import type { FocusedModel, SurfaceAnnotation } from "../../domain/types";
 import { PanelScrollArea } from "./PanelScrollArea";
 
 interface SceneLegendOverlayProps {
   annotations: SurfaceAnnotation[];
-  sceneKey: "primary" | "comparison";
+  sceneKey: FocusedModel | null;
   activeFeatureId: string | null;
   selectedFeatureId: string | null;
-  selectedSceneKey: "primary" | "comparison" | null;
+  selectedSceneKey: FocusedModel | null;
   visible: boolean;
   showTerrainOverlay: boolean;
   language: LanguageMode;
   onHoverFeature: (
-    sceneKey: "primary" | "comparison" | null,
+    sceneKey: FocusedModel | null,
     featureId: string | null,
   ) => void;
   onToggleFeature: (
-    sceneKey: "primary" | "comparison",
+    sceneKey: FocusedModel | null,
     featureId: string,
   ) => void;
 }
@@ -56,7 +56,9 @@ export function SceneLegendOverlay({
               className={
                 annotation.id === activeFeatureId
                   ? "legend-item legend-item--active"
-                  : annotation.id === selectedFeatureId && selectedSceneKey === sceneKey
+                  : annotation.id === selectedFeatureId &&
+                      ((sceneKey === null && selectedFeatureId !== null) ||
+                        selectedSceneKey === sceneKey)
                     ? "legend-item legend-item--pinned"
                   : "legend-item"
               }

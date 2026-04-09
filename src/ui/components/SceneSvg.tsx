@@ -53,6 +53,15 @@ interface PanelRect {
   height: number;
 }
 
+function matchesSceneFeature(
+  featureId: string,
+  sceneKey: SceneViewModel["sceneKey"],
+  targetFeatureId: string | null,
+  targetSceneKey: SceneViewModel["sceneKey"] | null,
+) {
+  return targetFeatureId === featureId && (targetSceneKey === null || targetSceneKey === sceneKey);
+}
+
 const SINGLE_SVG_WIDTH = 1820;
 const COMPARE_SVG_WIDTH = 2360;
 const SVG_HEIGHT = 980;
@@ -148,10 +157,13 @@ function renderLine(
     featureId: string | null,
   ) => void,
 ) {
-  const isActive =
-    activeFeatureId === line.featureId && activeSceneKey === sceneKey;
-  const isSelected =
-    selectedFeatureId === line.featureId && selectedSceneKey === sceneKey;
+  const isActive = matchesSceneFeature(line.featureId, sceneKey, activeFeatureId, activeSceneKey);
+  const isSelected = matchesSceneFeature(
+    line.featureId,
+    sceneKey,
+    selectedFeatureId,
+    selectedSceneKey,
+  );
   const showEmphasis = isActive || isSelected;
   return (
     <g key={line.id}>
@@ -210,10 +222,18 @@ function renderSegment(
 ) {
   const start = project(segment.from);
   const end = project(segment.to);
-  const isActive =
-    activeFeatureId === segment.featureId && activeSceneKey === sceneKey;
-  const isSelected =
-    selectedFeatureId === segment.featureId && selectedSceneKey === sceneKey;
+  const isActive = matchesSceneFeature(
+    segment.featureId,
+    sceneKey,
+    activeFeatureId,
+    activeSceneKey,
+  );
+  const isSelected = matchesSceneFeature(
+    segment.featureId,
+    sceneKey,
+    selectedFeatureId,
+    selectedSceneKey,
+  );
   const showEmphasis = isActive || isSelected;
   return (
     <g key={segment.id}>
@@ -809,6 +829,15 @@ export function SceneSvg({
                 />
               ) : null}
 
+              {scene.visibilityPolygons?.map((polygon) => (
+                <polygon
+                  key={polygon.id}
+                  points={polygonPoints(polygon.points.map(project))}
+                  fill={polygon.fill}
+                  opacity={polygon.opacity}
+                />
+              ))}
+
               {showScaleGuides
                 ? renderScaleGuides(
                     scene,
@@ -856,12 +885,18 @@ export function SceneSvg({
 
               {scene.markers.map((marker) => {
                 const point = project(marker.point);
-                const isActive =
-                  activeFeatureId === marker.featureId &&
-                  activeSceneKey === scene.sceneKey;
-                const isSelected =
-                  selectedFeatureId === marker.featureId &&
-                  selectedSceneKey === scene.sceneKey;
+                const isActive = matchesSceneFeature(
+                  marker.featureId,
+                  scene.sceneKey,
+                  activeFeatureId,
+                  activeSceneKey,
+                );
+                const isSelected = matchesSceneFeature(
+                  marker.featureId,
+                  scene.sceneKey,
+                  selectedFeatureId,
+                  selectedSceneKey,
+                );
 
                 return (
                   <g
@@ -932,9 +967,12 @@ export function SceneSvg({
                   )
                   .map((label) => {
                     const point = project(label.point);
-                    const isLabelActive =
-                      activeFeatureId === label.featureId &&
-                      activeSceneKey === scene.sceneKey;
+                    const isLabelActive = matchesSceneFeature(
+                      label.featureId,
+                      scene.sceneKey,
+                      activeFeatureId,
+                      activeSceneKey,
+                    );
                     return (
                       <text
                         key={label.id}

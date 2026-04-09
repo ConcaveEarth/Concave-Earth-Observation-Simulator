@@ -77,7 +77,7 @@ export const defaultComparisonModel: ModelConfig = {
   id: "comparison",
   label: "Concave Shell + Intrinsic",
   geometryMode: "concave",
-  intrinsicCurvatureMode: "2/R",
+  intrinsicCurvatureMode: "1/R",
   intrinsicCurvaturePerM: 0,
   atmosphere: {
     mode: "simpleCoefficient",

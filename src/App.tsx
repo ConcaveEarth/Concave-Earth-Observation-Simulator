@@ -536,22 +536,28 @@ export default function App() {
         ];
 
   const visibleSceneKeys = new Set(scenes.map((scene) => scene.sceneKey));
+  const hoveredFeatureVisible =
+    state.hoveredFeatureId !== null &&
+    (state.hoveredSceneKey === null || visibleSceneKeys.has(state.hoveredSceneKey));
   const hoveredSceneVisible =
     state.hoveredSceneKey !== null && visibleSceneKeys.has(state.hoveredSceneKey);
+  const selectedFeatureVisible =
+    state.selectedFeatureId !== null &&
+    (state.selectedSceneKey === null || visibleSceneKeys.has(state.selectedSceneKey));
   const selectedSceneVisible =
     state.selectedSceneKey !== null && visibleSceneKeys.has(state.selectedSceneKey);
   const interactionEnabled = deferredState.analysisTab === "cross-section";
   const activeFeatureId = interactionEnabled
-    ? hoveredSceneVisible
+    ? hoveredFeatureVisible
       ? state.hoveredFeatureId
-      : selectedSceneVisible
+      : selectedFeatureVisible
         ? state.selectedFeatureId
         : null
     : null;
   const activeSceneKey = interactionEnabled
-    ? hoveredSceneVisible
+    ? hoveredFeatureVisible
       ? state.hoveredSceneKey
-      : selectedSceneVisible
+      : selectedFeatureVisible
         ? state.selectedSceneKey
         : null
     : null;
@@ -572,9 +578,25 @@ export default function App() {
     inspectedSceneKey === "primary" ? primaryObserverView : comparisonObserverView;
   const inspectedSkyWrapPanel =
     inspectedSceneKey === "primary" ? primarySkyWrap : comparisonSkyWrap;
-  const isFeaturePinned =
-    selectedSceneVisible && state.selectedFeatureId !== null && state.selectedSceneKey !== null;
+  const isFeaturePinned = interactionEnabled && selectedFeatureVisible;
   const displayedScenes = scenes;
+  const legendAnnotations = useMemo(() => {
+    const orderedScenes = [
+      inspectedScene,
+      ...displayedScenes.filter((scene) => scene.sceneKey !== inspectedScene.sceneKey),
+    ];
+    const merged = new Map<string, (typeof inspectedScene.annotations)[number]>();
+
+    orderedScenes.forEach((scene) => {
+      scene.annotations.forEach((annotation) => {
+        if (!merged.has(annotation.id)) {
+          merged.set(annotation.id, annotation);
+        }
+      });
+    });
+
+    return Array.from(merged.values());
+  }, [displayedScenes, inspectedScene]);
   const suggestedVerticalScale =
     displayedScenes.reduce(
       (largest, scene) => Math.max(largest, scene.suggestedVerticalScale),
@@ -782,7 +804,7 @@ export default function App() {
   }
 
   function handleLegendToggleFeature(
-    sceneKey: "primary" | "comparison",
+    sceneKey: "primary" | "comparison" | null,
     featureId: string,
   ) {
     if (state.selectedSceneKey === sceneKey && state.selectedFeatureId === featureId) {
@@ -1102,8 +1124,8 @@ export default function App() {
                   )}
                 </div>
                 <SceneLegendOverlay
-                  annotations={inspectedScene.annotations}
-                  sceneKey={inspectedScene.sceneKey}
+                  annotations={legendAnnotations}
+                  sceneKey={state.viewMode === "compare" ? null : inspectedScene.sceneKey}
                   activeFeatureId={activeFeatureId}
                   selectedFeatureId={state.selectedFeatureId}
                   selectedSceneKey={state.selectedSceneKey}

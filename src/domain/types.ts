@@ -261,6 +261,7 @@ export interface SceneViewModel {
   suggestedVerticalScale: number;
   surfaceFill: ScenePolygon;
   atmosphereFill?: ScenePolygon;
+  visibilityPolygons?: ScenePolygon[];
   terrainOverlay?: SceneTerrainOverlay;
   surfaceLine: SceneLine;
   observerStem: SceneSegment;

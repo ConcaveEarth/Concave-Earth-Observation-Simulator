@@ -1238,7 +1238,10 @@ export function buildRouteMapPanelData(
 
 function formatCurvatureLabel(valuePerM: number, radiusM: number) {
   const ratio = Math.abs(valuePerM * radiusM);
-  const direction = valuePerM >= 0 ? "downward" : "upward";
+  if (ratio < 1e-6) {
+    return "0.00 / R neutral";
+  }
+  const direction = valuePerM >= 0 ? "upward" : "downward";
   return `${ratio.toFixed(2)} / R ${direction}`;
 }
 
@@ -1301,7 +1304,7 @@ export function buildSkyWrapPanelData(
     minBottomPad: 20_000,
   });
   const intrinsic = result.model.geometryMode === "concave"
-    ? -getIntrinsicCurvatureMagnitude(result.model, result.scenario)
+    ? getIntrinsicCurvatureMagnitude(result.model, result.scenario)
     : 0;
   const atmosphere = -getAtmosphereCurvatureMagnitudeAtHeight(result.model, result.scenario, 0);
   const net = intrinsic + atmosphere;
@@ -1311,8 +1314,8 @@ export function buildSkyWrapPanelData(
     title,
     subtitle:
       result.model.geometryMode === "concave"
-        ? "Sky-wrap workspace showing intrinsic upward bending modified by atmospheric refraction."
-        : "Sky-path workspace showing atmosphere-shaped upward and downward ray behavior from the observer frame.",
+        ? "Sky-wrap workspace showing intrinsic upward bending with atmospheric refraction delaying or tightening the rise of each ray."
+        : "Sky-path workspace showing the observer-frame ray family under the active atmospheric refraction law.",
     bounds,
     domeRadius: maxArcLengthM,
     gridCurves,
