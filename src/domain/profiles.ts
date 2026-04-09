@@ -15,7 +15,7 @@ const terrainProfiles: TerrainProfilePreset[] = [
       { distanceM: 410_000, heightM: 2_900 },
       { distanceM: 430_000, heightM: 4_850 },
       { distanceM: 448_000, heightM: 6_120 },
-      { distanceM: 460_000, heightM: 6_962 },
+      { distanceM: 460_000, heightM: 7_040 },
     ],
   },
   {

@@ -2,9 +2,11 @@ import { getTurnRatePerMeter } from "../domain/curvature";
 import { angleOf, localTangentAtAngle, pointAtSurfaceHeight } from "../domain/geometry";
 import type { ModelConfig } from "../domain/types";
 import {
+  applyPresetToModel,
   defaultComparisonModel,
   defaultPrimaryModel,
   defaultScenario,
+  getPresetById,
 } from "../domain/presets";
 import { solveVisibility } from "../domain/solver";
 
@@ -153,5 +155,23 @@ describe("visibility solver", () => {
     expect(result.opticalHorizon!.trace).not.toBeNull();
     expect(result.opticalHorizon!.trace!.points.length).toBeGreaterThan(4);
     expect(result.opticalHorizon!.distanceM).toBeGreaterThan(0);
+  });
+
+  it("keeps the Roxas-inspired Aconcagua concave preset partially visible with a traced horizon", () => {
+    const preset = getPresetById("aconcagua-study");
+    const result = solveVisibility(
+      preset.scenario,
+      applyPresetToModel(defaultComparisonModel, preset.comparisonModel),
+    );
+
+    expect(result.scenario.observerHeightM).toBe(6_400);
+    expect(result.scenario.targetHeightM).toBe(7_040);
+    expect(result.scenario.surfaceDistanceM).toBe(460_000);
+    expect(result.opticalHorizon).not.toBeNull();
+    expect(result.opticalHorizon!.trace).not.toBeNull();
+    expect(result.hiddenHeightM).toBeGreaterThan(0);
+    expect(result.visibleHeightM).toBeGreaterThan(0);
+    expect(result.visibilityFraction).toBeGreaterThan(0);
+    expect(result.visibilityFraction).toBeLessThan(1);
   });
 });

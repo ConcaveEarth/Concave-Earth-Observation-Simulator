@@ -1,5 +1,10 @@
 import { buildSceneViewModel, solveVisibility } from "../domain";
-import { defaultComparisonModel, defaultPrimaryModel } from "../domain/presets";
+import {
+  applyPresetToModel,
+  defaultComparisonModel,
+  defaultPrimaryModel,
+  getPresetById,
+} from "../domain/presets";
 import { defaultUnitPreferences } from "../domain/units";
 
 describe("scene view model", () => {
@@ -147,5 +152,46 @@ describe("scene view model", () => {
       scene.annotations.find((annotation) => annotation.id === "observer-altitude-curve")
         ?.label,
     ).toBe("Straight Horizontal Reference");
+  });
+
+  it("builds a Roxas-style concave Aconcagua line family with connected traced paths", () => {
+    const preset = getPresetById("aconcagua-study");
+    const result = solveVisibility(
+      preset.scenario,
+      applyPresetToModel(defaultComparisonModel, preset.comparisonModel),
+    );
+
+    const scene = buildSceneViewModel(
+      result,
+      "Comparison Model",
+      "comparison",
+      defaultUnitPreferences,
+    );
+
+    const sourceLightPath = scene.lines.find((line) => line.featureId === "source-light-path");
+    const horizonTrace = scene.lines.find((line) => line.featureId === "horizon-optical");
+
+    expect(
+      scene.annotations.find((annotation) => annotation.id === "observer-altitude-curve")
+        ?.label,
+    ).toBe("Curvilinear Tangent");
+    expect(scene.segments.some((segment) => segment.featureId === "observer-horizontal")).toBe(
+      false,
+    );
+    expect(scene.segments.some((segment) => segment.featureId === "horizon-geometric")).toBe(
+      false,
+    );
+    expect(sourceLightPath).toBeDefined();
+    expect(sourceLightPath!.points.length).toBeGreaterThan(4);
+    expect(horizonTrace).toBeDefined();
+    expect(horizonTrace!.points.length).toBeGreaterThan(4);
+    expect(sourceLightPath!.points[sourceLightPath!.points.length - 1].x).toBeCloseTo(0, 6);
+    expect(sourceLightPath!.points[sourceLightPath!.points.length - 1].y).toBeCloseTo(0, 6);
+
+    const start = sourceLightPath!.points[0];
+    const end = sourceLightPath!.points[sourceLightPath!.points.length - 1];
+    const midpoint = sourceLightPath!.points[Math.floor(sourceLightPath!.points.length / 2)];
+    const chordMidY = start.y + (end.y - start.y) * 0.5;
+    expect(Math.abs(midpoint.y - chordMidY)).toBeGreaterThan(10);
   });
 });

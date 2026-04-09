@@ -85,20 +85,25 @@ export const scenarioPresets: ScenarioPreset[] = [
     id: "aconcagua-study",
     name: "Aconcagua Study",
     description:
-      "Long-range mountain visibility case inspired by the classic Aconcagua comparison diagrams.",
+      "Roxas-inspired long-range mountain visibility case using the classic Aconcagua plate values: observer 6,400 m, target 7,040 m, distance 460 km.",
     scenario: {
       ...defaultScenario,
       observerHeightM: 6_400,
-      targetHeightM: 6_962,
+      targetHeightM: 7_040,
       surfaceDistanceM: 460_000,
       targetSampleCount: 28,
       presetId: "aconcagua-study",
     },
     comparisonModel: {
-      intrinsicCurvatureMode: "2/R",
-      atmosphere: {
-        mode: "simpleCoefficient",
-        coefficient: 0.06,
+      intrinsicCurvatureMode: "1/R",
+      lineBehavior: {
+        referenceConstruction: "curvilinear-tangent",
+        opticalHorizonRay: "traced",
+        objectLightPath: "traced",
+        apparentDirection: "auto",
+        showSourceGeometricPath: true,
+        showObserverHorizontal: false,
+        showGeometricHorizon: false,
       },
     },
   },
