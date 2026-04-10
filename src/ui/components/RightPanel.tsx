@@ -1445,7 +1445,10 @@ export function RightPanel({
 
   return (
     <aside className="right-panel panel">
-      <PanelScrollArea viewportClassName="right-panel__viewport">
+      <PanelScrollArea
+        viewportClassName="right-panel__viewport"
+        contentClassName="right-panel__grid"
+      >
         <PanelSection
           title={t(language, "currentOutput")}
           eyebrow={t(language, "numerics")}
