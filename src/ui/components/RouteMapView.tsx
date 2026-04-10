@@ -296,6 +296,9 @@ export function RouteMapView({
         <p className="route-map__eyebrow">{t(language, "routeMap")}</p>
         <h3>{panel.title}</h3>
         <p>{panel.subtitle}</p>
+        {panel.usesPreviewSeed ? (
+          <div className="route-map__status-pill">Preview route seeded from scenario distance</div>
+        ) : null}
         <div className="route-map__placement">
           <span>Click map to place</span>
           <button
@@ -329,7 +332,11 @@ export function RouteMapView({
             type="button"
             onClick={() => onCoordinateModeChange(!panel.coordinatesEnabled)}
           >
-            {panel.coordinatesEnabled ? "Distance linked" : "Use route distance"}
+            {panel.coordinatesEnabled
+              ? "Distance linked"
+              : panel.usesPreviewSeed
+                ? "Use preview route"
+                : "Use route distance"}
           </button>
         </div>
       </div>

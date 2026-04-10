@@ -118,6 +118,17 @@ describe("analysis helpers", () => {
     expect(panel.bearingDeg).toBeLessThanOrEqual(360);
   });
 
+  it("seeds a usable preview route when a preset has no distinct stored coordinates yet", () => {
+    const result = solveVisibility(defaultScenario, defaultPrimaryModel);
+    const panel = buildRouteMapPanelData(result, "Route Map", "primary");
+
+    expect(panel.usesPreviewSeed).toBe(true);
+    expect(panel.routeDistanceM).toBeGreaterThan(20_000);
+    expect(panel.routePoints.length).toBeGreaterThan(10);
+    expect(panel.observerPoint.latDeg).not.toBe(panel.targetPoint.latDeg);
+    expect(panel.observerPoint.lonDeg).not.toBe(panel.targetPoint.lonDeg);
+  });
+
   it("builds a sky-wrap panel with grid and ray families", () => {
     const result = solveVisibility(defaultScenario, defaultComparisonModel);
     const panel = buildSkyWrapPanelData(result, "Sky Wrap", "comparison");

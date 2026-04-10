@@ -8,6 +8,7 @@ import {
 import {
   getGreatCircleRouteMetrics,
   interpolateGreatCircleRoute,
+  projectGreatCircleDestination,
 } from "./geodesy";
 import {
   getAtmosphereCurvatureMagnitudeAtHeight,
@@ -254,6 +255,7 @@ export interface RouteMapPanelData {
   observerPoint: { lonDeg: number; latDeg: number };
   targetPoint: { lonDeg: number; latDeg: number };
   coordinatesEnabled: boolean;
+  usesPreviewSeed: boolean;
 }
 
 export interface SkyWrapCurve {
@@ -1225,18 +1227,108 @@ export function buildRouteMapPanelData(
   title: string,
   sceneKey: FocusedModel,
 ): RouteMapPanelData {
-  const routeMetrics = getGreatCircleRouteMetrics({
+  const presetRouteAnchors: Record<
+    string,
+    { observerLatDeg: number; observerLonDeg: number; bearingDeg: number }
+  > = {
+    "low-ship": { observerLatDeg: 29.476, observerLonDeg: -90.769, bearingDeg: 78 },
+    "elevated-observer": {
+      observerLatDeg: 34.954,
+      observerLonDeg: -120.161,
+      bearingDeg: 256,
+    },
+    "aconcagua-study": {
+      observerLatDeg: -32.947,
+      observerLonDeg: -65.314,
+      bearingDeg: 267,
+    },
+    "oil-rig": { observerLatDeg: 29.271, observerLonDeg: -90.104, bearingDeg: 137 },
+    "lake-pontchartrain": {
+      observerLatDeg: 30.044,
+      observerLonDeg: -90.118,
+      bearingDeg: 62,
+    },
+    "chicago-lake-michigan": {
+      observerLatDeg: 42.040,
+      observerLonDeg: -87.654,
+      bearingDeg: 82,
+    },
+    "balloon-100kft": {
+      observerLatDeg: 35.123,
+      observerLonDeg: -111.745,
+      bearingDeg: 88,
+    },
+    "strong-concave-demo": {
+      observerLatDeg: 28.451,
+      observerLonDeg: -80.428,
+      bearingDeg: 93,
+    },
+    "six-foot-horizon": {
+      observerLatDeg: 29.410,
+      observerLonDeg: -89.989,
+      bearingDeg: 90,
+    },
+    "great-orme-blackpool": {
+      observerLatDeg: 53.323,
+      observerLonDeg: -3.848,
+      bearingDeg: 63,
+    },
+    "canigou-marseille": {
+      observerLatDeg: 43.296,
+      observerLonDeg: 5.369,
+      bearingDeg: 245,
+    },
+  };
+
+  const rawRouteMetrics = getGreatCircleRouteMetrics({
     observerLatDeg: result.scenario.coordinates.observerLatDeg,
     observerLonDeg: result.scenario.coordinates.observerLonDeg,
     targetLatDeg: result.scenario.coordinates.targetLatDeg,
     targetLonDeg: result.scenario.coordinates.targetLonDeg,
     radiusM: result.scenario.radiusM,
   });
+  const usePreviewSeed =
+    !result.scenario.coordinates.enabled &&
+    rawRouteMetrics.distanceM < Math.max(50, result.scenario.surfaceDistanceM * 0.02);
+  const previewAnchor =
+    presetRouteAnchors[result.scenario.presetId] ?? {
+      observerLatDeg: 29.476,
+      observerLonDeg: -90.769,
+      bearingDeg: 78,
+    };
+  const effectiveObserverPoint = usePreviewSeed
+    ? {
+        latDeg: previewAnchor.observerLatDeg,
+        lonDeg: previewAnchor.observerLonDeg,
+      }
+    : {
+        latDeg: result.scenario.coordinates.observerLatDeg,
+        lonDeg: result.scenario.coordinates.observerLonDeg,
+      };
+  const effectiveTargetPoint = usePreviewSeed
+    ? projectGreatCircleDestination({
+        originLatDeg: previewAnchor.observerLatDeg,
+        originLonDeg: previewAnchor.observerLonDeg,
+        bearingDeg: previewAnchor.bearingDeg,
+        distanceM: result.scenario.surfaceDistanceM,
+        radiusM: result.scenario.radiusM,
+      })
+    : {
+        latDeg: result.scenario.coordinates.targetLatDeg,
+        lonDeg: result.scenario.coordinates.targetLonDeg,
+      };
+  const routeMetrics = getGreatCircleRouteMetrics({
+    observerLatDeg: effectiveObserverPoint.latDeg,
+    observerLonDeg: effectiveObserverPoint.lonDeg,
+    targetLatDeg: effectiveTargetPoint.latDeg,
+    targetLonDeg: effectiveTargetPoint.lonDeg,
+    radiusM: result.scenario.radiusM,
+  });
   const routePoints = interpolateGreatCircleRoute({
-    observerLatDeg: result.scenario.coordinates.observerLatDeg,
-    observerLonDeg: result.scenario.coordinates.observerLonDeg,
-    targetLatDeg: result.scenario.coordinates.targetLatDeg,
-    targetLonDeg: result.scenario.coordinates.targetLonDeg,
+    observerLatDeg: effectiveObserverPoint.latDeg,
+    observerLonDeg: effectiveObserverPoint.lonDeg,
+    targetLatDeg: effectiveTargetPoint.latDeg,
+    targetLonDeg: effectiveTargetPoint.lonDeg,
     radiusM: result.scenario.radiusM,
     sampleCount: 72,
   });
@@ -1245,20 +1337,17 @@ export function buildRouteMapPanelData(
     sceneKey,
     title,
     subtitle: result.scenario.coordinates.enabled
-      ? "Interactive route map with coordinate-derived distance and bearing."
-      : "Coordinate route preview. Enable coordinate-derived distance to drive the scenario from the map.",
+      ? "Placed observation points are driving the route distance and bearing."
+      : usePreviewSeed
+        ? "Schematic preview route derived from the current scenario distance. Click the map to place real observation points."
+        : "Map preview using the stored observation coordinates. Enable route distance to drive the scenario from the map.",
     routeDistanceM: routeMetrics.distanceM,
     bearingDeg: routeMetrics.initialBearingDeg,
     routePoints,
-    observerPoint: {
-      latDeg: result.scenario.coordinates.observerLatDeg,
-      lonDeg: result.scenario.coordinates.observerLonDeg,
-    },
-    targetPoint: {
-      latDeg: result.scenario.coordinates.targetLatDeg,
-      lonDeg: result.scenario.coordinates.targetLonDeg,
-    },
+    observerPoint: effectiveObserverPoint,
+    targetPoint: effectiveTargetPoint,
     coordinatesEnabled: result.scenario.coordinates.enabled,
+    usesPreviewSeed: usePreviewSeed,
   };
 }
 

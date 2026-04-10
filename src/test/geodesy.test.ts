@@ -3,6 +3,7 @@ import {
   getGreatCircleRouteMetrics,
   normalizeLatitudeDeg,
   normalizeLongitudeDeg,
+  projectGreatCircleDestination,
 } from "../domain/geodesy";
 
 describe("geodesy helpers", () => {
@@ -27,5 +28,25 @@ describe("geodesy helpers", () => {
     expect(route.centralAngleRad).toBeGreaterThan(0);
     expect(route.initialBearingDeg).toBeGreaterThanOrEqual(0);
     expect(route.initialBearingDeg).toBeLessThan(360);
+  });
+
+  it("projects a destination point from origin, bearing, and distance", () => {
+    const destination = projectGreatCircleDestination({
+      originLatDeg: 30,
+      originLonDeg: -90,
+      bearingDeg: 90,
+      distanceM: 100_000,
+      radiusM: 6_371_000,
+    });
+    const route = getGreatCircleRouteMetrics({
+      observerLatDeg: 30,
+      observerLonDeg: -90,
+      targetLatDeg: destination.latDeg,
+      targetLonDeg: destination.lonDeg,
+      radiusM: 6_371_000,
+    });
+
+    expect(route.distanceM).toBeGreaterThan(98_000);
+    expect(route.distanceM).toBeLessThan(102_000);
   });
 });

@@ -285,6 +285,7 @@ function createEmptyRouteMapPanel(
     observerPoint: { latDeg: 0, lonDeg: 0 },
     targetPoint: { latDeg: 0, lonDeg: 0 },
     coordinatesEnabled: false,
+    usesPreviewSeed: false,
   };
 }
 
@@ -1434,6 +1435,28 @@ export default function App() {
                         language={state.language}
                         onCoordinateModeChange={(enabled) => {
                           startTransition(() => {
+                            if (enabled && routeMapPanel.usesPreviewSeed) {
+                              dispatch({
+                                type: "setCoordinateField",
+                                key: "observerLatDeg",
+                                value: routeMapPanel.observerPoint.latDeg,
+                              });
+                              dispatch({
+                                type: "setCoordinateField",
+                                key: "observerLonDeg",
+                                value: routeMapPanel.observerPoint.lonDeg,
+                              });
+                              dispatch({
+                                type: "setCoordinateField",
+                                key: "targetLatDeg",
+                                value: routeMapPanel.targetPoint.latDeg,
+                              });
+                              dispatch({
+                                type: "setCoordinateField",
+                                key: "targetLonDeg",
+                                value: routeMapPanel.targetPoint.lonDeg,
+                              });
+                            }
                             dispatch({
                               type: "setCoordinateField",
                               key: "enabled",

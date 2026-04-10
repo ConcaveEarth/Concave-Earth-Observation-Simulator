@@ -12,6 +12,11 @@ export interface GreatCircleRoutePoint {
   distanceM: number;
 }
 
+export interface GreatCircleDestination {
+  latDeg: number;
+  lonDeg: number;
+}
+
 export function degToRad(value: number): number {
   return (value * Math.PI) / 180;
 }
@@ -125,4 +130,35 @@ export function interpolateGreatCircleRoute(args: {
       distanceM: route.distanceM * fraction,
     };
   });
+}
+
+export function projectGreatCircleDestination(args: {
+  originLatDeg: number;
+  originLonDeg: number;
+  bearingDeg: number;
+  distanceM: number;
+  radiusM: number;
+}): GreatCircleDestination {
+  const angularDistance = args.radiusM <= 0 ? 0 : args.distanceM / args.radiusM;
+  const latitudeRad = degToRad(normalizeLatitudeDeg(args.originLatDeg));
+  const longitudeRad = degToRad(normalizeLongitudeDeg(args.originLonDeg));
+  const bearingRad = degToRad(args.bearingDeg);
+
+  const destinationLatRad = Math.asin(
+    Math.sin(latitudeRad) * Math.cos(angularDistance) +
+      Math.cos(latitudeRad) * Math.sin(angularDistance) * Math.cos(bearingRad),
+  );
+
+  const destinationLonRad =
+    longitudeRad +
+    Math.atan2(
+      Math.sin(bearingRad) * Math.sin(angularDistance) * Math.cos(latitudeRad),
+      Math.cos(angularDistance) -
+        Math.sin(latitudeRad) * Math.sin(destinationLatRad),
+    );
+
+  return {
+    latDeg: normalizeLatitudeDeg(radToDeg(destinationLatRad)),
+    lonDeg: normalizeLongitudeDeg(radToDeg(destinationLonRad)),
+  };
 }
