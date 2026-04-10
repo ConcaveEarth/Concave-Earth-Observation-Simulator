@@ -12,6 +12,7 @@ import {
   getObserverTotalHeightM,
   getTargetTopElevationM,
 } from "./scenario";
+import { traceRayForDisplay } from "./raytrace";
 import {
   clamp,
   formatAngle,
@@ -624,6 +625,25 @@ function placeLabel(
   });
 }
 
+function refineDisplayTracePoints(
+  result: VisibilitySolveResult,
+  rawTransform: (point: Vec2) => Vec2,
+  launchAngleRad: number,
+  targetAngleRad: number | null,
+  maxArcLengthM: number,
+) {
+  const refinedTrace = traceRayForDisplay({
+    scenario: result.scenario,
+    model: result.model,
+    terrainProfile: result.terrainProfile,
+    launchAngleRad,
+    targetAngleRad,
+    maxArcLengthM,
+  });
+
+  return refinedTrace.points.map(rawTransform);
+}
+
 export function buildSceneViewModel(
   result: VisibilitySolveResult,
   title: string,
@@ -671,8 +691,16 @@ export function buildSceneViewModel(
   const rawOpticalHorizon = result.opticalHorizon
     ? rawTransform(result.opticalHorizon.point)
     : null;
-  const rawOpticalHorizonTrace =
-    result.opticalHorizon?.trace?.points.map(rawTransform) ?? [];
+  const rawOpticalHorizonTrace = result.opticalHorizon?.trace
+    ? refineDisplayTracePoints(
+        result,
+        rawTransform,
+        result.opticalHorizon.trace.launchAngleRad,
+        null,
+        result.opticalHorizon.trace.points[result.opticalHorizon.trace.points.length - 1]?.s ??
+          result.opticalHorizon.distanceM,
+      )
+    : [];
   const rawGeometricHorizon = result.geometricHorizon
     ? rawTransform(result.geometricHorizon.point)
     : null;
@@ -696,7 +724,17 @@ export function buildSceneViewModel(
       )
     : null;
   const rawReferenceLightPath =
-    referenceVisibleSample?.trace?.points.map(rawTransform) ?? [];
+    referenceVisibleSample?.trace
+      ? refineDisplayTracePoints(
+          result,
+          rawTransform,
+          referenceVisibleSample.trace.launchAngleRad,
+          referenceVisibleSample.targetAngleRad,
+          referenceVisibleSample.trace.points[
+            referenceVisibleSample.trace.points.length - 1
+          ]?.s ?? result.scenario.surfaceDistanceM,
+        )
+      : [];
   const targetVisibleStartHeight =
     result.visibleHeightM > 0
       ? result.scenario.targetBaseElevationM + result.hiddenHeightM
@@ -709,7 +747,16 @@ export function buildSceneViewModel(
       targetVisibleStartHeight,
     ),
   );
-  const rawRayPoints = result.primaryRay?.points.map(rawTransform) ?? [];
+  const rawRayPoints = result.primaryRay
+    ? refineDisplayTracePoints(
+        result,
+        rawTransform,
+        result.primaryRay.launchAngleRad,
+        result.primaryRay.targetCrossing ? result.targetAngleRad : null,
+        result.primaryRay.points[result.primaryRay.points.length - 1]?.s ??
+          result.scenario.surfaceDistanceM,
+      )
+    : [];
   const highestVisibleSample = visibleSamples[visibleSamples.length - 1] ?? null;
   const resolvedReferenceConstruction =
     result.model.lineBehavior.referenceConstruction === "auto"
@@ -959,7 +1006,7 @@ export function buildSceneViewModel(
         "primary-ray",
         "actual-ray",
         featurePalette.actualRay,
-        result.primaryRay.points.map((point) => exaggerate(rawTransform(point))),
+        rawRayPoints.map(exaggerate),
         2.4,
         false,
         featureDefinitions["actual-ray"].label,
@@ -1306,9 +1353,7 @@ export function buildSceneViewModel(
   }
 
   if (result.primaryRay) {
-    const primaryRayPoints = result.primaryRay.points.map((point) =>
-      exaggerate(rawTransform(point)),
-    );
+    const primaryRayPoints = rawRayPoints.map(exaggerate);
     const curvedPathForLabel =
       result.primaryRay.targetCrossing && sourceLightPathPoints.length > 1
         ? sourceLightPathPoints

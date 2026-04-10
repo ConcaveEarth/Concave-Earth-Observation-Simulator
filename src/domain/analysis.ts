@@ -15,8 +15,7 @@ import {
 } from "./curvature";
 import {
   getDefaultMaxArcLengthM,
-  getDefaultStepM,
-  traceRay,
+  traceRayForDisplay,
 } from "./raytrace";
 import {
   createGenericTargetProfile,
@@ -369,6 +368,22 @@ function exaggerate(points: Vec2[], verticalScale: number) {
   }));
 }
 
+function getDisplayTracePoints(
+  result: VisibilitySolveResult,
+  launchAngleRad: number,
+  targetAngleRad: number | null,
+  maxArcLengthM: number,
+) {
+  return traceRayForDisplay({
+    scenario: result.scenario,
+    model: result.model,
+    terrainProfile: result.terrainProfile,
+    launchAngleRad,
+    targetAngleRad,
+    maxArcLengthM,
+  }).points;
+}
+
 function getBundleMetricValue(result: VisibilitySolveResult, metric: SweepMetric): number | null {
   switch (metric) {
     case "hiddenHeight":
@@ -691,27 +706,32 @@ export function buildRayBundlePanelData(
 
     if (sample.visible && sample.trace?.points.length) {
       visibleSamples += 1;
+      const displayTracePoints = getDisplayTracePoints(
+        result,
+        sample.trace.launchAngleRad,
+        sample.targetAngleRad,
+        sample.trace.points[sample.trace.points.length - 1]?.s ??
+          result.scenario.surfaceDistanceM,
+      );
       traces.push({
         id: `bundle-visible-${index}`,
         featureId: "bundle-visible-rays",
         color: `rgba(255, 194, 101, ${0.34 + index / Math.max(result.targetSamples.length * 1.8, 1)})`,
         width: 1.8,
-        points: sample.trace.points.map((point) => {
+        points: displayTracePoints.map((point) => {
           const local = transformToObserverFrame(result, point);
           return { x: local.x, y: local.y * verticalScale };
         }),
       });
     } else {
       blockedSamples += 1;
-      const blockedTrace = traceRay({
-        scenario: result.scenario,
-        model: result.model,
-        launchAngleRad: sample.actualElevationRad,
+      const blockedTrace = getDisplayTracePoints(
+        result,
+        sample.actualElevationRad,
         targetAngleRad,
-        maxArcLengthM: getDefaultMaxArcLengthM(result.scenario),
-        stepM: getDefaultStepM(result.scenario),
-      });
-      const blockedTracePoints = blockedTrace.points.map((point) => {
+        getDefaultMaxArcLengthM(result.scenario),
+      );
+      const blockedTracePoints = blockedTrace.map((point) => {
         const local = transformToObserverFrame(result, point);
         return { x: local.x, y: local.y * verticalScale };
       });
@@ -975,6 +995,12 @@ export function buildProfileVisibilityPanelData(
     }
 
     if (solve.trace?.points.length) {
+      const displayTracePoints = getDisplayTracePoints(
+        result,
+        solve.trace.launchAngleRad,
+        solve.targetAngleRad,
+        solve.trace.points[solve.trace.points.length - 1]?.s ?? solve.targetDistanceM,
+      );
       traces.push({
         id: `profile-ray-${index}`,
         color: solve.visible
@@ -982,7 +1008,7 @@ export function buildProfileVisibilityPanelData(
           : "rgba(222, 231, 242, 0.42)",
         width: solve.visible ? 1.9 : 1.25,
         dashed: !solve.visible,
-        points: solve.trace.points.map((tracePoint) => {
+        points: displayTracePoints.map((tracePoint) => {
           const local = transformToObserverFrame(result, tracePoint);
           return { x: local.x, y: local.y * verticalScale };
         }),
@@ -1252,16 +1278,14 @@ export function buildSkyWrapPanelData(
 ): SkyWrapPanelData {
   const sampleAnglesDeg = [8, 18, 30, 42, 56, 70, 82];
   const maxArcLengthM = Math.min(result.scenario.radiusM * 0.1, 900_000);
-  const stepM = Math.min(getDefaultStepM(result.scenario), 2_500);
   const rayCurves: SkyWrapCurve[] = sampleAnglesDeg.map((angleDeg, index) => {
-    const trace = traceRay({
+    const trace = traceRayForDisplay({
       scenario: result.scenario,
       model: result.model,
       terrainProfile: null,
       launchAngleRad: (angleDeg * Math.PI) / 180,
       targetAngleRad: null,
       maxArcLengthM,
-      stepM,
     });
     const frame = createObserverFrame(result);
     const points = trace.points.map((point) =>

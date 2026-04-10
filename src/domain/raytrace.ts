@@ -42,6 +42,10 @@ export function getDefaultStepM(scenario: ScenarioInput): number {
   return clamp(scenario.surfaceDistanceM / 420, 180, 1500);
 }
 
+export function getDisplayStepM(scenario: ScenarioInput): number {
+  return clamp(getDefaultStepM(scenario) / 6, 30, 240);
+}
+
 export function getDefaultMaxArcLengthM(scenario: ScenarioInput): number {
   return scenario.surfaceDistanceM + Math.max(160_000, scenario.surfaceDistanceM * 0.9);
 }
@@ -357,4 +361,11 @@ export function traceRay({
       ? minTerrainClearanceM
       : undefined,
   };
+}
+
+export function traceRayForDisplay(options: TraceRayOptions): RayTrace {
+  return traceRay({
+    ...options,
+    stepM: options.stepM ?? getDisplayStepM(options.scenario),
+  });
 }

@@ -197,4 +197,24 @@ describe("scene view model", () => {
     const chordMidY = start.y + (end.y - start.y) * 0.5;
     expect(Math.abs(midpoint.y - chordMidY)).toBeGreaterThan(10);
   });
+
+  it("densifies traced display curves so rendered optical rays are smoother than raw solver traces", () => {
+    const result = solveVisibility(baseScenario, defaultPrimaryModel);
+
+    const scene = buildSceneViewModel(
+      result,
+      "Primary Model",
+      "primary",
+      defaultUnitPreferences,
+    );
+    const renderedOpticalRay = scene.lines.find(
+      (line) => line.id === "optical-horizon-trace",
+    );
+
+    expect(result.opticalHorizon?.trace).toBeDefined();
+    expect(renderedOpticalRay).toBeDefined();
+    expect(renderedOpticalRay!.points.length).toBeGreaterThan(
+      result.opticalHorizon!.trace!.points.length,
+    );
+  });
 });
