@@ -38,7 +38,7 @@ const featurePalette = {
   surface: "#6fc2ff",
   observerHorizontal: "#9da5ff",
   observerAltitudeCurve: "#56d8d1",
-  terrainProfile: "#d9a85d",
+  terrainProfile: "#9bae74",
   geometricSightline: "#f0f3ea",
   sourceGeometricPath: "#f0d463",
   actualRay: "#ff9553",

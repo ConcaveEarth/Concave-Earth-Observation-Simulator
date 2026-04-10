@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import L from "leaflet";
 import {
   MapContainer,
@@ -34,28 +34,97 @@ function createMarkerIcon(kind: "observer" | "target") {
 const observerIcon = createMarkerIcon("observer");
 const targetIcon = createMarkerIcon("target");
 
+const WEB_MERCATOR_LAT_LIMIT = 85.05112878;
+
+function clampFinite(value: number, min: number, max: number, fallback: number): number {
+  if (!Number.isFinite(value)) {
+    return fallback;
+  }
+
+  return Math.min(Math.max(value, min), max);
+}
+
+function normalizeLongitude(lonDeg: number): number {
+  if (!Number.isFinite(lonDeg)) {
+    return 0;
+  }
+
+  return ((((lonDeg + 180) % 360) + 360) % 360) - 180;
+}
+
+function normalizeGeoPoint(point: { latDeg: number; lonDeg: number }) {
+  return {
+    latDeg: clampFinite(point.latDeg, -WEB_MERCATOR_LAT_LIMIT, WEB_MERCATOR_LAT_LIMIT, 0),
+    lonDeg: normalizeLongitude(point.lonDeg),
+  };
+}
+
 function MapViewportController({
-  routePoints,
+  routeLatLngs,
 }: {
-  routePoints: RouteMapPanelData["routePoints"];
+  routeLatLngs: Array<[number, number]>;
 }) {
   const map = useMap();
 
   useEffect(() => {
-    if (!routePoints.length) {
+    if (!routeLatLngs.length) {
       return;
     }
 
-    const bounds = L.latLngBounds(
-      routePoints.map((point) => [point.latDeg, point.lonDeg] as [number, number]),
-    );
+    const fitRouteToViewport = () => {
+      map.invalidateSize({ animate: false, pan: false });
 
-    map.invalidateSize();
-    map.fitBounds(bounds.pad(0.32), {
-      animate: false,
-      padding: [36, 36],
-    });
-  }, [map, routePoints]);
+      const bounds = L.latLngBounds(routeLatLngs);
+      if (!bounds.isValid()) {
+        return;
+      }
+
+      if (routeLatLngs.length === 1) {
+        map.setView(routeLatLngs[0], 6, { animate: false });
+        return;
+      }
+
+      map.fitBounds(bounds.pad(0.32), {
+        animate: false,
+        maxZoom: 10,
+        padding: [48, 48],
+      });
+    };
+
+    let frameId: number | null = null;
+    const delayedIds: number[] = [];
+
+    const scheduleFit = () => {
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+
+      frameId = window.requestAnimationFrame(fitRouteToViewport);
+    };
+
+    scheduleFit();
+    delayedIds.push(window.setTimeout(scheduleFit, 120));
+    delayedIds.push(window.setTimeout(scheduleFit, 420));
+
+    const container = map.getContainer();
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => scheduleFit())
+        : null;
+
+    resizeObserver?.observe(container);
+    window.addEventListener("resize", scheduleFit);
+
+    return () => {
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+
+      delayedIds.forEach((id) => window.clearTimeout(id));
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", scheduleFit);
+    };
+  }, [map, routeLatLngs]);
 
   return null;
 }
@@ -104,16 +173,46 @@ export function RouteMapView({
   language,
   onCoordinateChange,
 }: RouteMapViewProps) {
+  const [tilesFailed, setTilesFailed] = useState(false);
+  const observerPoint = useMemo(
+    () => normalizeGeoPoint(panel.observerPoint),
+    [panel.observerPoint],
+  );
+  const targetPoint = useMemo(
+    () => normalizeGeoPoint(panel.targetPoint),
+    [panel.targetPoint],
+  );
+  const normalizedRoutePoints = useMemo(
+    () =>
+      panel.routePoints.length
+        ? panel.routePoints.map(normalizeGeoPoint)
+        : [observerPoint, targetPoint],
+    [observerPoint, panel.routePoints, targetPoint],
+  );
   const routeLatLngs = useMemo(
-    () => panel.routePoints.map((point) => [point.latDeg, point.lonDeg] as [number, number]),
-    [panel.routePoints],
+    () =>
+      normalizedRoutePoints.map(
+        (point) => [point.latDeg, point.lonDeg] as [number, number],
+      ),
+    [normalizedRoutePoints],
+  );
+  const tileEventHandlers = useMemo(
+    () => ({
+      tileerror() {
+        setTilesFailed(true);
+      },
+      tileload() {
+        setTilesFailed(false);
+      },
+    }),
+    [],
   );
 
   return (
     <div className="route-map">
       <MapContainer
         className="route-map__map"
-        center={[panel.observerPoint.latDeg, panel.observerPoint.lonDeg]}
+        center={[observerPoint.latDeg, observerPoint.lonDeg]}
         zoom={4}
         zoomControl
         scrollWheelZoom={false}
@@ -122,9 +221,10 @@ export function RouteMapView({
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          eventHandlers={tileEventHandlers}
         />
 
-        <MapViewportController routePoints={panel.routePoints} />
+        <MapViewportController routeLatLngs={routeLatLngs} />
 
         <Pane name="route-line" style={{ zIndex: 450 }}>
           <Polyline
@@ -146,18 +246,24 @@ export function RouteMapView({
         </Pane>
 
         <DragMarker
-          position={panel.observerPoint}
+          position={observerPoint}
           icon={observerIcon}
           label={t(language, "observerMarker")}
           onChange={(coords) => onCoordinateChange("observer", coords)}
         />
         <DragMarker
-          position={panel.targetPoint}
+          position={targetPoint}
           icon={targetIcon}
           label={t(language, "targetMarker")}
           onChange={(coords) => onCoordinateChange("target", coords)}
         />
       </MapContainer>
+
+      {tilesFailed ? (
+        <div className="route-map__overlay route-map__tile-warning">
+          Map tiles are unavailable right now. The route, bearings, and marker editing remain active.
+        </div>
+      ) : null}
 
       <div className="route-map__overlay route-map__overlay--title">
         <p className="route-map__eyebrow">{t(language, "routeMap")}</p>

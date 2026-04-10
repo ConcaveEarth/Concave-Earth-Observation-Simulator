@@ -6,8 +6,8 @@ const terrainProfiles: TerrainProfilePreset[] = [
     name: "Aconcagua Terrain Profile",
     description:
       "A stylized mountain profile aligned to the long-range Aconcagua scenario distances.",
-    strokeColor: "#f2d1a0",
-    fillColor: "rgba(201, 163, 110, 0.24)",
+    strokeColor: "#b6e36d",
+    fillColor: "rgba(78, 112, 50, 0.28)",
     samples: [
       { distanceM: 330_000, heightM: 0 },
       { distanceM: 365_000, heightM: 450 },
@@ -23,8 +23,8 @@ const terrainProfiles: TerrainProfilePreset[] = [
     name: "Pontchartrain Causeway Profile",
     description:
       "A low bridge-like profile over flat water to help frame long-baseline shoreline scenes.",
-    strokeColor: "#d8dec7",
-    fillColor: "rgba(144, 158, 126, 0.18)",
+    strokeColor: "#78b9a9",
+    fillColor: "rgba(47, 101, 92, 0.24)",
     samples: [
       { distanceM: 6_000, heightM: 0 },
       { distanceM: 12_000, heightM: 4 },
@@ -39,8 +39,8 @@ const terrainProfiles: TerrainProfilePreset[] = [
     name: "Chicago Skyline Profile",
     description:
       "A simplified skyline silhouette aligned to the far-shore Chicago preset.",
-    strokeColor: "#f3d3a6",
-    fillColor: "rgba(201, 163, 110, 0.22)",
+    strokeColor: "#9fb4c9",
+    fillColor: "rgba(70, 88, 108, 0.26)",
     samples: [
       { distanceM: 84_000, heightM: 35 },
       { distanceM: 89_000, heightM: 120 },
@@ -55,8 +55,8 @@ const terrainProfiles: TerrainProfilePreset[] = [
     name: "Oil Rig Silhouette",
     description:
       "A simple offshore structure silhouette centered at the target distance.",
-    strokeColor: "#f2d1a0",
-    fillColor: "rgba(201, 163, 110, 0.2)",
+    strokeColor: "#b7a27c",
+    fillColor: "rgba(90, 73, 48, 0.28)",
     samples: [
       { distanceM: 36_800, heightM: 0 },
       { distanceM: 37_200, heightM: 18 },
@@ -69,8 +69,8 @@ const terrainProfiles: TerrainProfilePreset[] = [
     name: "Ship Silhouette",
     description:
       "A compact ship-like target profile to make lower-obstruction scenarios easier to read.",
-    strokeColor: "#e8d8bf",
-    fillColor: "rgba(170, 156, 134, 0.22)",
+    strokeColor: "#b8c6d4",
+    fillColor: "rgba(71, 88, 103, 0.28)",
     samples: [
       { distanceM: 22_500, heightM: 0 },
       { distanceM: 23_100, heightM: 4 },
@@ -139,8 +139,8 @@ export function createGenericTargetProfile(
     name: "Target Profile Overlay",
     description:
       "A generated silhouette around the current target location so the scene can present a readable profile even without a preset-specific terrain mesh.",
-    strokeColor: "#dfb66d",
-    fillColor: "rgba(174, 132, 71, 0.24)",
+    strokeColor: "#9bae74",
+    fillColor: "rgba(62, 86, 49, 0.3)",
     samples: [
       { distanceM: startM, heightM: 0 },
       { distanceM: startM + widthM * 0.22, heightM: targetHeightM * 0.22 },

@@ -1,4 +1,5 @@
 import {
+  Component,
   Suspense,
   lazy,
   startTransition,
@@ -9,6 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
+import type { ErrorInfo, ReactNode } from "react";
 import {
   buildObserverViewPanelData,
   buildProfileVisibilityPanelData,
@@ -94,6 +96,74 @@ function AnalysisLoadingFallback({ message }: { message: string }) {
       </div>
     </div>
   );
+}
+
+interface AnalysisErrorBoundaryProps {
+  activeKey: string;
+  children: ReactNode;
+}
+
+interface AnalysisErrorBoundaryState {
+  hasError: boolean;
+  message: string | null;
+}
+
+class AnalysisErrorBoundary extends Component<
+  AnalysisErrorBoundaryProps,
+  AnalysisErrorBoundaryState
+> {
+  state: AnalysisErrorBoundaryState = {
+    hasError: false,
+    message: null,
+  };
+
+  static getDerivedStateFromError(error: unknown): AnalysisErrorBoundaryState {
+    return {
+      hasError: true,
+      message:
+        error instanceof Error
+          ? error.message
+          : "The selected analysis view could not be rendered.",
+    };
+  }
+
+  componentDidCatch(error: unknown, errorInfo: ErrorInfo) {
+    console.error("Observation Geometry Lab analysis view failed", error, errorInfo);
+  }
+
+  componentDidUpdate(previousProps: AnalysisErrorBoundaryProps) {
+    if (previousProps.activeKey !== this.props.activeKey && this.state.hasError) {
+      this.setState({ hasError: false, message: null });
+    }
+  }
+
+  render() {
+    if (!this.state.hasError) {
+      return this.props.children;
+    }
+
+    return (
+      <div className="scene-card__loading scene-card__error" role="alert">
+        <div className="scene-card__loading-card panel">
+          <p className="scene-card__loading-title">This analysis view needs a reset.</p>
+          <p className="scene-card__loading-body">
+            One of the advanced modules failed to draw instead of taking down the whole lab.
+            Try the button below, or switch tabs and come back.
+          </p>
+          {this.state.message ? (
+            <p className="scene-card__error-detail">{this.state.message}</p>
+          ) : null}
+          <button
+            className="action-button"
+            type="button"
+            onClick={() => this.setState({ hasError: false, message: null })}
+          >
+            Retry view
+          </button>
+        </div>
+      </div>
+    );
+  }
 }
 
 function createEmptyBundlePanel(
@@ -1137,14 +1207,17 @@ export default function App() {
                 />
               </div>
             ) : (
-              <Suspense
-                fallback={
-                  <AnalysisLoadingFallback
-                    message={t(state.language, "loadingAnalysisWorkspace")}
-                  />
-                }
+              <AnalysisErrorBoundary
+                activeKey={`${state.analysisTab}:${state.viewMode}:${resolvedCompareLayout}:${state.selectedSceneKey}`}
               >
-                {state.analysisTab === "ray-bundle" ? (
+                <Suspense
+                  fallback={
+                    <AnalysisLoadingFallback
+                      message={t(state.language, "loadingAnalysisWorkspace")}
+                    />
+                  }
+                >
+                  {state.analysisTab === "ray-bundle" ? (
                   <div
                     className={
                       stackedCompareView
@@ -1467,8 +1540,9 @@ export default function App() {
                       />
                     </div>
                   </div>
-                )}
-              </Suspense>
+                  )}
+                </Suspense>
+              </AnalysisErrorBoundary>
             )}
           </div>
         </main>
