@@ -8,6 +8,7 @@ import {
   TileLayer,
   Tooltip,
   useMap,
+  useMapEvents,
 } from "react-leaflet";
 import type { RouteMapPanelData } from "../../domain/analysis";
 import type { LanguageMode } from "../../i18n";
@@ -20,6 +21,7 @@ interface RouteMapViewProps {
     point: "observer" | "target",
     coords: { latDeg: number; lonDeg: number },
   ) => void;
+  onCoordinateModeChange: (enabled: boolean) => void;
 }
 
 function createMarkerIcon(kind: "observer" | "target") {
@@ -129,6 +131,25 @@ function MapViewportController({
   return null;
 }
 
+function MapClickPlacementController({
+  activePlacement,
+  onCoordinateChange,
+}: {
+  activePlacement: "observer" | "target";
+  onCoordinateChange: RouteMapViewProps["onCoordinateChange"];
+}) {
+  useMapEvents({
+    click(event) {
+      onCoordinateChange(activePlacement, {
+        latDeg: event.latlng.lat,
+        lonDeg: event.latlng.lng,
+      });
+    },
+  });
+
+  return null;
+}
+
 function DragMarker({
   position,
   icon,
@@ -172,8 +193,10 @@ export function RouteMapView({
   panel,
   language,
   onCoordinateChange,
+  onCoordinateModeChange,
 }: RouteMapViewProps) {
   const [tilesFailed, setTilesFailed] = useState(false);
+  const [activePlacement, setActivePlacement] = useState<"observer" | "target">("target");
   const observerPoint = useMemo(
     () => normalizeGeoPoint(panel.observerPoint),
     [panel.observerPoint],
@@ -225,6 +248,10 @@ export function RouteMapView({
         />
 
         <MapViewportController routeLatLngs={routeLatLngs} />
+        <MapClickPlacementController
+          activePlacement={activePlacement}
+          onCoordinateChange={onCoordinateChange}
+        />
 
         <Pane name="route-line" style={{ zIndex: 450 }}>
           <Polyline
@@ -269,6 +296,42 @@ export function RouteMapView({
         <p className="route-map__eyebrow">{t(language, "routeMap")}</p>
         <h3>{panel.title}</h3>
         <p>{panel.subtitle}</p>
+        <div className="route-map__placement">
+          <span>Click map to place</span>
+          <button
+            className={
+              activePlacement === "observer"
+                ? "route-map__placement-button route-map__placement-button--active"
+                : "route-map__placement-button"
+            }
+            type="button"
+            onClick={() => setActivePlacement("observer")}
+          >
+            Observer
+          </button>
+          <button
+            className={
+              activePlacement === "target"
+                ? "route-map__placement-button route-map__placement-button--active"
+                : "route-map__placement-button"
+            }
+            type="button"
+            onClick={() => setActivePlacement("target")}
+          >
+            Target
+          </button>
+          <button
+            className={
+              panel.coordinatesEnabled
+                ? "route-map__placement-button route-map__placement-button--active"
+                : "route-map__placement-button"
+            }
+            type="button"
+            onClick={() => onCoordinateModeChange(!panel.coordinatesEnabled)}
+          >
+            {panel.coordinatesEnabled ? "Distance linked" : "Use route distance"}
+          </button>
+        </div>
       </div>
 
       <div className="route-map__overlay route-map__overlay--metrics">

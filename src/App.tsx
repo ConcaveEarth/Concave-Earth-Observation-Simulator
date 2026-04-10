@@ -1432,6 +1432,15 @@ export default function App() {
                       <RouteMapView
                         panel={routeMapPanel}
                         language={state.language}
+                        onCoordinateModeChange={(enabled) => {
+                          startTransition(() => {
+                            dispatch({
+                              type: "setCoordinateField",
+                              key: "enabled",
+                              value: enabled,
+                            });
+                          });
+                        }}
                         onCoordinateChange={(point, coords) => {
                           startTransition(() => {
                             dispatch({

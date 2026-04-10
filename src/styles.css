@@ -1284,10 +1284,11 @@ select {
 
 .route-map__overlay--title {
   top: 22px;
-  left: 22px;
-  max-width: min(420px, calc(100% - 44px));
+  left: clamp(76px, 5vw, 96px);
+  max-width: min(520px, calc(100% - 132px));
   padding: 16px 18px;
   border-radius: 18px;
+  pointer-events: auto;
 }
 
 .route-map__overlay--title h3 {
@@ -1299,6 +1300,50 @@ select {
   margin: 0;
   color: rgba(219, 235, 250, 0.76);
   line-height: 1.45;
+}
+
+.route-map__placement {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 13px;
+}
+
+.route-map__placement span {
+  color: rgba(190, 214, 236, 0.7);
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.route-map__placement-button {
+  min-height: 30px;
+  padding: 7px 11px;
+  border: 1px solid rgba(143, 189, 241, 0.22);
+  border-radius: 999px;
+  background: rgba(8, 20, 33, 0.78);
+  color: rgba(230, 240, 250, 0.82);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    color 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease;
+}
+
+.route-map__placement-button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(125, 215, 255, 0.52);
+  color: #f7fbff;
+}
+
+.route-map__placement-button--active {
+  border-color: rgba(125, 215, 255, 0.64);
+  background: linear-gradient(135deg, rgba(50, 113, 191, 0.82), rgba(35, 88, 151, 0.72));
+  color: #ffffff;
 }
 
 .route-map__overlay--metrics {
@@ -1353,6 +1398,28 @@ select {
   font-size: 0.73rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
+}
+
+@media (max-width: 820px) {
+  .route-map__overlay--title {
+    top: 72px;
+    left: 16px;
+    right: 16px;
+    max-width: none;
+  }
+
+  .route-map__overlay--metrics {
+    top: auto;
+    right: 16px;
+    bottom: 68px;
+    min-width: min(220px, calc(100% - 32px));
+  }
+
+  .route-map__overlay--hint,
+  .route-map__tile-warning {
+    left: 16px;
+    max-width: calc(100% - 32px);
+  }
 }
 
 .scene-legend-overlay__header h3 {
