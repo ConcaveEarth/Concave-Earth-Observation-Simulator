@@ -369,10 +369,23 @@ function collectBounds(
     minBottomPad?: number;
   } = {},
 ) {
-  const minX = Math.min(...points.map((point) => point.x));
-  const maxX = Math.max(...points.map((point) => point.x));
-  const minY = Math.min(...points.map((point) => point.y));
-  const maxY = Math.max(...points.map((point) => point.y));
+  const finitePoints = points.filter(
+    (point) => Number.isFinite(point.x) && Number.isFinite(point.y),
+  );
+
+  if (!finitePoints.length) {
+    return {
+      minX: -1_000,
+      maxX: 1_000,
+      minY: -1_000,
+      maxY: 1_000,
+    };
+  }
+
+  const minX = Math.min(...finitePoints.map((point) => point.x));
+  const maxX = Math.max(...finitePoints.map((point) => point.x));
+  const minY = Math.min(...finitePoints.map((point) => point.y));
+  const maxY = Math.max(...finitePoints.map((point) => point.y));
   const spanX = Math.max(maxX - minX, 1);
   const spanY = Math.max(maxY - minY, 1);
   const paddingX = Math.max(spanX * xPaddingFactor, minXPad);
@@ -1421,27 +1434,31 @@ export function buildSkyWrapPanelData(
 ): SkyWrapPanelData {
   const sampleAnglesDeg = [8, 18, 30, 42, 56, 70, 82];
   const maxArcLengthM = Math.min(result.scenario.radiusM * 0.1, 900_000);
-  const rayCurves: SkyWrapCurve[] = sampleAnglesDeg.map((angleDeg, index) => {
-    const trace = traceRayForDisplay({
-      scenario: result.scenario,
-      model: result.model,
-      terrainProfile: null,
-      launchAngleRad: (angleDeg * Math.PI) / 180,
-      targetAngleRad: null,
-      maxArcLengthM,
-    });
-    const frame = createObserverFrame(result);
-    const points = trace.points.map((point) =>
-      toObserverFrame(point, frame.observerPoint, frame.observerTangent, frame.observerUp),
-    );
+  const frame = createObserverFrame(result);
+  const rayCurves: SkyWrapCurve[] = sampleAnglesDeg
+    .map((angleDeg, index) => {
+      const trace = traceRayForDisplay({
+        scenario: result.scenario,
+        model: result.model,
+        terrainProfile: null,
+        launchAngleRad: (angleDeg * Math.PI) / 180,
+        targetAngleRad: null,
+        maxArcLengthM,
+      });
+      const points = trace.points
+        .map((point) =>
+          toObserverFrame(point, frame.observerPoint, frame.observerTangent, frame.observerUp),
+        )
+        .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
 
-    return {
-      id: `${sceneKey}-sky-ray-${index}`,
-      label: `${angleDeg}° launch`,
-      color: index % 2 === 0 ? "#ffd07e" : "#7dd7ff",
-      points,
-    };
-  });
+      return {
+        id: `${sceneKey}-sky-ray-${index}`,
+        label: `${angleDeg} deg launch`,
+        color: index % 2 === 0 ? "#ffd07e" : "#7dd7ff",
+        points,
+      };
+    })
+    .filter((curve) => curve.points.length >= 2);
 
   const gridCurves: SkyWrapCurve[] = [0.15, 0.32, 0.5, 0.68, 0.86].map((fraction, index) => {
     const radius = maxArcLengthM * fraction;
@@ -1461,7 +1478,24 @@ export function buildSkyWrapPanelData(
     };
   });
 
-  const allPoints = [...rayCurves.flatMap((curve) => curve.points), ...gridCurves.flatMap((curve) => curve.points)];
+  const fallbackRayCurves =
+    rayCurves.length > 0
+      ? rayCurves
+      : [
+          {
+            id: `${sceneKey}-sky-ray-fallback`,
+            label: "Fallback launch",
+            color: "#ffd07e",
+            points: [
+              { x: 0, y: 0 },
+              { x: maxArcLengthM * 0.45, y: maxArcLengthM * 0.2 },
+            ],
+          },
+        ];
+  const allPoints = [
+    ...fallbackRayCurves.flatMap((curve) => curve.points),
+    ...gridCurves.flatMap((curve) => curve.points),
+  ];
   const bounds = collectBounds(allPoints, {
     xPaddingFactor: 0.08,
     minXPad: 40_000,
@@ -1486,7 +1520,7 @@ export function buildSkyWrapPanelData(
     bounds,
     domeRadius: maxArcLengthM,
     gridCurves,
-    rayCurves,
+    rayCurves: fallbackRayCurves,
     stats: {
       intrinsicLabel: formatCurvatureLabel(intrinsic, result.scenario.radiusM),
       atmosphereLabel: formatCurvatureLabel(atmosphere, result.scenario.radiusM),
@@ -1946,3 +1980,4 @@ export function buildInversionLabPanelData(
     ],
   };
 }
+

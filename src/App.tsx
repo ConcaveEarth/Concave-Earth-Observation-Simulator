@@ -32,6 +32,7 @@ import type {
   ProfileVisibilityPanelData,
   RayBundlePanelData,
   RouteMapPanelData,
+  SceneViewModel,
   SkyWrapPanelData,
   SweepChartData,
 } from "./domain";
@@ -278,6 +279,55 @@ function createEmptySweepChartData(): SweepChartData {
   };
 }
 
+function createEmptySceneViewModel(
+  sceneKey: FocusedModel,
+  title: string,
+): SceneViewModel {
+  const origin = { x: 0, y: 0 };
+  return {
+    sceneKey,
+    title,
+    subtitle: "",
+    bounds: { minX: -1, maxX: 1, minY: -1, maxY: 1 },
+    focusBounds: { minX: -1, maxX: 1, minY: -1, maxY: 1 },
+    suggestedVerticalScale: 1,
+    surfaceFill: {
+      id: `${sceneKey}-surface-fill-empty`,
+      points: [origin, origin, origin],
+      fill: "transparent",
+      opacity: 0,
+    },
+    surfaceLine: {
+      id: `${sceneKey}-surface-line-empty`,
+      featureId: "surface",
+      color: "transparent",
+      width: 0,
+      points: [origin, origin],
+    },
+    observerStem: {
+      id: `${sceneKey}-observer-stem-empty`,
+      featureId: "observer-height",
+      color: "transparent",
+      width: 0,
+      from: origin,
+      to: origin,
+    },
+    targetStem: {
+      id: `${sceneKey}-target-stem-empty`,
+      featureId: "target-height",
+      color: "transparent",
+      width: 0,
+      from: origin,
+      to: origin,
+    },
+    markers: [],
+    labels: [],
+    lines: [],
+    segments: [],
+    annotations: [],
+  };
+}
+
 function createEmptyRouteMapPanel(
   sceneKey: FocusedModel,
   title: string,
@@ -417,25 +467,42 @@ export default function App() {
 
   const primaryScene = useMemo(
     () =>
-      buildSceneViewModel(
-        primaryResult,
-        t(deferredState.language, "primaryModelTitle"),
-        "primary",
-        deferredState.unitPreferences,
-        deferredState.language,
-      ),
-    [primaryResult, deferredState.language, deferredState.unitPreferences],
+      deferredState.analysisTab === "cross-section"
+        ? buildSceneViewModel(
+            primaryResult,
+            t(deferredState.language, "primaryModelTitle"),
+            "primary",
+            deferredState.unitPreferences,
+            deferredState.language,
+          )
+        : createEmptySceneViewModel("primary", t(deferredState.language, "primaryModelTitle")),
+    [
+      primaryResult,
+      deferredState.analysisTab,
+      deferredState.language,
+      deferredState.unitPreferences,
+    ],
   );
   const comparisonScene = useMemo(
     () =>
-      buildSceneViewModel(
-        comparisonResult,
-        t(deferredState.language, "comparisonModelTitle"),
-        "comparison",
-        deferredState.unitPreferences,
-        deferredState.language,
-      ),
-    [comparisonResult, deferredState.language, deferredState.unitPreferences],
+      deferredState.analysisTab === "cross-section"
+        ? buildSceneViewModel(
+            comparisonResult,
+            t(deferredState.language, "comparisonModelTitle"),
+            "comparison",
+            deferredState.unitPreferences,
+            deferredState.language,
+          )
+        : createEmptySceneViewModel(
+            "comparison",
+            t(deferredState.language, "comparisonModelTitle"),
+          ),
+    [
+      comparisonResult,
+      deferredState.analysisTab,
+      deferredState.language,
+      deferredState.unitPreferences,
+    ],
   );
   const buildBothModelPanels = deferredState.viewMode === "compare";
   const buildPrimaryFocusedPanel =

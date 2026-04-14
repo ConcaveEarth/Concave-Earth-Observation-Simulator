@@ -2,7 +2,6 @@ import {
   applyPresetToModel,
   defaultComparisonModel,
   defaultPrimaryModel,
-  defaultScenario,
   getPresetById,
 } from "../domain/presets";
 import { defaultSweepConfig } from "../domain/analysis";
@@ -162,10 +161,15 @@ export type AppAction =
   | { type: "applyPreset"; presetId: string };
 
 export function createDefaultState(): AppState {
+  const defaultPreset = getPresetById("oil-rig");
+
   return {
-    scenario: defaultScenario,
-    primaryModel: defaultPrimaryModel,
-    comparisonModel: defaultComparisonModel,
+    scenario: normalizeScenarioAfterEdit(defaultPreset.scenario),
+    primaryModel: applyPresetToModel(defaultPrimaryModel, defaultPreset.primaryModel),
+    comparisonModel: applyPresetToModel(
+      defaultComparisonModel,
+      defaultPreset.comparisonModel,
+    ),
     analysisTab: "cross-section",
     viewMode: "compare",
     focusedModel: "primary",
@@ -713,47 +717,142 @@ export function appReducer(state: AppState, action: AppAction): AppState {
   }
 }
 
-function serializeModel(prefix: string, model: ModelConfig, params: URLSearchParams): void {
-  params.set(`${prefix}Geometry`, model.geometryMode);
-  params.set(`${prefix}Intrinsic`, model.intrinsicCurvatureMode);
-  params.set(`${prefix}IntrinsicValue`, String(model.intrinsicCurvaturePerM));
-  params.set(`${prefix}AtmosphereMode`, model.atmosphere.mode);
-  params.set(`${prefix}AtmosphereK`, String(model.atmosphere.coefficient));
-  params.set(`${prefix}AtmosphereUpperK`, String(model.atmosphere.upperCoefficient));
-  params.set(
+function setStringIfDifferent(
+  params: URLSearchParams,
+  key: string,
+  value: string,
+  baseline: string,
+) {
+  if (value !== baseline) {
+    params.set(key, value);
+  }
+}
+
+function setFlagIfDifferent(
+  params: URLSearchParams,
+  key: string,
+  value: boolean,
+  baseline: boolean,
+) {
+  if (value !== baseline) {
+    params.set(key, value ? "1" : "0");
+  }
+}
+
+function setNumberIfDifferent(
+  params: URLSearchParams,
+  key: string,
+  value: number,
+  baseline: number,
+  epsilon = 1e-9,
+) {
+  if (Math.abs(value - baseline) > epsilon) {
+    params.set(key, String(value));
+  }
+}
+
+function serializeModel(
+  prefix: string,
+  model: ModelConfig,
+  baseline: ModelConfig,
+  params: URLSearchParams,
+): void {
+  setStringIfDifferent(params, `${prefix}Geometry`, model.geometryMode, baseline.geometryMode);
+  setStringIfDifferent(
+    params,
+    `${prefix}Intrinsic`,
+    model.intrinsicCurvatureMode,
+    baseline.intrinsicCurvatureMode,
+  );
+  setNumberIfDifferent(
+    params,
+    `${prefix}IntrinsicValue`,
+    model.intrinsicCurvaturePerM,
+    baseline.intrinsicCurvaturePerM,
+  );
+  setStringIfDifferent(
+    params,
+    `${prefix}AtmosphereMode`,
+    model.atmosphere.mode,
+    baseline.atmosphere.mode,
+  );
+  setNumberIfDifferent(
+    params,
+    `${prefix}AtmosphereK`,
+    model.atmosphere.coefficient,
+    baseline.atmosphere.coefficient,
+  );
+  setNumberIfDifferent(
+    params,
+    `${prefix}AtmosphereUpperK`,
+    model.atmosphere.upperCoefficient,
+    baseline.atmosphere.upperCoefficient,
+  );
+  setNumberIfDifferent(
+    params,
     `${prefix}AtmosphereTransitionHeight`,
-    String(model.atmosphere.transitionHeightM),
+    model.atmosphere.transitionHeightM,
+    baseline.atmosphere.transitionHeightM,
   );
-  params.set(
+  setNumberIfDifferent(
+    params,
     `${prefix}AtmosphereInversionStrength`,
-    String(model.atmosphere.inversionStrength),
+    model.atmosphere.inversionStrength,
+    baseline.atmosphere.inversionStrength,
   );
-  params.set(
+  setNumberIfDifferent(
+    params,
     `${prefix}AtmosphereInversionBase`,
-    String(model.atmosphere.inversionBaseHeightM),
+    model.atmosphere.inversionBaseHeightM,
+    baseline.atmosphere.inversionBaseHeightM,
   );
-  params.set(
+  setNumberIfDifferent(
+    params,
     `${prefix}AtmosphereInversionDepth`,
-    String(model.atmosphere.inversionDepthM),
+    model.atmosphere.inversionDepthM,
+    baseline.atmosphere.inversionDepthM,
   );
-  params.set(
+  setStringIfDifferent(
+    params,
     `${prefix}ReferenceConstruction`,
     model.lineBehavior.referenceConstruction,
+    baseline.lineBehavior.referenceConstruction,
   );
-  params.set(`${prefix}OpticalHorizonRay`, model.lineBehavior.opticalHorizonRay);
-  params.set(`${prefix}ObjectLightPath`, model.lineBehavior.objectLightPath);
-  params.set(`${prefix}ApparentDirection`, model.lineBehavior.apparentDirection);
-  params.set(
+  setStringIfDifferent(
+    params,
+    `${prefix}OpticalHorizonRay`,
+    model.lineBehavior.opticalHorizonRay,
+    baseline.lineBehavior.opticalHorizonRay,
+  );
+  setStringIfDifferent(
+    params,
+    `${prefix}ObjectLightPath`,
+    model.lineBehavior.objectLightPath,
+    baseline.lineBehavior.objectLightPath,
+  );
+  setStringIfDifferent(
+    params,
+    `${prefix}ApparentDirection`,
+    model.lineBehavior.apparentDirection,
+    baseline.lineBehavior.apparentDirection,
+  );
+  setFlagIfDifferent(
+    params,
     `${prefix}ShowSourceGeometricPath`,
-    model.lineBehavior.showSourceGeometricPath ? "1" : "0",
+    model.lineBehavior.showSourceGeometricPath,
+    baseline.lineBehavior.showSourceGeometricPath,
   );
-  params.set(
+  setFlagIfDifferent(
+    params,
     `${prefix}ShowObserverHorizontal`,
-    model.lineBehavior.showObserverHorizontal ? "1" : "0",
+    model.lineBehavior.showObserverHorizontal,
+    baseline.lineBehavior.showObserverHorizontal,
   );
-  params.set(
+  setFlagIfDifferent(
+    params,
     `${prefix}ShowGeometricHorizon`,
-    model.lineBehavior.showGeometricHorizon ? "1" : "0",
+    model.lineBehavior.showGeometricHorizon,
+    baseline.lineBehavior.showGeometricHorizon,
   );
 }
 
@@ -869,51 +968,209 @@ function hydrateModel(
 }
 
 export function serializeStateToSearch(state: AppState): string {
+  const defaults = createDefaultState();
+  const preset = getPresetById(state.scenario.presetId);
+  const baseScenario = preset.scenario;
+  const basePrimaryModel = applyPresetToModel(defaultPrimaryModel, preset.primaryModel);
+  const baseComparisonModel = applyPresetToModel(
+    defaultComparisonModel,
+    preset.comparisonModel,
+  );
   const params = new URLSearchParams();
   params.set("preset", state.scenario.presetId);
-  params.set("tab", state.analysisTab);
-  params.set("view", state.viewMode);
-  params.set("focus", state.focusedModel);
-  params.set("frame", state.sceneViewport.framingMode);
-  params.set("scale", state.sceneViewport.scaleMode);
-  params.set("compareLayout", state.sceneViewport.compareLayout);
-  params.set("zoom", String(state.sceneViewport.zoom));
-  params.set("vzoom", String(state.sceneViewport.verticalZoom));
-  params.set("panX", String(state.sceneViewport.panX));
-  params.set("panY", String(state.sceneViewport.panY));
-  params.set("sweepParameter", state.sweepConfig.parameter);
-  params.set("sweepMetric", state.sweepConfig.metric);
-  params.set("sweepRange", state.sweepConfig.rangeMode);
-  params.set("sweepSamples", String(state.sweepConfig.sampleCount));
-  params.set("heightUnit", state.unitPreferences.height);
-  params.set("distanceUnit", state.unitPreferences.distance);
-  params.set("radiusUnit", state.unitPreferences.radius);
-  params.set("annotated", state.annotated ? "1" : "0");
-  params.set("labels", state.labelDensity);
-  params.set("theme", state.theme);
-  params.set("language", state.language);
-  params.set("workspace", state.workspaceMode);
-  params.set("fullWidth", state.fullWidthScene ? "1" : "0");
-  params.set("fitHeight", state.fitContentHeight ? "1" : "0");
-  params.set("scales", state.showScaleGuides ? "1" : "0");
-  params.set("terrain", state.showTerrainOverlay ? "1" : "0");
-  params.set("terrainBlock", state.useTerrainObstruction ? "1" : "0");
-  params.set("scenarioMode", state.scenario.scenarioMode);
-  params.set("observer", String(state.scenario.observerHeightM));
-  params.set("observerSurface", String(state.scenario.observerSurfaceElevationM));
-  params.set("observerEye", String(state.scenario.observerEyeHeightM));
-  params.set("target", String(state.scenario.targetHeightM));
-  params.set("targetBase", String(state.scenario.targetBaseElevationM));
-  params.set("distance", String(state.scenario.surfaceDistanceM));
-  params.set("radius", String(state.scenario.radiusM));
-  params.set("samples", String(state.scenario.targetSampleCount));
-  params.set("coords", state.scenario.coordinates.enabled ? "1" : "0");
-  params.set("observerLat", String(state.scenario.coordinates.observerLatDeg));
-  params.set("observerLon", String(state.scenario.coordinates.observerLonDeg));
-  params.set("targetLat", String(state.scenario.coordinates.targetLatDeg));
-  params.set("targetLon", String(state.scenario.coordinates.targetLonDeg));
-  serializeModel("primary", state.primaryModel, params);
-  serializeModel("compare", state.comparisonModel, params);
+  setStringIfDifferent(params, "tab", state.analysisTab, defaults.analysisTab);
+  setStringIfDifferent(params, "view", state.viewMode, defaults.viewMode);
+  setStringIfDifferent(params, "focus", state.focusedModel, defaults.focusedModel);
+  setStringIfDifferent(
+    params,
+    "frame",
+    state.sceneViewport.framingMode,
+    defaults.sceneViewport.framingMode,
+  );
+  setStringIfDifferent(
+    params,
+    "scale",
+    state.sceneViewport.scaleMode,
+    defaults.sceneViewport.scaleMode,
+  );
+  setStringIfDifferent(
+    params,
+    "compareLayout",
+    state.sceneViewport.compareLayout,
+    defaults.sceneViewport.compareLayout,
+  );
+  setNumberIfDifferent(params, "zoom", state.sceneViewport.zoom, defaults.sceneViewport.zoom);
+  setNumberIfDifferent(
+    params,
+    "vzoom",
+    state.sceneViewport.verticalZoom,
+    defaults.sceneViewport.verticalZoom,
+  );
+  setNumberIfDifferent(params, "panX", state.sceneViewport.panX, defaults.sceneViewport.panX);
+  setNumberIfDifferent(params, "panY", state.sceneViewport.panY, defaults.sceneViewport.panY);
+  setStringIfDifferent(
+    params,
+    "sweepParameter",
+    state.sweepConfig.parameter,
+    defaults.sweepConfig.parameter,
+  );
+  setStringIfDifferent(
+    params,
+    "sweepMetric",
+    state.sweepConfig.metric,
+    defaults.sweepConfig.metric,
+  );
+  setStringIfDifferent(
+    params,
+    "sweepRange",
+    state.sweepConfig.rangeMode,
+    defaults.sweepConfig.rangeMode,
+  );
+  setNumberIfDifferent(
+    params,
+    "sweepSamples",
+    state.sweepConfig.sampleCount,
+    defaults.sweepConfig.sampleCount,
+  );
+  setStringIfDifferent(
+    params,
+    "heightUnit",
+    state.unitPreferences.height,
+    defaults.unitPreferences.height,
+  );
+  setStringIfDifferent(
+    params,
+    "distanceUnit",
+    state.unitPreferences.distance,
+    defaults.unitPreferences.distance,
+  );
+  setStringIfDifferent(
+    params,
+    "radiusUnit",
+    state.unitPreferences.radius,
+    defaults.unitPreferences.radius,
+  );
+  setFlagIfDifferent(params, "annotated", state.annotated, defaults.annotated);
+  setStringIfDifferent(params, "labels", state.labelDensity, defaults.labelDensity);
+  setStringIfDifferent(params, "theme", state.theme, defaults.theme);
+  setStringIfDifferent(params, "language", state.language, defaults.language);
+  setStringIfDifferent(
+    params,
+    "workspace",
+    state.workspaceMode,
+    defaults.workspaceMode,
+  );
+  setFlagIfDifferent(params, "fullWidth", state.fullWidthScene, defaults.fullWidthScene);
+  setFlagIfDifferent(
+    params,
+    "fitHeight",
+    state.fitContentHeight,
+    defaults.fitContentHeight,
+  );
+  setFlagIfDifferent(
+    params,
+    "scales",
+    state.showScaleGuides,
+    defaults.showScaleGuides,
+  );
+  setFlagIfDifferent(
+    params,
+    "terrain",
+    state.showTerrainOverlay,
+    defaults.showTerrainOverlay,
+  );
+  setFlagIfDifferent(
+    params,
+    "terrainBlock",
+    state.useTerrainObstruction,
+    defaults.useTerrainObstruction,
+  );
+  setStringIfDifferent(
+    params,
+    "scenarioMode",
+    state.scenario.scenarioMode,
+    baseScenario.scenarioMode,
+  );
+  setNumberIfDifferent(
+    params,
+    "observer",
+    state.scenario.observerHeightM,
+    baseScenario.observerHeightM,
+  );
+  setNumberIfDifferent(
+    params,
+    "observerSurface",
+    state.scenario.observerSurfaceElevationM,
+    baseScenario.observerSurfaceElevationM,
+  );
+  setNumberIfDifferent(
+    params,
+    "observerEye",
+    state.scenario.observerEyeHeightM,
+    baseScenario.observerEyeHeightM,
+  );
+  setNumberIfDifferent(
+    params,
+    "target",
+    state.scenario.targetHeightM,
+    baseScenario.targetHeightM,
+  );
+  setNumberIfDifferent(
+    params,
+    "targetBase",
+    state.scenario.targetBaseElevationM,
+    baseScenario.targetBaseElevationM,
+  );
+  setNumberIfDifferent(
+    params,
+    "distance",
+    state.scenario.surfaceDistanceM,
+    baseScenario.surfaceDistanceM,
+  );
+  setNumberIfDifferent(
+    params,
+    "radius",
+    state.scenario.radiusM,
+    baseScenario.radiusM,
+  );
+  setNumberIfDifferent(
+    params,
+    "samples",
+    state.scenario.targetSampleCount,
+    baseScenario.targetSampleCount,
+  );
+  setFlagIfDifferent(
+    params,
+    "coords",
+    state.scenario.coordinates.enabled,
+    baseScenario.coordinates.enabled,
+  );
+  setNumberIfDifferent(
+    params,
+    "observerLat",
+    state.scenario.coordinates.observerLatDeg,
+    baseScenario.coordinates.observerLatDeg,
+  );
+  setNumberIfDifferent(
+    params,
+    "observerLon",
+    state.scenario.coordinates.observerLonDeg,
+    baseScenario.coordinates.observerLonDeg,
+  );
+  setNumberIfDifferent(
+    params,
+    "targetLat",
+    state.scenario.coordinates.targetLatDeg,
+    baseScenario.coordinates.targetLatDeg,
+  );
+  setNumberIfDifferent(
+    params,
+    "targetLon",
+    state.scenario.coordinates.targetLonDeg,
+    baseScenario.coordinates.targetLonDeg,
+  );
+  serializeModel("primary", state.primaryModel, basePrimaryModel, params);
+  serializeModel("compare", state.comparisonModel, baseComparisonModel, params);
   return `?${params.toString()}`;
 }
 
@@ -990,8 +1247,18 @@ export function hydrateStateFromSearch(search: string): AppState {
     primaryModel,
     comparisonModel,
     analysisTab: normalizeAnalysisTab(params.get("tab") ?? defaults.analysisTab),
-    viewMode: params.get("view") === "compare" ? "compare" : "cross-section",
-    focusedModel: params.get("focus") === "comparison" ? "comparison" : "primary",
+    viewMode:
+      params.get("view") == null
+        ? defaults.viewMode
+        : params.get("view") === "compare"
+          ? "compare"
+          : "cross-section",
+    focusedModel:
+      params.get("focus") == null
+        ? defaults.focusedModel
+        : params.get("focus") === "comparison"
+          ? "comparison"
+          : "primary",
     sceneViewport: {
       framingMode: params.get("frame") === "full" ? "full" : "auto",
       scaleMode: normalizeScaleMode(params.get("scale") ?? defaults.sceneViewport.scaleMode),
@@ -1034,7 +1301,8 @@ export function hydrateStateFromSearch(search: string): AppState {
         params.get("radiusUnit") ?? defaults.unitPreferences.radius,
       ),
     },
-    annotated: params.get("annotated") !== "0",
+    annotated:
+      params.get("annotated") == null ? defaults.annotated : params.get("annotated") !== "0",
     labelDensity: normalizeLabelDensity(
       params.get("labels") ?? defaults.labelDensity,
     ),
@@ -1043,11 +1311,26 @@ export function hydrateStateFromSearch(search: string): AppState {
     workspaceMode: normalizeWorkspaceMode(
       params.get("workspace") ?? defaults.workspaceMode,
     ),
-    fullWidthScene: params.get("fullWidth") !== "0",
-    fitContentHeight: params.get("fitHeight") !== "0",
-    showScaleGuides: params.get("scales") !== "0",
-    showTerrainOverlay: params.get("terrain") !== "0",
-    useTerrainObstruction: params.get("terrainBlock") !== "0",
+    fullWidthScene:
+      params.get("fullWidth") == null
+        ? defaults.fullWidthScene
+        : params.get("fullWidth") !== "0",
+    fitContentHeight:
+      params.get("fitHeight") == null
+        ? defaults.fitContentHeight
+        : params.get("fitHeight") !== "0",
+    showScaleGuides:
+      params.get("scales") == null
+        ? defaults.showScaleGuides
+        : params.get("scales") !== "0",
+    showTerrainOverlay:
+      params.get("terrain") == null
+        ? defaults.showTerrainOverlay
+        : params.get("terrain") !== "0",
+    useTerrainObstruction:
+      params.get("terrainBlock") == null
+        ? defaults.useTerrainObstruction
+        : params.get("terrainBlock") !== "0",
     selectedSceneKey: null,
     selectedFeatureId: null,
     hoveredSceneKey: null,

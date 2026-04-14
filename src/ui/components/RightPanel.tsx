@@ -98,9 +98,7 @@ function getReferenceVisibleSample(result: VisibilitySolveResult) {
     return null;
   }
 
-  return result.hiddenHeightM > 0
-    ? visibleSamples[0]
-    : visibleSamples[visibleSamples.length - 1];
+  return visibleSamples[visibleSamples.length - 1];
 }
 
 function getInversionLegendItems(panel: InversionLabPanelData) {
@@ -713,6 +711,10 @@ function getFeatureMetrics(
       ? intrinsicCurvatureMagnitude - atmosphereCurvatureMagnitude
       : atmosphereCurvatureMagnitude;
   const hoverId = featureId ?? "scene";
+  const referenceUsesVisibleBoundary =
+    referenceVisibleSample != null &&
+    referenceVisibleSample.absoluteHeightM <
+      getTargetTopElevationM(result.scenario) - 1e-6;
 
   switch (hoverId) {
     case "surface":
@@ -925,7 +927,7 @@ function getFeatureMetrics(
               {
                 label: "Surface obstruction",
                 value:
-                  result.hiddenHeightM > 0
+                  referenceUsesVisibleBoundary
                     ? "Used against the visibility boundary / partially obstructed object"
                     : "Direct line to the fully visible target point",
               },

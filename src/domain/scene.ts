@@ -263,8 +263,21 @@ function collectBounds(
     minBottomPad = 220,
   }: BoundsPaddingOptions = {},
 ): SceneBounds {
-  const xs = points.map((point) => point.x);
-  const ys = points.map((point) => point.y);
+  const finitePoints = points.filter(
+    (point) => Number.isFinite(point.x) && Number.isFinite(point.y),
+  );
+
+  if (!finitePoints.length) {
+    return {
+      minX: -1_000,
+      maxX: 1_000,
+      minY: -1_000,
+      maxY: 1_000,
+    };
+  }
+
+  const xs = finitePoints.map((point) => point.x);
+  const ys = finitePoints.map((point) => point.y);
   const minX = Math.min(...xs);
   const maxX = Math.max(...xs);
   const minY = Math.min(...ys);
@@ -708,11 +721,8 @@ export function buildSceneViewModel(
   const visibleSamples = result.targetSamples.filter(
     (sample) => sample.visible && sample.trace?.targetCrossing,
   );
-  const referenceVisibleSample = visibleSamples.length
-    ? result.hiddenHeightM > 0
-      ? visibleSamples[0]
-      : visibleSamples[visibleSamples.length - 1]
-    : null;
+  const referenceVisibleSample =
+    visibleSamples[visibleSamples.length - 1] ?? null;
   const rawReferenceTargetPoint = referenceVisibleSample
     ? rawTransform(
         pointAtSurfaceHeight(
@@ -758,6 +768,10 @@ export function buildSceneViewModel(
       )
     : [];
   const highestVisibleSample = visibleSamples[visibleSamples.length - 1] ?? null;
+  const referenceUsesSightedPoint =
+    referenceVisibleSample != null &&
+    referenceVisibleSample.absoluteHeightM <
+      getTargetTopElevationM(result.scenario) - 1e-6;
   const resolvedReferenceConstruction =
     result.model.lineBehavior.referenceConstruction === "auto"
       ? result.model.geometryMode === "convex"
@@ -1152,7 +1166,9 @@ export function buildSceneViewModel(
       id: "source-point",
       featureId: "source-light-path",
       point: referenceTargetPoint,
-      label: result.hiddenHeightM > 0 ? t(language, "sightedPoint") : t(language, "sourcePoint"),
+      label: referenceUsesSightedPoint
+        ? t(language, "sightedPoint")
+        : t(language, "sourcePoint"),
       color: featurePalette.sourceLightPath,
       labelOffset: { x: 18, y: -18 },
       density: "full",

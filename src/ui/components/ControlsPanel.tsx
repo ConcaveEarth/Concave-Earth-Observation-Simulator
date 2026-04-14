@@ -279,7 +279,6 @@ function NumberField({
             </span>
           )}
         </div>
-        <span className="field__microcopy">{t(language, "dragMicrocopy")}</span>
       </div>
     </label>
   );
