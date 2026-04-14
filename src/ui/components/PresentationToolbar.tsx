@@ -186,6 +186,27 @@ export function PresentationToolbar({
             </div>
           ) : null}
         </>
+      ) : state.analysisTab === "inversion-lab" ? (
+        <>
+          <div className="scene-toolbar__group">
+            <span className="scene-toolbar__label">{t(language, "annotations")}</span>
+            <ControlButton
+              label={t(language, "annotatedMode")}
+              active={state.annotated}
+              onClick={() => dispatch({ type: "setAnnotated", value: !state.annotated })}
+            />
+          </div>
+          <div className="scene-toolbar__group">
+            <span className="scene-toolbar__label">{t(language, "guides")}</span>
+            <ControlButton
+              label={t(language, "scaleGuides")}
+              active={state.showScaleGuides}
+              onClick={() =>
+                dispatch({ type: "setShowScaleGuides", value: !state.showScaleGuides })
+              }
+            />
+          </div>
+        </>
       ) : state.analysisTab === "route-map" ? (
         <div className="scene-toolbar__group scene-toolbar__group--meta">
           <span className="scene-toolbar__meta">{t(language, "routeMapIntro")}</span>

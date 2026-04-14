@@ -505,7 +505,9 @@ select {
 .app-shell--adaptive-viewport .scene-card--route-map .scene-card__viewport,
 .app-shell--adaptive-viewport .scene-card--route-map .scene-svg,
 .app-shell--adaptive-viewport .scene-card--sky-wrap .scene-card__viewport,
-.app-shell--adaptive-viewport .scene-card--sky-wrap .scene-svg {
+.app-shell--adaptive-viewport .scene-card--sky-wrap .scene-svg,
+.app-shell--adaptive-viewport .scene-card--inversion-lab .scene-card__viewport,
+.app-shell--adaptive-viewport .scene-card--inversion-lab .scene-svg {
   min-height: clamp(500px, 68vh, 980px);
 }
 
@@ -1164,7 +1166,9 @@ select {
 .app-shell--fullwidth-scene .scene-card--route-map .scene-card__viewport,
 .app-shell--fullwidth-scene .scene-card--route-map .scene-svg,
 .app-shell--fullwidth-scene .scene-card--sky-wrap .scene-card__viewport,
-.app-shell--fullwidth-scene .scene-card--sky-wrap .scene-svg {
+.app-shell--fullwidth-scene .scene-card--sky-wrap .scene-svg,
+.app-shell--fullwidth-scene .scene-card--inversion-lab .scene-card__viewport,
+.app-shell--fullwidth-scene .scene-card--inversion-lab .scene-svg {
   min-height: clamp(560px, 66vh, 1040px);
 }
 

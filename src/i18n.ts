@@ -78,6 +78,7 @@ const en: TranslationDictionary = {
   profileVisibility: "Profile Visibility",
   routeMap: "Route Map",
   skyWrap: "Sky Wrap",
+  inversionLab: "Inversion Lab",
   sweep: "Sweep",
   splitCompare: "Split Compare",
   panelLayout: "Panel layout",
@@ -118,6 +119,8 @@ const en: TranslationDictionary = {
     "Map-backed route workspace with draggable observer and target coordinates, derived great-circle distance, and bearing.",
   skyWrapIntro:
     "A celestial / sky-wrap workspace tracing how the active curvature law bends upward-looking rays in the observer frame.",
+  inversionLabIntro:
+    "A reciprocal-radii correspondence workspace pairing the local observer-frame solve with a global inversion construction for the active model.",
   sweepIntro:
     "A controlled parameter sweep driven by repeated solver runs across the active models.",
   rayBundleSummaryTitle: "Ray Bundle Envelope",
@@ -135,6 +138,9 @@ const en: TranslationDictionary = {
   skyWrapSummaryTitle: "Sky-Wrap Workspace",
   skyWrapSummaryBody:
     "Upward-looking rays are traced through the active intrinsic and atmospheric curvature law to study dome-like or horizon-to-sky bending behavior.",
+  inversionLabSummaryTitle: "Inversion Correspondence",
+  inversionLabSummaryBody:
+    "Local observer-frame geometry is paired with a reciprocal-radii global construction so apparent directions, tangents, and mapped ray families can be inspected side by side.",
   sweepSummaryTitle: "Parameter Sweep Overview",
   sweepSummaryBody:
     "Repeated solves across a controlled range reveal where the active models diverge, plateau, or cross threshold behavior.",
@@ -300,10 +306,32 @@ const en: TranslationDictionary = {
   routeDistance: "Route distance",
   routePointCount: "Route points",
   coordinatesEnabledLabel: "Coordinate route",
+  centralAngle: "Central angle",
   intrinsicBend: "Intrinsic bend",
   atmosphericBend: "Atmospheric bend",
   netBend: "Net bend",
   skyWrapDomeRadius: "Sky dome radius",
+  inversionLocalView: "Local correspondence view",
+  inversionGlobalView: "Global inversion frame",
+  inversionReciprocalGrid: "Reciprocal-radii guide field",
+  inversionBoundary: "Inversion boundary",
+  inversionCore: "Central reference core",
+  inversionCenter: "Inversion center",
+  inversionMappedSightline: "Mapped straight sightline",
+  inversionMappedOpticalPath: "Mapped optical path family",
+  inversionObserverTangent: "Observer tangent family",
+  inversionTargetTangent: "Target tangent family",
+  inversionFamilyConvex: "Convex benchmark family",
+  inversionFamilyConcave: "Concave reciprocal family",
+  inversionCorrespondenceReady: "Mapped correspondence is well resolved",
+  inversionCorrespondenceLimited: "Mapped correspondence is only partially resolved",
+  inversionMappedFamily: "Mapped family",
+  inversionActualBend: "Actual bend",
+  inversionCorrespondence: "Correspondence",
+  inversionLabConvexBody:
+    "Convex benchmark solve paired with a reciprocal-radii construction so the mapped global family can be inspected without losing the local observer-frame geometry.",
+  inversionLabConcaveBody:
+    "Concave shell solve paired with a reciprocal-radii construction so intrinsic curvature, tangents, and apparent directions can be compared against the benchmark framing.",
   observerMarker: "Observer",
   targetMarker: "Target",
   featureSurfaceSea: "Surface / Sea Level",

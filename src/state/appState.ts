@@ -313,6 +313,7 @@ function normalizeAnalysisTab(value: string): AnalysisTab {
     case "profile-visibility":
     case "route-map":
     case "sky-wrap":
+    case "inversion-lab":
     case "sweep":
       return value;
     default:

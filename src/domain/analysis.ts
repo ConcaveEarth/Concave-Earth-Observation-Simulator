@@ -1,8 +1,12 @@
 import {
+  add,
   getTargetAngle,
+  invertPointThroughCircle,
   localTangentAtAngle,
   localUpAtAngle,
+  normalize,
   pointAtSurfaceHeight,
+  scale,
   toObserverFrame,
 } from "./geometry";
 import {
@@ -39,7 +43,7 @@ import type {
   Vec2,
 } from "./types";
 import type { UnitPreferences } from "./units";
-import { getModelLabel, type LanguageMode } from "../i18n";
+import { getModelLabel, t, type LanguageMode } from "../i18n";
 
 export type AnalysisTab =
   | "cross-section"
@@ -48,7 +52,8 @@ export type AnalysisTab =
   | "sweep"
   | "profile-visibility"
   | "route-map"
-  | "sky-wrap";
+  | "sky-wrap"
+  | "inversion-lab";
 export type SweepParameter =
   | "distance"
   | "observerHeight"
@@ -283,6 +288,55 @@ export interface SkyWrapPanelData {
     atmosphereLabel: string;
     netLabel: string;
   };
+}
+
+export interface InversionLabCurve {
+  id: string;
+  featureId: string;
+  label: string;
+  color: string;
+  points: Vec2[];
+  width: number;
+  dashed?: boolean;
+  opacity?: number;
+}
+
+export interface InversionLabMarker {
+  id: string;
+  featureId: string;
+  label: string;
+  point: Vec2;
+  color: string;
+  labelOffset?: Vec2;
+}
+
+export interface InversionLabAuditItem {
+  label: string;
+  value: string;
+}
+
+export interface InversionLabSubview {
+  bounds: {
+    minX: number;
+    maxX: number;
+    minY: number;
+    maxY: number;
+  };
+  curves: InversionLabCurve[];
+  markers: InversionLabMarker[];
+}
+
+export interface InversionLabPanelData {
+  sceneKey: FocusedModel;
+  title: string;
+  subtitle: string;
+  inversionRadiusM: number;
+  globalView: InversionLabSubview;
+  localView: InversionLabSubview;
+  globalGuideRadiiM: number[];
+  coreRadiusM: number;
+  localVerticalScale: number;
+  audit: InversionLabAuditItem[];
 }
 
 export const defaultSweepConfig: SweepConfig = {
@@ -1438,5 +1492,457 @@ export function buildSkyWrapPanelData(
       atmosphereLabel: formatCurvatureLabel(atmosphere, result.scenario.radiusM),
       netLabel: formatCurvatureLabel(net, result.scenario.radiusM),
     },
+  };
+}
+
+function samplePolylineBetweenPoints(from: Vec2, to: Vec2, sampleCount = 96): Vec2[] {
+  return Array.from({ length: sampleCount }, (_, index) => {
+    const fraction = sampleCount === 1 ? 0 : index / (sampleCount - 1);
+    return {
+      x: lerp(from.x, to.x, fraction),
+      y: lerp(from.y, to.y, fraction),
+    };
+  });
+}
+
+function sampleRayFromPoint(origin: Vec2, direction: Vec2, lengthM: number, sampleCount = 64): Vec2[] {
+  return Array.from({ length: sampleCount }, (_, index) => {
+    const fraction = sampleCount === 1 ? 0 : index / (sampleCount - 1);
+    return {
+      x: origin.x + direction.x * lengthM * fraction,
+      y: origin.y + direction.y * lengthM * fraction,
+    };
+  });
+}
+
+function sampleCirclePolyline(radiusM: number, sampleCount = 192): Vec2[] {
+  return Array.from({ length: sampleCount + 1 }, (_, index) => {
+    const angle = (Math.PI * 2 * index) / sampleCount;
+    return {
+      x: radiusM * Math.cos(angle),
+      y: radiusM * Math.sin(angle),
+    };
+  });
+}
+
+function sampleSurfaceWindow(
+  result: VisibilitySolveResult,
+  startAngleRad: number,
+  endAngleRad: number,
+  sampleCount = 144,
+) {
+  return Array.from({ length: sampleCount }, (_, index) => {
+    const angle = lerp(startAngleRad, endAngleRad, sampleCount === 1 ? 0 : index / (sampleCount - 1));
+    return pointAtSurfaceHeight(
+      result.scenario.radiusM,
+      angle,
+      result.model.geometryMode,
+      0,
+    );
+  });
+}
+
+function invertPolyline(points: Vec2[], inversionRadiusM: number, maxRadiusFactor = 2.4): Vec2[] {
+  const maxRadiusM = inversionRadiusM * maxRadiusFactor;
+
+  return points
+    .map((point) => invertPointThroughCircle(point, inversionRadiusM))
+    .filter((point): point is Vec2 => point != null && Math.hypot(point.x, point.y) <= maxRadiusM);
+}
+
+function makeInversionCurve(
+  id: string,
+  featureId: string,
+  label: string,
+  color: string,
+  points: Vec2[],
+  options: {
+    width?: number;
+    dashed?: boolean;
+    opacity?: number;
+  } = {},
+): InversionLabCurve {
+  return {
+    id,
+    featureId,
+    label,
+    color,
+    points,
+    width: options.width ?? 2,
+    dashed: options.dashed,
+    opacity: options.opacity,
+  };
+}
+
+function exaggerateLocalCurve(points: Vec2[], verticalScale: number) {
+  return points.map((point) => ({
+    x: point.x,
+    y: point.y * verticalScale,
+  }));
+}
+
+function transformWorldCurveToObserverFrame(
+  result: VisibilitySolveResult,
+  points: Vec2[],
+  verticalScale: number,
+) {
+  return exaggerateLocalCurve(points.map((point) => transformToObserverFrame(result, point)), verticalScale);
+}
+
+function createSymmetricBounds(radiusM: number, outerFactor = 1.18) {
+  return {
+    minX: -radiusM * outerFactor,
+    maxX: radiusM * outerFactor,
+    minY: -radiusM * outerFactor,
+    maxY: radiusM * outerFactor,
+  };
+}
+
+export function buildInversionLabPanelData(
+  result: VisibilitySolveResult,
+  title: string,
+  sceneKey: FocusedModel,
+  units: UnitPreferences,
+  language: LanguageMode = "en",
+): InversionLabPanelData {
+  const inversionRadiusM = result.scenario.radiusM;
+  const coreRadiusM = inversionRadiusM * 0.2;
+  const targetTopPoint = result.targetTopPoint;
+  const observerPoint = result.observerPoint;
+  const observerSurfacePoint = result.observerSurfacePoint;
+  const targetBasePoint = result.targetBasePoint;
+  const targetTangent = localTangentAtAngle(result.targetAngleRad);
+  const referenceTracePoints =
+    result.primaryRay?.points.map((point) => ({ x: point.x, y: point.y })) ??
+    result.opticalHorizon?.trace?.points.map((point) => ({ x: point.x, y: point.y })) ??
+    samplePolylineBetweenPoints(observerPoint, targetTopPoint, 64);
+  const directSightlinePoints = samplePolylineBetweenPoints(observerPoint, targetTopPoint, 128);
+  const invertedDirectPoints = invertPolyline(directSightlinePoints, inversionRadiusM, 1.85);
+  const invertedTracePoints = invertPolyline(referenceTracePoints, inversionRadiusM, 1.85);
+  const apparentElevationRad =
+    result.apparentElevationRad ??
+    result.opticalHorizon?.apparentElevationRad ??
+    result.actualElevationRad;
+  const apparentDirectionWorld = normalize(
+    add(
+      scale(result.observerTangent, Math.cos(apparentElevationRad)),
+      scale(result.observerUp, Math.sin(apparentElevationRad)),
+    ),
+  );
+  const apparentDirectionPoints = sampleRayFromPoint(
+    observerPoint,
+    apparentDirectionWorld,
+    inversionRadiusM * 0.42,
+    84,
+  );
+  const observerTangentPoints = sampleRayFromPoint(
+    {
+      x: observerSurfacePoint.x - result.observerTangent.x * inversionRadiusM * 0.18,
+      y: observerSurfacePoint.y - result.observerTangent.y * inversionRadiusM * 0.18,
+    },
+    result.observerTangent,
+    inversionRadiusM * 0.36,
+    48,
+  );
+  const targetTangentPoints = sampleRayFromPoint(
+    {
+      x: targetBasePoint.x - targetTangent.x * inversionRadiusM * 0.16,
+      y: targetBasePoint.y - targetTangent.y * inversionRadiusM * 0.16,
+    },
+    targetTangent,
+    inversionRadiusM * 0.32,
+    48,
+  );
+  const guideRadiiM = [0.28, 0.48, 0.68, 0.88].map((fraction) => inversionRadiusM * fraction);
+
+  const targetAnglePad = Math.max(0.12, Math.min(0.42, result.targetAngleRad * 0.22));
+  const localSurfacePoints = sampleSurfaceWindow(
+    result,
+    -targetAnglePad,
+    result.targetAngleRad + targetAnglePad * 1.18,
+  );
+  const localRawPoints = [
+    ...localSurfacePoints.map((point) => transformToObserverFrame(result, point)),
+    ...referenceTracePoints.map((point) => transformToObserverFrame(result, point)),
+    ...directSightlinePoints.map((point) => transformToObserverFrame(result, point)),
+    ...apparentDirectionPoints.map((point) => transformToObserverFrame(result, point)),
+    transformToObserverFrame(result, targetTopPoint),
+    transformToObserverFrame(result, observerPoint),
+  ];
+  const localVerticalScale = getVerticalExaggeration(
+    Math.max(result.scenario.surfaceDistanceM, result.opticalHorizon?.distanceM ?? 0, 1),
+    localRawPoints,
+  );
+
+  const localObserverHorizontalPoints = [
+    { x: -result.scenario.surfaceDistanceM * 0.08, y: 0 },
+    { x: result.scenario.surfaceDistanceM * 1.06, y: 0 },
+  ];
+  const localActualPoints = transformWorldCurveToObserverFrame(result, referenceTracePoints, localVerticalScale);
+  const localDirectPoints = transformWorldCurveToObserverFrame(result, directSightlinePoints, localVerticalScale);
+  const localApparentPoints = transformWorldCurveToObserverFrame(result, apparentDirectionPoints, localVerticalScale);
+  const localSurface = exaggerateLocalCurve(
+    localSurfacePoints.map((point) => transformToObserverFrame(result, point)),
+    localVerticalScale,
+  );
+  const localMarkers: InversionLabMarker[] = [
+    {
+      id: `${sceneKey}-local-observer`,
+      featureId: "observer",
+      label: t(language, "observerMarker"),
+      point: { x: 0, y: 0 },
+      color: "#f4f8ff",
+      labelOffset: { x: 14, y: -18 },
+    },
+    {
+      id: `${sceneKey}-local-target`,
+      featureId: "target",
+      label: t(language, "targetMarker"),
+      point: transformWorldCurveToObserverFrame(result, [targetTopPoint], localVerticalScale)[0],
+      color: "#ffd89b",
+      labelOffset: { x: 12, y: -14 },
+    },
+  ];
+  if (result.opticalHorizon?.point) {
+    localMarkers.push({
+      id: `${sceneKey}-local-optical-horizon`,
+      featureId: "optical-horizon",
+      label: t(language, "featureOpticalHorizon"),
+      point: transformWorldCurveToObserverFrame(
+        result,
+        [result.opticalHorizon.point],
+        localVerticalScale,
+      )[0],
+      color: "#7cf3ad",
+      labelOffset: { x: 12, y: -10 },
+    });
+  }
+
+  const localBounds = collectBounds(
+    [
+      ...localSurface,
+      ...localActualPoints,
+      ...localDirectPoints,
+      ...localApparentPoints,
+      ...localObserverHorizontalPoints,
+      ...localMarkers.map((marker) => marker.point),
+    ],
+    {
+      xPaddingFactor: 0.09,
+      minXPad: Math.max(result.scenario.surfaceDistanceM * 0.1, 3_000),
+      topPaddingFactor: 0.22,
+      bottomPaddingFactor: 0.22,
+      minTopPad: Math.max(result.scenario.surfaceDistanceM * 0.05, 120),
+      minBottomPad: Math.max(result.scenario.surfaceDistanceM * 0.05, 120),
+    },
+  );
+
+  const localView: InversionLabSubview = {
+    bounds: localBounds,
+    curves: [
+      makeInversionCurve(
+        `${sceneKey}-local-surface`,
+        "surface",
+        t(
+          language,
+          result.model.geometryMode === "convex"
+            ? "featureSurfaceSea"
+            : "featureSurfaceGround",
+        ),
+        "#76c7ff",
+        localSurface,
+        { width: 2.6 },
+      ),
+      makeInversionCurve(
+        `${sceneKey}-local-horizontal`,
+        "observer-horizontal",
+        t(language, "featureObserverHorizontal"),
+        "#9fa8ff",
+        localObserverHorizontalPoints,
+        { width: 1.6, dashed: true, opacity: 0.88 },
+      ),
+      makeInversionCurve(
+        `${sceneKey}-local-actual`,
+        "actual-ray",
+        t(language, "featureActualRayPath"),
+        "#f8e6b6",
+        localActualPoints,
+        { width: 2.8 },
+      ),
+      makeInversionCurve(
+        `${sceneKey}-local-direct`,
+        "geometric-sightline",
+        t(language, "featureDirectGeometricSightline"),
+        "#e8edf4",
+        localDirectPoints,
+        { width: 1.5, dashed: true, opacity: 0.82 },
+      ),
+      makeInversionCurve(
+        `${sceneKey}-local-apparent`,
+        "apparent-line",
+        t(language, "featureApparentLineOfSight"),
+        "#ff7fc5",
+        localApparentPoints,
+        { width: 1.6, dashed: true, opacity: 0.88 },
+      ),
+    ],
+    markers: localMarkers,
+  };
+
+  const globalOuterFactor = Math.max(
+    1.16,
+    Math.min(
+      1.75,
+      Math.max(
+        ...[
+          ...referenceTracePoints,
+          ...invertedDirectPoints,
+          ...invertedTracePoints,
+          observerPoint,
+          targetTopPoint,
+        ].map((point) => Math.hypot(point.x, point.y) / inversionRadiusM),
+      ) * 1.08,
+    ),
+  );
+  const globalBounds = createSymmetricBounds(inversionRadiusM, globalOuterFactor);
+  const globalCurves: InversionLabCurve[] = [
+    makeInversionCurve(
+      `${sceneKey}-global-boundary`,
+      "inversion-boundary",
+      t(language, "inversionBoundary"),
+      result.model.geometryMode === "convex" ? "#8fcfff" : "#8bb4ff",
+      sampleCirclePolyline(inversionRadiusM, 220),
+      { width: 2.2 },
+    ),
+    makeInversionCurve(
+      `${sceneKey}-global-core`,
+      "inversion-core",
+      t(language, "inversionCore"),
+      "rgba(219, 230, 243, 0.28)",
+      sampleCirclePolyline(coreRadiusM, 144),
+      { width: 1.4, opacity: 0.92 },
+    ),
+    makeInversionCurve(
+      `${sceneKey}-global-actual`,
+      "actual-ray",
+      t(language, "featureActualRayPath"),
+      "#f7e7b5",
+      referenceTracePoints,
+      { width: 2.6 },
+    ),
+    makeInversionCurve(
+      `${sceneKey}-global-direct`,
+      "geometric-sightline",
+      t(language, "featureDirectGeometricSightline"),
+      "#edf3fb",
+      directSightlinePoints,
+      { width: 1.45, dashed: true, opacity: 0.78 },
+    ),
+    makeInversionCurve(
+      `${sceneKey}-global-mapped-direct`,
+      "mapped-direct",
+      t(language, "inversionMappedSightline"),
+      "#8a7dff",
+      invertedDirectPoints,
+      { width: 1.9, opacity: 0.9 },
+    ),
+    makeInversionCurve(
+      `${sceneKey}-global-mapped-actual`,
+      "mapped-actual",
+      t(language, "inversionMappedOpticalPath"),
+      "#56d8d1",
+      invertedTracePoints,
+      { width: 1.7, dashed: true, opacity: 0.86 },
+    ),
+    makeInversionCurve(
+      `${sceneKey}-global-observer-tangent`,
+      "observer-tangent",
+      t(language, "inversionObserverTangent"),
+      "#ff8b8b",
+      observerTangentPoints,
+      { width: 1.4, opacity: 0.82 },
+    ),
+    makeInversionCurve(
+      `${sceneKey}-global-target-tangent`,
+      "target-tangent",
+      t(language, "inversionTargetTangent"),
+      "#ffb36d",
+      targetTangentPoints,
+      { width: 1.35, opacity: 0.76 },
+    ),
+    makeInversionCurve(
+      `${sceneKey}-global-apparent`,
+      "apparent-line",
+      t(language, "featureApparentLineOfSight"),
+      "#ff7fc5",
+      apparentDirectionPoints,
+      { width: 1.5, dashed: true, opacity: 0.78 },
+    ),
+  ];
+  const globalMarkers: InversionLabMarker[] = [
+    {
+      id: `${sceneKey}-global-observer`,
+      featureId: "observer",
+      label: t(language, "observerMarker"),
+      point: observerPoint,
+      color: "#f4f8ff",
+      labelOffset: { x: 12, y: -14 },
+    },
+    {
+      id: `${sceneKey}-global-target`,
+      featureId: "target",
+      label: t(language, "targetMarker"),
+      point: targetTopPoint,
+      color: "#ffd89b",
+      labelOffset: { x: 12, y: -12 },
+    },
+    {
+      id: `${sceneKey}-global-center`,
+      featureId: "inversion-center",
+      label: t(language, "inversionCenter"),
+      point: { x: 0, y: 0 },
+      color: "#d9e3ef",
+      labelOffset: { x: 12, y: -12 },
+    },
+  ];
+
+  const tracedBendRad =
+    result.primaryRay?.totalBendRad ??
+    result.opticalHorizon?.trace?.totalBendRad ??
+    0;
+  const mappedFamilyLabel =
+    result.model.geometryMode === "convex"
+      ? t(language, "inversionFamilyConvex")
+      : t(language, "inversionFamilyConcave");
+  const correspondenceLabel =
+    invertedDirectPoints.length > 3
+      ? t(language, "inversionCorrespondenceReady")
+      : t(language, "inversionCorrespondenceLimited");
+
+  return {
+    sceneKey,
+    title,
+    subtitle:
+      result.model.geometryMode === "convex"
+        ? t(language, "inversionLabConvexBody")
+        : t(language, "inversionLabConcaveBody"),
+    inversionRadiusM,
+    globalView: {
+      bounds: globalBounds,
+      curves: globalCurves,
+      markers: globalMarkers,
+    },
+    localView,
+    globalGuideRadiiM: guideRadiiM,
+    coreRadiusM,
+    localVerticalScale,
+    audit: [
+      { label: t(language, "surfaceDistance"), value: formatDistance(result.scenario.surfaceDistanceM, units.distance) },
+      { label: t(language, "centralAngle"), value: formatAngle(result.targetAngleRad) },
+      { label: t(language, "apparentElevation"), value: formatAngle(apparentElevationRad) },
+      { label: t(language, "inversionMappedFamily"), value: mappedFamilyLabel },
+      { label: t(language, "inversionActualBend"), value: formatAngle(tracedBendRad) },
+      { label: t(language, "inversionCorrespondence"), value: correspondenceLabel },
+    ],
   };
 }

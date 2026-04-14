@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyPresetToModel,
+  buildInversionLabPanelData,
   buildObserverViewPanelData,
   buildProfileVisibilityPanelData,
   buildRayBundlePanelData,
@@ -146,5 +147,29 @@ describe("analysis helpers", () => {
 
     expect(panel.stats.intrinsicLabel).toContain("upward");
     expect(panel.stats.atmosphereLabel).toContain("downward");
+  });
+
+  it("builds an inversion-lab panel with paired local and global correspondence views", () => {
+    const result = solveVisibility(defaultScenario, defaultComparisonModel);
+    const panel = buildInversionLabPanelData(
+      result,
+      "Model 2",
+      "comparison",
+      {
+        height: "m",
+        distance: "km",
+        radius: "km",
+      },
+      "en",
+    );
+
+    expect(panel.localView.curves.length).toBeGreaterThanOrEqual(5);
+    expect(panel.globalView.curves.length).toBeGreaterThanOrEqual(8);
+    expect(panel.globalGuideRadiiM.length).toBeGreaterThanOrEqual(4);
+    expect(panel.inversionRadiusM).toBe(result.scenario.radiusM);
+    expect(panel.coreRadiusM).toBeGreaterThan(0);
+    expect(panel.audit).toHaveLength(6);
+    expect(panel.localView.bounds.maxX).toBeGreaterThan(panel.localView.bounds.minX);
+    expect(panel.globalView.bounds.maxY).toBeGreaterThan(panel.globalView.bounds.minY);
   });
 });

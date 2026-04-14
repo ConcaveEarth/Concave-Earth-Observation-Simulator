@@ -12,6 +12,7 @@ import {
 } from "react";
 import type { ErrorInfo, ReactNode } from "react";
 import {
+  buildInversionLabPanelData,
   buildObserverViewPanelData,
   buildProfileVisibilityPanelData,
   buildRayBundlePanelData,
@@ -26,6 +27,7 @@ import {
 import { hydrateStateFromSearch, appReducer, serializeStateToSearch } from "./state/appState";
 import type {
   FocusedModel,
+  InversionLabPanelData,
   ObserverViewPanelData,
   ProfileVisibilityPanelData,
   RayBundlePanelData,
@@ -69,6 +71,11 @@ const RouteMapView = lazy(() =>
 const SkyWrapView = lazy(() =>
   import("./ui/components/SkyWrapView").then((module) => ({
     default: module.SkyWrapView,
+  })),
+);
+const InversionLabView = lazy(() =>
+  import("./ui/components/InversionLabView").then((module) => ({
+    default: module.InversionLabView,
   })),
 );
 const SweepChart = lazy(() =>
@@ -309,6 +316,32 @@ function createEmptySkyWrapPanel(
   };
 }
 
+function createEmptyInversionLabPanel(
+  sceneKey: FocusedModel,
+  title: string,
+): InversionLabPanelData {
+  return {
+    sceneKey,
+    title,
+    subtitle: "",
+    inversionRadiusM: 1,
+    globalView: {
+      bounds: { minX: -1, maxX: 1, minY: -1, maxY: 1 },
+      curves: [],
+      markers: [],
+    },
+    localView: {
+      bounds: { minX: -1, maxX: 1, minY: -1, maxY: 1 },
+      curves: [],
+      markers: [],
+    },
+    globalGuideRadiiM: [],
+    coreRadiusM: 0.2,
+    localVerticalScale: 1,
+    audit: [],
+  };
+}
+
 export default function App() {
   const [state, dispatch] = useReducer(
     appReducer,
@@ -546,6 +579,50 @@ export default function App() {
       buildComparisonFocusedPanel,
     ],
   );
+  const primaryInversionLab = useMemo(
+    () =>
+      deferredState.analysisTab === "inversion-lab" && buildPrimaryFocusedPanel
+        ? buildInversionLabPanelData(
+            primaryResult,
+            t(deferredState.language, "primaryModelTitle"),
+            "primary",
+            deferredState.unitPreferences,
+            deferredState.language,
+          )
+        : createEmptyInversionLabPanel(
+            "primary",
+            t(deferredState.language, "primaryModelTitle"),
+          ),
+    [
+      primaryResult,
+      deferredState.analysisTab,
+      deferredState.language,
+      deferredState.unitPreferences,
+      buildPrimaryFocusedPanel,
+    ],
+  );
+  const comparisonInversionLab = useMemo(
+    () =>
+      deferredState.analysisTab === "inversion-lab" && buildComparisonFocusedPanel
+        ? buildInversionLabPanelData(
+            comparisonResult,
+            t(deferredState.language, "comparisonModelTitle"),
+            "comparison",
+            deferredState.unitPreferences,
+            deferredState.language,
+          )
+        : createEmptyInversionLabPanel(
+            "comparison",
+            t(deferredState.language, "comparisonModelTitle"),
+          ),
+    [
+      comparisonResult,
+      deferredState.analysisTab,
+      deferredState.language,
+      deferredState.unitPreferences,
+      buildComparisonFocusedPanel,
+    ],
+  );
   const sweepData = useMemo(
     () =>
       deferredState.analysisTab === "sweep"
@@ -605,6 +682,14 @@ export default function App() {
             ? primarySkyWrap
             : comparisonSkyWrap,
         ];
+  const inversionPanels =
+    deferredState.viewMode === "compare"
+      ? [primaryInversionLab, comparisonInversionLab]
+      : [
+          deferredState.focusedModel === "primary"
+            ? primaryInversionLab
+            : comparisonInversionLab,
+        ];
 
   const visibleSceneKeys = new Set(scenes.map((scene) => scene.sceneKey));
   const hoveredFeatureVisible =
@@ -649,6 +734,8 @@ export default function App() {
     inspectedSceneKey === "primary" ? primaryObserverView : comparisonObserverView;
   const inspectedSkyWrapPanel =
     inspectedSceneKey === "primary" ? primarySkyWrap : comparisonSkyWrap;
+  const inspectedInversionPanel =
+    inspectedSceneKey === "primary" ? primaryInversionLab : comparisonInversionLab;
   const isFeaturePinned = interactionEnabled && selectedFeatureVisible;
   const displayedScenes = scenes;
   const legendAnnotations = useMemo(() => {
@@ -791,7 +878,7 @@ export default function App() {
             title: "Scenario",
             rows: [
               { label: "Preset", value: deferredState.scenario.presetId },
-              { label: "Analysis", value: t(state.language, state.analysisTab === "cross-section" ? "crossSection" : state.analysisTab === "ray-bundle" ? "rayBundle" : state.analysisTab === "observer-view" ? "observerView" : state.analysisTab === "profile-visibility" ? "profileVisibility" : state.analysisTab === "route-map" ? "routeMap" : state.analysisTab === "sky-wrap" ? "skyWrap" : "sweep") },
+              { label: "Analysis", value: t(state.language, state.analysisTab === "cross-section" ? "crossSection" : state.analysisTab === "ray-bundle" ? "rayBundle" : state.analysisTab === "observer-view" ? "observerView" : state.analysisTab === "profile-visibility" ? "profileVisibility" : state.analysisTab === "route-map" ? "routeMap" : state.analysisTab === "sky-wrap" ? "skyWrap" : state.analysisTab === "inversion-lab" ? "inversionLab" : "sweep") },
               { label: "Scenario mode", value: deferredState.scenario.scenarioMode },
               { label: "Surface distance", value: `${deferredState.scenario.surfaceDistanceM.toFixed(0)} m` },
               { label: "Radius", value: `${deferredState.scenario.radiusM.toFixed(0)} m` },
@@ -942,6 +1029,10 @@ export default function App() {
                     ? `scene-card scene-card--sky-wrap panel${
                         state.fitContentHeight ? " scene-card--fit-content" : ""
                       }`
+                  : deferredState.analysisTab === "inversion-lab"
+                    ? `scene-card scene-card--inversion-lab panel${
+                        state.fitContentHeight ? " scene-card--fit-content" : ""
+                      }`
                   : deferredState.analysisTab === "sweep"
                     ? `scene-card scene-card--sweep panel${
                         state.fitContentHeight ? " scene-card--fit-content" : ""
@@ -997,6 +1088,8 @@ export default function App() {
                             ? t(state.language, "routeMapIntro")
                           : state.analysisTab === "sky-wrap"
                             ? t(state.language, "skyWrapIntro")
+                          : state.analysisTab === "inversion-lab"
+                            ? t(state.language, "inversionLabIntro")
                           : `${t(state.language, "sweepIntro")} ${formatSweepParameterValue(
                               sweepData.range.min,
                               sweepData.parameter,
@@ -1548,6 +1641,75 @@ export default function App() {
                       )}
                     </div>
                   </div>
+                ) : state.analysisTab === "inversion-lab" ? (
+                  <div
+                    className={
+                      stackedCompareView
+                        ? "scene-card__viewport scene-card__viewport--analysis scene-card__viewport--stacked-list"
+                        : "scene-card__viewport scene-card__viewport--analysis"
+                    }
+                  >
+                    <div
+                      className={
+                        stackedCompareView
+                          ? "scene-stack-list"
+                          : "scene-card__canvas"
+                      }
+                    >
+                      {stackedCompareView ? (
+                        inversionPanels.map((panel) => (
+                          <div
+                            key={panel.sceneKey}
+                            className="scene-stack-item scene-stack-item--analysis"
+                          >
+                            <InversionLabView
+                              panels={[panel]}
+                              compareLayout="side-by-side"
+                              language={state.language}
+                              annotated={state.annotated}
+                              showGuides={state.showScaleGuides}
+                              fitContentHeight={state.fitContentHeight}
+                              zoom={state.sceneViewport.zoom}
+                              verticalZoom={state.sceneViewport.verticalZoom}
+                              panX={state.sceneViewport.panX}
+                              panY={state.sceneViewport.panY}
+                              onPanBy={(deltaX, deltaY) =>
+                                dispatch({ type: "panViewport", deltaX, deltaY })
+                              }
+                              onAdjustZoom={(delta) =>
+                                dispatch({ type: "adjustViewportZoom", delta })
+                              }
+                              onAdjustVerticalZoom={(delta) =>
+                                dispatch({ type: "adjustViewportVerticalZoom", delta })
+                              }
+                            />
+                          </div>
+                        ))
+                      ) : (
+                        <InversionLabView
+                          panels={inversionPanels}
+                          compareLayout={resolvedCompareLayout}
+                          language={state.language}
+                          annotated={state.annotated}
+                          showGuides={state.showScaleGuides}
+                          fitContentHeight={state.fitContentHeight}
+                          zoom={state.sceneViewport.zoom}
+                          verticalZoom={state.sceneViewport.verticalZoom}
+                          panX={state.sceneViewport.panX}
+                          panY={state.sceneViewport.panY}
+                          onPanBy={(deltaX, deltaY) =>
+                            dispatch({ type: "panViewport", deltaX, deltaY })
+                          }
+                          onAdjustZoom={(delta) =>
+                            dispatch({ type: "adjustViewportZoom", delta })
+                          }
+                          onAdjustVerticalZoom={(delta) =>
+                            dispatch({ type: "adjustViewportVerticalZoom", delta })
+                          }
+                        />
+                      )}
+                    </div>
+                  </div>
                 ) : (
                   <div className="scene-card__viewport scene-card__viewport--analysis">
                     <div className="scene-card__canvas">
@@ -1588,6 +1750,7 @@ export default function App() {
           activeObserverPanel={inspectedObserverPanel}
           activeRouteMapPanel={routeMapPanel}
           activeSkyWrapPanel={inspectedSkyWrapPanel}
+          activeInversionPanel={inspectedInversionPanel}
           sweepData={sweepData}
           inspectedSceneKey={inspectedSceneKey}
           activeFeatureId={activeFeatureId}

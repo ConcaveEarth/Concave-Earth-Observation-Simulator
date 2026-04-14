@@ -16,6 +16,7 @@ export function AnalysisTabs({ value, onChange, language }: AnalysisTabsProps) {
     { value: "profile-visibility", label: t(language, "profileVisibility") },
     { value: "route-map", label: t(language, "routeMap") },
     { value: "sky-wrap", label: t(language, "skyWrap") },
+    { value: "inversion-lab", label: t(language, "inversionLab") },
     { value: "sweep", label: t(language, "sweep") },
   ];
 

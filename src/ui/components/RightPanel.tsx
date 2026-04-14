@@ -5,6 +5,7 @@ import {
 import {
   formatSweepMetricValue,
   formatSweepParameterValue,
+  type InversionLabPanelData,
   type ObserverViewPanelData,
   type ProfileVisibilityPanelData,
   type RayBundlePanelData,
@@ -43,6 +44,7 @@ interface RightPanelProps {
   activeObserverPanel: ObserverViewPanelData;
   activeRouteMapPanel: RouteMapPanelData;
   activeSkyWrapPanel: SkyWrapPanelData;
+  activeInversionPanel: InversionLabPanelData;
   sweepData: SweepChartData;
   inspectedSceneKey: FocusedModel;
   activeFeatureId: string | null;
@@ -99,6 +101,26 @@ function getReferenceVisibleSample(result: VisibilitySolveResult) {
   return result.hiddenHeightM > 0
     ? visibleSamples[0]
     : visibleSamples[visibleSamples.length - 1];
+}
+
+function getInversionLegendItems(panel: InversionLabPanelData) {
+  const seen = new Set<string>();
+  const items: Array<{ id: string; label: string; color: string }> = [];
+
+  [...panel.localView.curves, ...panel.globalView.curves].forEach((curve) => {
+    if (seen.has(curve.featureId)) {
+      return;
+    }
+
+    seen.add(curve.featureId);
+    items.push({
+      id: curve.featureId,
+      label: curve.label,
+      color: curve.color,
+    });
+  });
+
+  return items;
 }
 
 function formatCurvatureRatio(
@@ -180,6 +202,8 @@ function getAnalysisTabLabel(language: LanguageMode, analysisTab: AppState["anal
       return t(language, "routeMap");
     case "sky-wrap":
       return t(language, "skyWrap");
+    case "inversion-lab":
+      return t(language, "inversionLab");
     case "sweep":
       return t(language, "sweep");
     case "cross-section":
@@ -237,6 +261,7 @@ function getCurrentOutputCards(args: {
   activeObserverPanel: ObserverViewPanelData;
   activeRouteMapPanel: RouteMapPanelData;
   activeSkyWrapPanel: SkyWrapPanelData;
+  activeInversionPanel: InversionLabPanelData;
   sweepData: SweepChartData;
   language: LanguageMode;
 }) {
@@ -248,6 +273,7 @@ function getCurrentOutputCards(args: {
     activeObserverPanel,
     activeRouteMapPanel,
     activeSkyWrapPanel,
+    activeInversionPanel,
     sweepData,
     language,
   } = args;
@@ -447,6 +473,13 @@ function getCurrentOutputCards(args: {
     ];
   }
 
+  if (state.analysisTab === "inversion-lab") {
+    return activeInversionPanel.audit.slice(0, 6).map((item) => ({
+      label: item.label,
+      value: item.value,
+    }));
+  }
+
   return [
     {
       label: t(language, "hiddenHeight"),
@@ -485,6 +518,7 @@ function getAnalysisSummary(args: {
   activeObserverPanel: ObserverViewPanelData;
   activeRouteMapPanel: RouteMapPanelData;
   activeSkyWrapPanel: SkyWrapPanelData;
+  activeInversionPanel: InversionLabPanelData;
   sweepData: SweepChartData;
   language: LanguageMode;
 }): { title: string; description: string; metrics: FeatureMetric[] } {
@@ -496,6 +530,7 @@ function getAnalysisSummary(args: {
     activeObserverPanel,
     activeRouteMapPanel,
     activeSkyWrapPanel,
+    activeInversionPanel,
     sweepData,
     language,
   } = args;
@@ -570,6 +605,18 @@ function getAnalysisSummary(args: {
           { label: t(language, "intrinsicBend"), value: activeSkyWrapPanel.stats.intrinsicLabel },
           { label: t(language, "atmosphericBend"), value: activeSkyWrapPanel.stats.atmosphereLabel },
           { label: t(language, "netBend"), value: activeSkyWrapPanel.stats.netLabel },
+        ],
+      };
+    case "inversion-lab":
+      return {
+        title: t(language, "inversionLabSummaryTitle"),
+        description: t(language, "inversionLabSummaryBody"),
+        metrics: [
+          { label: t(language, "activeAnalysis"), value: getAnalysisTabLabel(language, state.analysisTab) },
+          ...activeInversionPanel.audit.slice(0, 4).map((item) => ({
+            label: item.label,
+            value: item.value,
+          })),
         ],
       };
     case "sweep":
@@ -1097,6 +1144,7 @@ function getFieldMetricRows(args: {
   activeObserverPanel: ObserverViewPanelData;
   activeRouteMapPanel: RouteMapPanelData;
   activeSkyWrapPanel: SkyWrapPanelData;
+  activeInversionPanel: InversionLabPanelData;
   sweepData: SweepChartData;
   surfaceChordM: number;
   geometricDropM: number;
@@ -1110,6 +1158,7 @@ function getFieldMetricRows(args: {
     activeObserverPanel,
     activeRouteMapPanel,
     activeSkyWrapPanel,
+    activeInversionPanel,
     sweepData,
     surfaceChordM,
     geometricDropM,
@@ -1308,6 +1357,38 @@ function getFieldMetricRows(args: {
     ];
   }
 
+  if (state.analysisTab === "inversion-lab") {
+    return [
+      {
+        label: t(language, "surfaceDistance"),
+        value: formatDistance(activeResult.scenario.surfaceDistanceM, units.distance),
+      },
+      {
+        label: t(language, "centralAngle"),
+        value: formatAngle(activeResult.targetAngleRad),
+      },
+      {
+        label: t(language, "shellSphereRadius"),
+        value: formatRadius(activeInversionPanel.inversionRadiusM, units.radius),
+      },
+      {
+        label: t(language, "vertical"),
+        value: `x${activeInversionPanel.localVerticalScale.toFixed(1)}`,
+      },
+      {
+        label: t(language, "guides"),
+        value: String(activeInversionPanel.globalGuideRadiiM.length),
+      },
+      {
+        label: t(language, "rayBundle"),
+        value: String(
+          activeInversionPanel.localView.curves.length +
+            activeInversionPanel.globalView.curves.length,
+        ),
+      },
+    ];
+  }
+
   return [
     {
       label: "Surface arc distance",
@@ -1353,6 +1434,7 @@ export function RightPanel({
   activeObserverPanel,
   activeRouteMapPanel,
   activeSkyWrapPanel,
+  activeInversionPanel,
   sweepData,
   inspectedSceneKey,
   activeFeatureId,
@@ -1408,6 +1490,7 @@ export function RightPanel({
     activeObserverPanel,
     activeRouteMapPanel,
     activeSkyWrapPanel,
+    activeInversionPanel,
     sweepData,
     language,
   });
@@ -1419,6 +1502,7 @@ export function RightPanel({
     activeObserverPanel,
     activeRouteMapPanel,
     activeSkyWrapPanel,
+    activeInversionPanel,
     sweepData,
     language,
   });
@@ -1430,11 +1514,13 @@ export function RightPanel({
     activeObserverPanel,
     activeRouteMapPanel,
     activeSkyWrapPanel,
+    activeInversionPanel,
     sweepData,
     surfaceChordM,
     geometricDropM,
     language,
   });
+  const inversionLegendItems = getInversionLegendItems(activeInversionPanel);
   const featureDetails = getFeatureMetrics(
     activeResult,
     activeScene,
@@ -1592,11 +1678,13 @@ export function RightPanel({
             </p>
             <p>
               <strong>Vertical display:</strong>{" "}
-              {state.sceneViewport.scaleMode === "true-scale"
-                ? `${state.sceneViewport.verticalZoom.toFixed(2)}x true-scale factor`
-                : state.sceneViewport.scaleMode === "survey"
-                  ? `${state.sceneViewport.verticalZoom.toFixed(2)}x survey relief factor`
-                  : `base x${activeScene.suggestedVerticalScale.toFixed(1)} with control x${state.sceneViewport.verticalZoom.toFixed(2)}`}
+              {state.analysisTab === "inversion-lab"
+                ? `local x${activeInversionPanel.localVerticalScale.toFixed(1)} with control x${state.sceneViewport.verticalZoom.toFixed(2)}`
+                : state.sceneViewport.scaleMode === "true-scale"
+                  ? `${state.sceneViewport.verticalZoom.toFixed(2)}x true-scale factor`
+                  : state.sceneViewport.scaleMode === "survey"
+                    ? `${state.sceneViewport.verticalZoom.toFixed(2)}x survey relief factor`
+                    : `base x${activeScene.suggestedVerticalScale.toFixed(1)} with control x${state.sceneViewport.verticalZoom.toFixed(2)}`}
             </p>
           </div>
         </PanelSection>
@@ -1636,29 +1724,35 @@ export function RightPanel({
             eyebrow={t(language, "sceneGuide")}
             className="right-panel__section right-panel__section--legend"
           >
-            <div className="detail-card">
+              <div className="detail-card">
               <div className="legend-list">
-                {activeScene.annotations
-                  .filter(
-                    (annotation) =>
-                      state.showTerrainOverlay || annotation.id !== "terrain-profile",
-                  )
-                  .map((annotation) => (
-                    <div
-                      key={annotation.id}
-                      className={
-                        annotation.id === activeFeatureId
-                          ? "legend-item legend-item--active"
-                          : "legend-item"
-                      }
-                    >
-                      <span
-                        className="legend-swatch"
-                        style={{ backgroundColor: annotation.color }}
-                      />
-                      <span>{annotation.label}</span>
-                    </div>
-                  ))}
+                {(state.analysisTab === "inversion-lab"
+                  ? inversionLegendItems
+                  : activeScene.annotations
+                      .filter(
+                        (annotation) =>
+                          state.showTerrainOverlay || annotation.id !== "terrain-profile",
+                      )
+                      .map((annotation) => ({
+                        id: annotation.id,
+                        label: annotation.label,
+                        color: annotation.color,
+                      }))).map((item) => (
+                  <div
+                    key={item.id}
+                    className={
+                      item.id === activeFeatureId
+                        ? "legend-item legend-item--active"
+                        : "legend-item"
+                    }
+                  >
+                    <span
+                      className="legend-swatch"
+                      style={{ backgroundColor: item.color }}
+                    />
+                    <span>{item.label}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </PanelSection>

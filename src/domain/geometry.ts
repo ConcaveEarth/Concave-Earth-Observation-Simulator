@@ -59,6 +59,20 @@ export function polarToCartesian(radiusM: number, angleRad: number): Vec2 {
   };
 }
 
+export function invertPointThroughCircle(point: Vec2, circleRadiusM: number): Vec2 | null {
+  const radiusSquared = point.x * point.x + point.y * point.y;
+
+  if (radiusSquared < EPSILON) {
+    return null;
+  }
+
+  const scaleFactor = (circleRadiusM * circleRadiusM) / radiusSquared;
+  return {
+    x: point.x * scaleFactor,
+    y: point.y * scaleFactor,
+  };
+}
+
 export function unwrapAngle(nextAngle: number, previousAngle: number): number {
   let adjusted = nextAngle;
 
@@ -160,4 +174,3 @@ export function toObserverFrame(
     y: dot(relative, upAxis),
   };
 }
-
