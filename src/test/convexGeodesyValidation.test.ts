@@ -49,6 +49,18 @@ function makeConvexScenario(overrides: Partial<typeof defaultScenario> = {}) {
   };
 }
 
+function logTable(label: string, rows: unknown[]) {
+  const reportFlag = (globalThis as { process?: { env?: Record<string, string | undefined> } })
+    .process?.env?.CONVEX_REPORT;
+
+  if (reportFlag === "1") {
+    // eslint-disable-next-line no-console
+    console.log(`\n${label}`);
+    // eslint-disable-next-line no-console
+    console.table(rows);
+  }
+}
+
 function solveConvexThresholdDistanceM(observerHeightM: number, targetHeightM: number) {
   const referenceRangeM = bowditchGeographicRangeM(observerHeightM, targetHeightM);
   let low = 0;
@@ -114,6 +126,8 @@ describe("convex globe validation against mainstream geodesy references", () => 
       };
     });
 
+    logTable("Exact geometric horizon comparison", rows);
+
     for (const row of rows) {
       expect(Math.abs(row.errorPercent)).toBeLessThan(0.001);
     }
@@ -157,9 +171,12 @@ describe("convex globe validation against mainstream geodesy references", () => 
       };
     });
 
+    logTable("Bowditch visible-horizon and dip comparison", rows);
+
     for (const row of rows) {
       expect(Math.abs(row.distanceErrorPercent)).toBeLessThan(1.0);
       expect(Math.abs(row.dipErrorPercent)).toBeLessThan(1.5);
+      expect(Math.abs(row.tracedVsAnalyticPercent ?? Number.POSITIVE_INFINITY)).toBeLessThan(0.1);
     }
   });
 
@@ -191,8 +208,11 @@ describe("convex globe validation against mainstream geodesy references", () => 
       };
     });
 
+    logTable("Geographic range threshold comparison", rows);
+
     for (const row of rows) {
       expect(row.actualRangeKm).toBeGreaterThan(0);
+      expect(Math.abs(row.errorPercent)).toBeLessThan(5);
     }
   });
 
@@ -304,6 +324,8 @@ describe("convex globe validation against mainstream geodesy references", () => 
         extensionMeters: Number((opticalM - geometricM).toFixed(1)),
       };
     });
+
+    logTable("Geometric vs refracted horizon extension", rows);
 
     expect(rows[0].extensionMeters).toBeGreaterThan(100);
     expect(rows[3].extensionMeters).toBeGreaterThan(rows[0].extensionMeters);
