@@ -114,8 +114,6 @@ describe("convex globe validation against mainstream geodesy references", () => 
       };
     });
 
-    console.table(rows);
-
     for (const row of rows) {
       expect(Math.abs(row.errorPercent)).toBeLessThan(0.001);
     }
@@ -159,8 +157,6 @@ describe("convex globe validation against mainstream geodesy references", () => 
       };
     });
 
-    console.table(rows);
-
     for (const row of rows) {
       expect(Math.abs(row.distanceErrorPercent)).toBeLessThan(1.0);
       expect(Math.abs(row.dipErrorPercent)).toBeLessThan(1.5);
@@ -194,8 +190,6 @@ describe("convex globe validation against mainstream geodesy references", () => 
         errorPercent: Number(percentageError(actualRangeM, expectedRangeM).toFixed(3)),
       };
     });
-
-    console.table(rows);
 
     for (const row of rows) {
       expect(row.actualRangeKm).toBeGreaterThan(0);
@@ -310,8 +304,6 @@ describe("convex globe validation against mainstream geodesy references", () => 
         extensionMeters: Number((opticalM - geometricM).toFixed(1)),
       };
     });
-
-    console.table(rows);
 
     expect(rows[0].extensionMeters).toBeGreaterThan(100);
     expect(rows[3].extensionMeters).toBeGreaterThan(rows[0].extensionMeters);
