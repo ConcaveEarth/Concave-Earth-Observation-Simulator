@@ -79,6 +79,11 @@ const InversionLabView = lazy(() =>
     default: module.InversionLabView,
   })),
 );
+const RefractionLabView = lazy(() =>
+  import("./ui/components/RefractionLabView").then((module) => ({
+    default: module.RefractionLabView,
+  })),
+);
 const SweepChart = lazy(() =>
   import("./ui/components/SweepChart").then((module) => ({
     default: module.SweepChart,
@@ -91,6 +96,50 @@ function getSceneFilename(analysisTab: string, viewMode: string): string {
 
 function getExportBasename(analysisTab: string, viewMode: string) {
   return `observation-geometry-lab-${analysisTab}-${viewMode}`;
+}
+
+function getAnalysisViewportFamily(analysisTab: string) {
+  switch (analysisTab) {
+    case "sky-wrap":
+    case "inversion-lab":
+      return "global";
+    case "route-map":
+      return "map";
+    case "sweep":
+      return "chart";
+    case "refraction-lab":
+      return "refraction";
+    case "ray-bundle":
+    case "observer-view":
+    case "profile-visibility":
+    case "cross-section":
+    default:
+      return "local";
+  }
+}
+
+function getAnalysisTabLabel(language: string, analysisTab: string) {
+  switch (analysisTab) {
+    case "ray-bundle":
+      return t(language as Parameters<typeof t>[0], "rayBundle");
+    case "observer-view":
+      return t(language as Parameters<typeof t>[0], "observerView");
+    case "profile-visibility":
+      return t(language as Parameters<typeof t>[0], "profileVisibility");
+    case "route-map":
+      return t(language as Parameters<typeof t>[0], "routeMap");
+    case "sky-wrap":
+      return t(language as Parameters<typeof t>[0], "skyWrap");
+    case "inversion-lab":
+      return t(language as Parameters<typeof t>[0], "inversionLab");
+    case "refraction-lab":
+      return t(language as Parameters<typeof t>[0], "refractionLab");
+    case "sweep":
+      return t(language as Parameters<typeof t>[0], "sweep");
+    case "cross-section":
+    default:
+      return t(language as Parameters<typeof t>[0], "crossSection");
+  }
 }
 
 function AnalysisLoadingFallback({ message }: { message: string }) {
@@ -405,6 +454,7 @@ export default function App() {
   const [showLegendOverlay, setShowLegendOverlay] = useState(true);
   const [windowWidth, setWindowWidth] = useState(() => window.innerWidth);
   const [windowHeight, setWindowHeight] = useState(() => window.innerHeight);
+  const viewportFamilyRef = useRef(getAnalysisViewportFamily(state.analysisTab));
 
   const terrainObstructionProfile = useMemo(
     () =>
@@ -445,6 +495,15 @@ export default function App() {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  useEffect(() => {
+    const nextFamily = getAnalysisViewportFamily(state.analysisTab);
+
+    if (viewportFamilyRef.current !== nextFamily) {
+      viewportFamilyRef.current = nextFamily;
+      dispatch({ type: "resetViewport" });
+    }
+  }, [state.analysisTab]);
 
   const primaryResult = useMemo(
     () =>
@@ -509,20 +568,26 @@ export default function App() {
     buildBothModelPanels || deferredState.focusedModel === "primary";
   const buildComparisonFocusedPanel =
     buildBothModelPanels || deferredState.focusedModel === "comparison";
+  const buildsRayBundlePanels =
+    deferredState.analysisTab === "ray-bundle" ||
+    deferredState.analysisTab === "refraction-lab";
+  const buildsObserverPanels =
+    deferredState.analysisTab === "observer-view" ||
+    deferredState.analysisTab === "refraction-lab";
   const primaryBundle = useMemo(
     () =>
-      deferredState.analysisTab === "ray-bundle" && buildPrimaryFocusedPanel
+      buildsRayBundlePanels && buildPrimaryFocusedPanel
         ? buildRayBundlePanelData(
             primaryResult,
             t(deferredState.language, "primaryModelTitle"),
             "primary",
           )
         : createEmptyBundlePanel("primary", t(deferredState.language, "primaryModelTitle")),
-    [primaryResult, deferredState.analysisTab, deferredState.language, buildPrimaryFocusedPanel],
+    [primaryResult, buildsRayBundlePanels, deferredState.language, buildPrimaryFocusedPanel],
   );
   const comparisonBundle = useMemo(
     () =>
-      deferredState.analysisTab === "ray-bundle" && buildComparisonFocusedPanel
+      buildsRayBundlePanels && buildComparisonFocusedPanel
         ? buildRayBundlePanelData(
             comparisonResult,
             t(deferredState.language, "comparisonModelTitle"),
@@ -534,7 +599,7 @@ export default function App() {
           ),
     [
       comparisonResult,
-      deferredState.analysisTab,
+      buildsRayBundlePanels,
       deferredState.language,
       buildComparisonFocusedPanel,
     ],
@@ -574,7 +639,7 @@ export default function App() {
   );
   const primaryObserverView = useMemo(
     () =>
-      deferredState.analysisTab === "observer-view" && buildPrimaryFocusedPanel
+      buildsObserverPanels && buildPrimaryFocusedPanel
         ? buildObserverViewPanelData(
             primaryResult,
             t(deferredState.language, "primaryModelTitle"),
@@ -584,11 +649,11 @@ export default function App() {
             "primary",
             t(deferredState.language, "primaryModelTitle"),
           ),
-    [primaryResult, deferredState.analysisTab, deferredState.language, buildPrimaryFocusedPanel],
+    [primaryResult, buildsObserverPanels, deferredState.language, buildPrimaryFocusedPanel],
   );
   const comparisonObserverView = useMemo(
     () =>
-      deferredState.analysisTab === "observer-view" && buildComparisonFocusedPanel
+      buildsObserverPanels && buildComparisonFocusedPanel
         ? buildObserverViewPanelData(
             comparisonResult,
             t(deferredState.language, "comparisonModelTitle"),
@@ -600,7 +665,7 @@ export default function App() {
           ),
     [
       comparisonResult,
-      deferredState.analysisTab,
+      buildsObserverPanels,
       deferredState.language,
       buildComparisonFocusedPanel,
     ],
@@ -945,7 +1010,7 @@ export default function App() {
             title: "Scenario",
             rows: [
               { label: "Preset", value: deferredState.scenario.presetId },
-              { label: "Analysis", value: t(state.language, state.analysisTab === "cross-section" ? "crossSection" : state.analysisTab === "ray-bundle" ? "rayBundle" : state.analysisTab === "observer-view" ? "observerView" : state.analysisTab === "profile-visibility" ? "profileVisibility" : state.analysisTab === "route-map" ? "routeMap" : state.analysisTab === "sky-wrap" ? "skyWrap" : state.analysisTab === "inversion-lab" ? "inversionLab" : "sweep") },
+              { label: "Analysis", value: getAnalysisTabLabel(state.language, state.analysisTab) },
               { label: "Scenario mode", value: deferredState.scenario.scenarioMode },
               { label: "Surface distance", value: `${deferredState.scenario.surfaceDistanceM.toFixed(0)} m` },
               { label: "Radius", value: `${deferredState.scenario.radiusM.toFixed(0)} m` },
@@ -1096,6 +1161,10 @@ export default function App() {
                     ? `scene-card scene-card--sky-wrap panel${
                         state.fitContentHeight ? " scene-card--fit-content" : ""
                       }`
+                  : deferredState.analysisTab === "refraction-lab"
+                    ? `scene-card scene-card--refraction-lab panel${
+                        state.fitContentHeight ? " scene-card--fit-content" : ""
+                      }`
                   : deferredState.analysisTab === "inversion-lab"
                     ? `scene-card scene-card--inversion-lab panel${
                         state.fitContentHeight ? " scene-card--fit-content" : ""
@@ -1155,6 +1224,8 @@ export default function App() {
                             ? t(state.language, "routeMapIntro")
                           : state.analysisTab === "sky-wrap"
                             ? t(state.language, "skyWrapIntro")
+                          : state.analysisTab === "refraction-lab"
+                            ? t(state.language, "refractionLabIntro")
                           : state.analysisTab === "inversion-lab"
                             ? t(state.language, "inversionLabIntro")
                           : `${t(state.language, "sweepIntro")} ${formatSweepParameterValue(
@@ -1495,6 +1566,87 @@ export default function App() {
                       ) : (
                         <ObserverView
                           panels={observerPanels}
+                          compareLayout={resolvedCompareLayout}
+                          unitPreferences={state.unitPreferences}
+                          language={state.language}
+                          showScaleGuides={state.showScaleGuides}
+                          annotated={state.annotated}
+                          fitContentHeight={state.fitContentHeight}
+                          zoom={state.sceneViewport.zoom}
+                          verticalZoom={state.sceneViewport.verticalZoom}
+                          panX={state.sceneViewport.panX}
+                          panY={state.sceneViewport.panY}
+                          onPanBy={(deltaX, deltaY) =>
+                            dispatch({ type: "panViewport", deltaX, deltaY })
+                          }
+                          onAdjustZoom={(delta) =>
+                            dispatch({ type: "adjustViewportZoom", delta })
+                          }
+                          onAdjustVerticalZoom={(delta) =>
+                            dispatch({ type: "adjustViewportVerticalZoom", delta })
+                          }
+                        />
+                      )}
+                    </div>
+                  </div>
+                ) : state.analysisTab === "refraction-lab" ? (
+                  <div
+                    className={
+                      stackedCompareView
+                        ? "scene-card__viewport scene-card__viewport--analysis scene-card__viewport--stacked-list"
+                        : "scene-card__viewport scene-card__viewport--analysis"
+                    }
+                  >
+                    <div
+                      className={
+                        stackedCompareView
+                          ? "scene-stack-list"
+                          : "scene-card__canvas"
+                      }
+                    >
+                      {stackedCompareView ? (
+                        observerPanels.map((observerPanel, panelIndex) => {
+                          const bundlePanel = bundlePanels[panelIndex];
+
+                          if (!bundlePanel) {
+                            return null;
+                          }
+
+                          return (
+                            <div
+                              key={observerPanel.sceneKey}
+                              className="scene-stack-item scene-stack-item--analysis"
+                            >
+                              <RefractionLabView
+                                observerPanels={[observerPanel]}
+                                bundlePanels={[bundlePanel]}
+                                compareLayout="side-by-side"
+                                unitPreferences={state.unitPreferences}
+                                language={state.language}
+                                showScaleGuides={state.showScaleGuides}
+                                annotated={state.annotated}
+                                fitContentHeight={state.fitContentHeight}
+                                zoom={state.sceneViewport.zoom}
+                                verticalZoom={state.sceneViewport.verticalZoom}
+                                panX={state.sceneViewport.panX}
+                                panY={state.sceneViewport.panY}
+                                onPanBy={(deltaX, deltaY) =>
+                                  dispatch({ type: "panViewport", deltaX, deltaY })
+                                }
+                                onAdjustZoom={(delta) =>
+                                  dispatch({ type: "adjustViewportZoom", delta })
+                                }
+                                onAdjustVerticalZoom={(delta) =>
+                                  dispatch({ type: "adjustViewportVerticalZoom", delta })
+                                }
+                              />
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <RefractionLabView
+                          observerPanels={observerPanels}
+                          bundlePanels={bundlePanels}
                           compareLayout={resolvedCompareLayout}
                           unitPreferences={state.unitPreferences}
                           language={state.language}

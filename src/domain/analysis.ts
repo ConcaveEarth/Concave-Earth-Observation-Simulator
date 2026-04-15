@@ -47,6 +47,7 @@ import { getModelLabel, t, type LanguageMode } from "../i18n";
 
 export type AnalysisTab =
   | "cross-section"
+  | "refraction-lab"
   | "ray-bundle"
   | "observer-view"
   | "sweep"

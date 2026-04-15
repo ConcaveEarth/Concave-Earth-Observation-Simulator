@@ -158,30 +158,30 @@ function createUniformProjector(
 
 function buildSubviewRects(panelRect: PanelRect): SubviewRect[] {
   const headerHeight = 84;
-  const gutter = 20;
   const contentX = panelRect.x + 18;
   const contentY = panelRect.y + headerHeight;
   const contentWidth = panelRect.width - 36;
   const contentHeight = panelRect.height - headerHeight - 18;
-  const localWidth = contentWidth * 0.43;
-  const globalWidth = contentWidth - localWidth - gutter;
+  const insetPadding = 20;
+  const localWidth = Math.min(contentWidth * 0.36, 520);
+  const localHeight = Math.min(contentHeight * 0.42, 360);
 
   return [
     {
       kind: "local",
       rect: {
-        x: contentX,
-        y: contentY,
+        x: contentX + insetPadding,
+        y: contentY + insetPadding,
         width: localWidth,
-        height: contentHeight,
+        height: localHeight,
       },
     },
     {
       kind: "global",
       rect: {
-        x: contentX + localWidth + gutter,
+        x: contentX,
         y: contentY,
-        width: globalWidth,
+        width: contentWidth,
         height: contentHeight,
       },
     },
@@ -488,6 +488,10 @@ export function InversionLabView({
         });
         const globalCenter = globalProjector.project({ x: 0, y: 0 });
         const globalCoreRadius = panel.coreRadiusM * globalProjector.xScale;
+        const globalHeaderX = Math.max(
+          globalSubview.rect.x + 18,
+          localSubview.rect.x + localSubview.rect.width + 36,
+        );
 
         return (
           <g key={panel.sceneKey}>
@@ -521,39 +525,18 @@ export function InversionLabView({
               {panel.subtitle}
             </text>
 
-            {[localSubview, globalSubview].map((subview) => (
-              <rect
-                key={`${panel.sceneKey}-${subview.kind}`}
-                x={subview.rect.x}
-                y={subview.rect.y}
-                width={subview.rect.width}
-                height={subview.rect.height}
-                rx={22}
-                fill="url(#inversionSubviewFill)"
-                stroke="rgba(141, 192, 255, 0.1)"
-              />
-            ))}
+            <rect
+              x={globalSubview.rect.x}
+              y={globalSubview.rect.y}
+              width={globalSubview.rect.width}
+              height={globalSubview.rect.height}
+              rx={22}
+              fill="url(#inversionSubviewFill)"
+              stroke="rgba(141, 192, 255, 0.1)"
+            />
 
             <text
-              x={localSubview.rect.x + 18}
-              y={localSubview.rect.y + 28}
-              fill="rgba(240, 245, 252, 0.86)"
-              fontSize={14}
-              fontWeight={600}
-            >
-              {t(language, "inversionLocalView")}
-            </text>
-            <text
-              x={localSubview.rect.x + 18}
-              y={localSubview.rect.y + 48}
-              fill="rgba(181, 205, 230, 0.72)"
-              fontSize={12}
-            >
-              {`${t(language, "vertical")}: x${panel.localVerticalScale.toFixed(1)}`}
-            </text>
-
-            <text
-              x={globalSubview.rect.x + 18}
+              x={globalHeaderX}
               y={globalSubview.rect.y + 28}
               fill="rgba(240, 245, 252, 0.86)"
               fontSize={14}
@@ -562,41 +545,13 @@ export function InversionLabView({
               {t(language, "inversionGlobalView")}
             </text>
             <text
-              x={globalSubview.rect.x + 18}
+              x={globalHeaderX}
               y={globalSubview.rect.y + 48}
               fill="rgba(181, 205, 230, 0.72)"
               fontSize={12}
             >
               {t(language, "inversionReciprocalGrid")}
             </text>
-
-            {showGuides
-              ? Array.from({ length: 5 }, (_, index) => index + 1).map((step) => {
-                  const fraction = step / 6;
-                  const x = localSubview.rect.x + fraction * localSubview.rect.width;
-                  const y = localSubview.rect.y + fraction * localSubview.rect.height;
-                  return (
-                    <g key={`${panel.sceneKey}-local-grid-${step}`}>
-                      <line
-                        x1={x}
-                        y1={localSubview.rect.y + 18}
-                        x2={x}
-                        y2={localSubview.rect.y + localSubview.rect.height - 18}
-                        stroke="rgba(138, 177, 219, 0.08)"
-                        strokeDasharray="4 10"
-                      />
-                      <line
-                        x1={localSubview.rect.x + 18}
-                        y1={y}
-                        x2={localSubview.rect.x + localSubview.rect.width - 18}
-                        y2={y}
-                        stroke="rgba(138, 177, 219, 0.08)"
-                        strokeDasharray="4 10"
-                      />
-                    </g>
-                  );
-                })
-              : null}
 
             {showGuides
               ? panel.globalGuideRadiiM.map((radius, guideIndex) => (
@@ -643,26 +598,6 @@ export function InversionLabView({
               strokeWidth={1.2}
             />
 
-            {panel.localView.curves.map((curve, curveIndex) => {
-              const projected = curve.points.map(localProjector.project);
-              return (
-                <g key={curve.id}>
-                  <polyline
-                    points={polylinePoints(projected)}
-                    fill="none"
-                    stroke={curve.color}
-                    strokeWidth={curve.width}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeDasharray={curve.dashed ? "9 9" : undefined}
-                    opacity={curve.opacity ?? 1}
-                    filter={`drop-shadow(0 0 6px ${curve.color}33)`}
-                  />
-                  {annotated ? renderCurveLabel(curve, projected, curveIndex) : null}
-                </g>
-              );
-            })}
-
             {panel.globalView.curves.map((curve, curveIndex) => {
               const projected = curve.points.map(globalProjector.project);
               return (
@@ -684,9 +619,84 @@ export function InversionLabView({
                 </g>
               );
             })}
+            {renderMarkers(panel.globalView.markers, globalProjector.project, annotated)}
+
+            <rect
+              x={localSubview.rect.x}
+              y={localSubview.rect.y}
+              width={localSubview.rect.width}
+              height={localSubview.rect.height}
+              rx={22}
+              fill="url(#inversionSubviewFill)"
+              stroke="rgba(141, 192, 255, 0.22)"
+            />
+            <text
+              x={localSubview.rect.x + 18}
+              y={localSubview.rect.y + 28}
+              fill="rgba(240, 245, 252, 0.9)"
+              fontSize={14}
+              fontWeight={600}
+            >
+              {t(language, "inversionLocalView")}
+            </text>
+            <text
+              x={localSubview.rect.x + 18}
+              y={localSubview.rect.y + 48}
+              fill="rgba(181, 205, 230, 0.76)"
+              fontSize={12}
+            >
+              {`${t(language, "vertical")}: x${panel.localVerticalScale.toFixed(1)}`}
+            </text>
+
+            {showGuides
+              ? Array.from({ length: 5 }, (_, index) => index + 1).map((step) => {
+                  const fraction = step / 6;
+                  const x = localSubview.rect.x + fraction * localSubview.rect.width;
+                  const y = localSubview.rect.y + fraction * localSubview.rect.height;
+                  return (
+                    <g key={`${panel.sceneKey}-local-grid-${step}`}>
+                      <line
+                        x1={x}
+                        y1={localSubview.rect.y + 18}
+                        x2={x}
+                        y2={localSubview.rect.y + localSubview.rect.height - 18}
+                        stroke="rgba(138, 177, 219, 0.08)"
+                        strokeDasharray="4 10"
+                      />
+                      <line
+                        x1={localSubview.rect.x + 18}
+                        y1={y}
+                        x2={localSubview.rect.x + localSubview.rect.width - 18}
+                        y2={y}
+                        stroke="rgba(138, 177, 219, 0.08)"
+                        strokeDasharray="4 10"
+                      />
+                    </g>
+                  );
+                })
+              : null}
+
+            {panel.localView.curves.map((curve, curveIndex) => {
+              const projected = curve.points.map(localProjector.project);
+              return (
+                <g key={curve.id}>
+                  <polyline
+                    points={polylinePoints(projected)}
+                    fill="none"
+                    stroke={curve.color}
+                    strokeWidth={curve.width}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeDasharray={curve.dashed ? "9 9" : undefined}
+                    opacity={curve.opacity ?? 1}
+                    filter={`drop-shadow(0 0 6px ${curve.color}33)`}
+                  />
+                  {annotated ? renderCurveLabel(curve, projected, curveIndex) : null}
+                </g>
+              );
+            })}
 
             {renderMarkers(panel.localView.markers, localProjector.project, annotated)}
-            {renderMarkers(panel.globalView.markers, globalProjector.project, annotated)}
 
             <g transform={`translate(${panelRect.x + panelRect.width - 338}, ${panelRect.y + 22})`}>
               <rect

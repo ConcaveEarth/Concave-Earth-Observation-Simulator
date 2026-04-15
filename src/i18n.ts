@@ -73,6 +73,7 @@ const en: TranslationDictionary = {
   presetStatusIllustrative: "Illustrative / sandbox",
   dragMicrocopy: "Drag for sweep, use +/- for fine adjustment.",
   crossSection: "Cross-section",
+  refractionLab: "Refraction Lab",
   rayBundle: "Ray Bundle",
   observerView: "Observer View",
   profileVisibility: "Profile Visibility",
@@ -111,6 +112,8 @@ const en: TranslationDictionary = {
   analysisView: "Analysis view",
   rayBundleIntro:
     "Multiple sampled target heights traced through the shared ray solver to show the visible/blocked envelope.",
+  refractionLabIntro:
+    "A dedicated refraction workspace pairing observer-facing reconstruction with a traced ray-field view for the active model.",
   observerViewIntro:
     "A perceptual reconstruction built from solved apparent elevations, showing the apparent horizon and the visible silhouette the observer would actually receive.",
   profileVisibilityIntro:
@@ -126,6 +129,9 @@ const en: TranslationDictionary = {
   rayBundleSummaryTitle: "Ray Bundle Envelope",
   rayBundleSummaryBody:
     "Sampled target heights are traced through the active ray law so you can inspect which parts of the object still connect optically to the observer.",
+  refractionLabSummaryTitle: "Refraction Workspace",
+  refractionLabSummaryBody:
+    "Observer-facing reconstruction and traced ray geometry are shown together so atmospheric and geometric assumptions can be inspected in one place.",
   observerReconstructionTitle: "Observer Reconstruction",
   observerReconstructionBody:
     "Apparent elevations are reassembled into a perceptual horizon-and-silhouette view that emphasizes what the observer would actually receive rather than the raw geometry alone.",
@@ -141,6 +147,11 @@ const en: TranslationDictionary = {
   inversionLabSummaryTitle: "Inversion Correspondence",
   inversionLabSummaryBody:
     "Local observer-frame geometry is paired with a reciprocal-radii global construction so apparent directions, tangents, and mapped ray families can be inspected side by side.",
+  refractionObserverPane: "Observer reconstruction",
+  refractionRayPane: "Ray field",
+  refractionVisibleEnvelope: "Visible envelope",
+  refractionBundlePaneHint:
+    "Sampled rays and refracted paths are shown in the same frame so visibility and received image can be read together.",
   sweepSummaryTitle: "Parameter Sweep Overview",
   sweepSummaryBody:
     "Repeated solves across a controlled range reveal where the active models diverge, plateau, or cross threshold behavior.",

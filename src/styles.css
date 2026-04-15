@@ -498,7 +498,9 @@ select {
 .app-shell--adaptive-viewport .scene-card--profile-visibility .scene-card__viewport,
 .app-shell--adaptive-viewport .scene-card--profile-visibility .scene-svg,
 .app-shell--adaptive-viewport .scene-card--observer-view .scene-card__viewport,
-.app-shell--adaptive-viewport .scene-card--observer-view .scene-svg {
+.app-shell--adaptive-viewport .scene-card--observer-view .scene-svg,
+.app-shell--adaptive-viewport .scene-card--refraction-lab .scene-card__viewport,
+.app-shell--adaptive-viewport .scene-card--refraction-lab .scene-svg {
   min-height: clamp(540px, 74vh, 1060px);
 }
 
@@ -1159,7 +1161,9 @@ select {
 }
 
 .app-shell--fullwidth-scene .scene-card--ray-bundle .scene-card__viewport,
-.app-shell--fullwidth-scene .scene-card--ray-bundle .scene-svg {
+.app-shell--fullwidth-scene .scene-card--ray-bundle .scene-svg,
+.app-shell--fullwidth-scene .scene-card--refraction-lab .scene-card__viewport,
+.app-shell--fullwidth-scene .scene-card--refraction-lab .scene-svg {
   min-height: clamp(620px, 72vh, 1180px);
 }
 

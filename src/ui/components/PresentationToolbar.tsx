@@ -163,7 +163,10 @@ export function PresentationToolbar({
             }
           />
         </div>
-      ) : state.analysisTab === "observer-view" || state.analysisTab === "sky-wrap" ? (
+      ) :
+        state.analysisTab === "observer-view" ||
+        state.analysisTab === "sky-wrap" ||
+        state.analysisTab === "refraction-lab" ? (
         <>
           <div className="scene-toolbar__group">
             <span className="scene-toolbar__label">{t(language, "annotations")}</span>
@@ -173,7 +176,7 @@ export function PresentationToolbar({
               onClick={() => dispatch({ type: "setAnnotated", value: !state.annotated })}
             />
           </div>
-          {state.analysisTab === "observer-view" ? (
+          {state.analysisTab === "observer-view" || state.analysisTab === "refraction-lab" ? (
             <div className="scene-toolbar__group">
               <span className="scene-toolbar__label">{t(language, "guides")}</span>
               <ControlButton

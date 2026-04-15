@@ -202,6 +202,8 @@ function getAnalysisTabLabel(language: LanguageMode, analysisTab: AppState["anal
       return t(language, "skyWrap");
     case "inversion-lab":
       return t(language, "inversionLab");
+    case "refraction-lab":
+      return t(language, "refractionLab");
     case "sweep":
       return t(language, "sweep");
     case "cross-section":
@@ -442,6 +444,38 @@ function getCurrentOutputCards(args: {
     ];
   }
 
+  if (state.analysisTab === "refraction-lab") {
+    return [
+      {
+        label: t(language, "visibleSamples"),
+        value: String(activeBundlePanel.stats.visibleSamples),
+      },
+      {
+        label: t(language, "blockedSamples"),
+        value: String(activeBundlePanel.stats.blockedSamples),
+      },
+      {
+        label: t(language, "apparentHorizonDip"),
+        value: activeObserverPanel.stats.horizonDipLabel,
+      },
+      {
+        label: t(language, "visibleTopElevation"),
+        value:
+          activeObserverPanel.stats.topVisibleElevationRad == null
+            ? "N/A"
+            : formatAngle(activeObserverPanel.stats.topVisibleElevationRad),
+      },
+      {
+        label: t(language, "bundleSpan"),
+        value: formatDistance(activeBundlePanel.stats.bundleSpanM, units.distance),
+      },
+      {
+        label: t(language, "hiddenHeight"),
+        value: formatHeight(activeResult.hiddenHeightM, units.height),
+      },
+    ];
+  }
+
   if (state.analysisTab === "sky-wrap") {
     return [
       {
@@ -564,6 +598,17 @@ function getAnalysisSummary(args: {
             label: t(language, "apparentProfileSpan"),
             value: formatDistance(activeObserverPanel.stats.apparentProfileSpanM, units.distance),
           },
+        ],
+      };
+    case "refraction-lab":
+      return {
+        title: t(language, "refractionLabSummaryTitle"),
+        description: t(language, "refractionLabSummaryBody"),
+        metrics: [
+          { label: t(language, "activeAnalysis"), value: getAnalysisTabLabel(language, state.analysisTab) },
+          { label: t(language, "visibleSamples"), value: String(activeBundlePanel.stats.visibleSamples) },
+          { label: t(language, "blockedSamples"), value: String(activeBundlePanel.stats.blockedSamples) },
+          { label: t(language, "apparentHorizonDip"), value: activeObserverPanel.stats.horizonDipLabel },
         ],
       };
     case "profile-visibility":
@@ -1330,6 +1375,38 @@ function getFieldMetricRows(args: {
     ];
   }
 
+  if (state.analysisTab === "refraction-lab") {
+    return [
+      {
+        label: t(language, "bundleSampleCount"),
+        value: String(activeBundlePanel.samplePoints.length),
+      },
+      {
+        label: t(language, "bundleSpan"),
+        value: formatDistance(activeBundlePanel.stats.bundleSpanM, units.distance),
+      },
+      {
+        label: t(language, "apparentHorizonDip"),
+        value: activeObserverPanel.stats.horizonDipLabel,
+      },
+      {
+        label: t(language, "visibleTopElevation"),
+        value:
+          activeObserverPanel.stats.topVisibleElevationRad == null
+            ? "N/A"
+            : formatAngle(activeObserverPanel.stats.topVisibleElevationRad),
+      },
+      {
+        label: t(language, "visibleSamples"),
+        value: String(activeBundlePanel.stats.visibleSamples),
+      },
+      {
+        label: t(language, "blockedSamples"),
+        value: String(activeBundlePanel.stats.blockedSamples),
+      },
+    ];
+  }
+
   if (state.analysisTab === "sky-wrap") {
     return [
       {
@@ -1698,6 +1775,8 @@ export function RightPanel({
                 ? t(language, "rayBundleSummaryTitle")
                 : state.analysisTab === "observer-view"
                   ? t(language, "observerReconstructionTitle")
+                  : state.analysisTab === "refraction-lab"
+                    ? t(language, "refractionLabSummaryTitle")
                   : state.analysisTab === "profile-visibility"
                     ? t(language, "profileVisibilitySummaryTitle")
                     : state.analysisTab === "sweep"
