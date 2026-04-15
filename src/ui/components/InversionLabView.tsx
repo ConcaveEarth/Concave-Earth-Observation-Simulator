@@ -210,7 +210,7 @@ function renderCurveLabel(
   index: number,
   tint = "rgba(239, 244, 251, 0.84)",
 ) {
-  if (projected.length < 2) {
+  if (projected.length < 2 || !curve.label.trim()) {
     return null;
   }
 

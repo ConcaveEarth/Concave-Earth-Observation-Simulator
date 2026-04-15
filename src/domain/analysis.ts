@@ -1688,6 +1688,27 @@ export function buildInversionLabPanelData(
     inversionRadiusM * 0.32,
     48,
   );
+  const globalReferenceRingFractions = [1.34, 1.68, 2.04];
+  const globalReferenceRings = globalReferenceRingFractions.map((fraction) =>
+    sampleCirclePolyline(coreRadiusM * fraction, 172),
+  );
+  const mappedReferenceFamilyAngles = [-0.3, -0.12, 0.08, 0.22, 0.38];
+  const mappedReferenceFamilies = mappedReferenceFamilyAngles.map((angleRad) => {
+    const launchDirection = normalize(
+      add(
+        scale(result.observerTangent, Math.cos(angleRad)),
+        scale(result.observerUp, Math.sin(angleRad)),
+      ),
+    );
+    const worldFamily = sampleRayFromPoint(
+      observerPoint,
+      launchDirection,
+      inversionRadiusM * 0.58,
+      84,
+    );
+
+    return invertPolyline(worldFamily, inversionRadiusM, 2.1);
+  });
   const guideRadiiM = [0.28, 0.48, 0.68, 0.88].map((fraction) => inversionRadiusM * fraction);
 
   const targetAnglePad = Math.max(0.12, Math.min(0.42, result.targetAngleRad * 0.22));
@@ -1830,12 +1851,14 @@ export function buildInversionLabPanelData(
       1.75,
       Math.max(
         ...[
-          ...referenceTracePoints,
-          ...invertedDirectPoints,
-          ...invertedTracePoints,
-          observerPoint,
-          targetTopPoint,
-        ].map((point) => Math.hypot(point.x, point.y) / inversionRadiusM),
+           ...referenceTracePoints,
+           ...invertedDirectPoints,
+           ...invertedTracePoints,
+           ...globalReferenceRings.flat(),
+           ...mappedReferenceFamilies.flat(),
+           observerPoint,
+           targetTopPoint,
+         ].map((point) => Math.hypot(point.x, point.y) / inversionRadiusM),
       ) * 1.08,
     ),
   );
@@ -1856,6 +1879,16 @@ export function buildInversionLabPanelData(
       "rgba(219, 230, 243, 0.28)",
       sampleCirclePolyline(coreRadiusM, 144),
       { width: 1.4, opacity: 0.92 },
+    ),
+    ...globalReferenceRings.map((points, index) =>
+      makeInversionCurve(
+        `${sceneKey}-global-ring-${index}`,
+        "reference-ring",
+        index === 0 ? t(language, "inversionReciprocalGrid") : "",
+        "rgba(194, 211, 235, 0.2)",
+        points,
+        { width: 1.1, opacity: 0.74 },
+      ),
     ),
     makeInversionCurve(
       `${sceneKey}-global-actual`,
@@ -1912,6 +1945,16 @@ export function buildInversionLabPanelData(
       "#ff7fc5",
       apparentDirectionPoints,
       { width: 1.5, dashed: true, opacity: 0.78 },
+    ),
+    ...mappedReferenceFamilies.map((points, index) =>
+      makeInversionCurve(
+        `${sceneKey}-global-reference-family-${index}`,
+        "mapped-family",
+        index === 0 ? t(language, "inversionMappedFamily") : "",
+        "rgba(134, 220, 255, 0.46)",
+        points,
+        { width: 1.15, dashed: true, opacity: 0.76 },
+      ),
     ),
   ];
   const globalMarkers: InversionLabMarker[] = [

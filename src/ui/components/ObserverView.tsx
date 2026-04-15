@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from "react";
 import { formatAngle, formatDistance } from "../../domain/units";
 import type { UnitPreferences } from "../../domain/units";
@@ -11,6 +11,7 @@ import {
   findPanelIndex as findViewportPanelIndex,
   getSvgPoint as getViewportSvgPoint,
   niceStep,
+  type PanelRect,
 } from "../viewport";
 
 interface ObserverViewProps {
@@ -30,11 +31,16 @@ interface ObserverViewProps {
   onAdjustVerticalZoom: (delta: number) => void;
 }
 
-const SINGLE_SVG_WIDTH = 1800;
-const COMPARE_SVG_WIDTH = 2360;
-const STACKED_SVG_WIDTH = 1800;
-const SVG_HEIGHT = 1180;
-const STACKED_HEIGHT = 1880;
+interface SubviewRect {
+  kind: "image" | "chart";
+  rect: PanelRect;
+}
+
+const SINGLE_SVG_WIDTH = 2140;
+const COMPARE_SVG_WIDTH = 2860;
+const STACKED_SVG_WIDTH = 2140;
+const SVG_HEIGHT = 1380;
+const STACKED_HEIGHT = 2340;
 
 function polylinePoints(points: Array<{ x: number; y: number }>) {
   return points.map((point) => `${point.x},${point.y}`).join(" ");
@@ -51,17 +57,68 @@ function niceAngleStep(value: number): number {
   return (chosen * Math.PI) / 180;
 }
 
+function buildSubviewRects(panelRect: PanelRect): SubviewRect[] {
+  const headerHeight = 86;
+  const gutter = 22;
+  const contentX = panelRect.x + 18;
+  const contentY = panelRect.y + headerHeight;
+  const contentWidth = panelRect.width - 36;
+  const contentHeight = panelRect.height - headerHeight - 18;
+  const imageWidth = contentWidth * 0.56;
+  const chartWidth = contentWidth - imageWidth - gutter;
+
+  return [
+    {
+      kind: "image",
+      rect: {
+        x: contentX,
+        y: contentY,
+        width: imageWidth,
+        height: contentHeight,
+      },
+    },
+    {
+      kind: "chart",
+      rect: {
+        x: contentX + imageWidth + gutter,
+        y: contentY,
+        width: chartWidth,
+        height: contentHeight,
+      },
+    },
+  ];
+}
+
+function findSubviewRect(point: { x: number; y: number } | null, subviews: SubviewRect[]) {
+  if (!point) {
+    return null;
+  }
+
+  return (
+    subviews.find(
+      (entry) =>
+        point.x >= entry.rect.x &&
+        point.x <= entry.rect.x + entry.rect.width &&
+        point.y >= entry.rect.y &&
+        point.y <= entry.rect.y + entry.rect.height,
+    ) ?? null
+  );
+}
+
 function renderObserverScaleGuide(
   panel: ObserverViewPanelData,
   project: (point: { x: number; y: number }) => { x: number; y: number },
+  rect: PanelRect,
   unitPreferences: UnitPreferences,
   language: LanguageMode,
 ) {
   const spanX = panel.bounds.maxX - panel.bounds.minX;
   const horizontalStep = niceStep(spanX, 4);
+  const spanY = panel.bounds.maxY - panel.bounds.minY;
+  const angleStep = niceAngleStep(spanY / 4);
   const startWorld = {
     x: panel.bounds.minX + spanX * 0.08,
-    y: panel.bounds.minY + (panel.bounds.maxY - panel.bounds.minY) * 0.08,
+    y: panel.bounds.minY + spanY * 0.08,
   };
   const endWorld = {
     x: startWorld.x + horizontalStep,
@@ -69,16 +126,14 @@ function renderObserverScaleGuide(
   };
   const start = project(startWorld);
   const end = project(endWorld);
-  const spanY = panel.bounds.maxY - panel.bounds.minY;
-  const angleStep = niceAngleStep(spanY / 4);
-  const axisWorldX = panel.bounds.maxX - spanX * 0.04;
+  const axisWorldX = panel.bounds.maxX - spanX * 0.03;
   const axisBaseWorld = {
     x: axisWorldX,
     y: panel.bounds.minY + spanY * 0.08,
   };
   const axisTopWorld = {
     x: axisWorldX,
-    y: axisBaseWorld.y + angleStep * 4,
+    y: Math.min(panel.bounds.maxY, axisBaseWorld.y + angleStep * 4),
   };
   const axisBase = project(axisBaseWorld);
   const axisTop = project(axisTopWorld);
@@ -167,8 +222,9 @@ function renderObserverScaleGuide(
         );
       })}
       <text
-        x={axisBase.x + 18}
-        y={(axisBase.y + axisTop.y) / 2}
+        x={rect.x + rect.width - 18}
+        y={rect.y + 18}
+        textAnchor="end"
         fill="rgba(231, 240, 250, 0.72)"
         fontSize={11}
         fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
@@ -213,13 +269,42 @@ export function ObserverView({
     singleHeight: SVG_HEIGHT,
     stackedHeight: STACKED_HEIGHT,
   });
+  const panelSubviewRects = useMemo(
+    () => panelRects.map((panelRect) => buildSubviewRects(panelRect)),
+    [panelRects],
+  );
 
   function getSvgPoint(event: { clientX: number; clientY: number }) {
     return getViewportSvgPoint(svgRef, svgWidth, svgHeight, event);
   }
 
-  function findPanelIndex(point: { x: number; y: number } | null) {
-    return findViewportPanelIndex(point, panelRects);
+  function getViewportProjection(point: { x: number; y: number } | null) {
+    const panelIndex = findViewportPanelIndex(point, panelRects);
+
+    if (panelIndex < 0 || !point) {
+      return null;
+    }
+
+    const panel = panels[panelIndex];
+    const subview = findSubviewRect(point, panelSubviewRects[panelIndex]);
+
+    if (!panel || !subview) {
+      return null;
+    }
+
+    return {
+      projector: createLinearProjector(subview.rect, panel.bounds, {
+        zoom,
+        verticalZoom,
+        panX,
+        panY,
+        padding: {
+          paddingX: subview.kind === "image" ? [24, 44] : [32, 64],
+          paddingTop: subview.kind === "image" ? [28, 54] : [48, 86],
+          paddingBottom: subview.kind === "image" ? [42, 76] : [74, 130],
+        },
+      }),
+    };
   }
 
   function handlePointerDown(event: ReactPointerEvent<SVGSVGElement>) {
@@ -228,33 +313,17 @@ export function ObserverView({
     }
 
     const point = getSvgPoint(event);
-    const panelIndex = findPanelIndex(point);
+    const activeProjection = getViewportProjection(point);
 
-    if (!point || panelIndex < 0) {
+    if (!point || !activeProjection) {
       return;
     }
-
-    const projection = createLinearProjector(
-      panelRects[panelIndex],
-      panels[panelIndex].bounds,
-      {
-        zoom,
-        verticalZoom,
-        panX,
-        panY,
-        padding: {
-          paddingX: [66, 120],
-          paddingTop: [72, 118],
-          paddingBottom: [94, 148],
-        },
-      },
-    );
 
     dragStateRef.current = {
       pointerId: event.pointerId,
       lastPoint: point,
-      xScale: projection.xScale,
-      yScale: projection.yScale,
+      xScale: activeProjection.projector.xScale,
+      yScale: activeProjection.projector.yScale,
     };
 
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -297,7 +366,7 @@ export function ObserverView({
   function handleWheel(event: ReactWheelEvent<SVGSVGElement>) {
     const point = getSvgPoint(event);
 
-    if (findPanelIndex(point) < 0) {
+    if (!getViewportProjection(point)) {
       return;
     }
 
@@ -332,20 +401,24 @@ export function ObserverView({
       <defs>
         <linearGradient id="observerBackdrop" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stopColor="#07131f" />
-          <stop offset="60%" stopColor="#0a1f30" />
+          <stop offset="58%" stopColor="#0a1f30" />
           <stop offset="100%" stopColor="#111827" />
         </linearGradient>
-        <linearGradient id="observerSkyFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="rgba(65, 134, 204, 0.14)" />
-          <stop offset="100%" stopColor="rgba(20, 38, 58, 0.08)" />
+        <linearGradient id="observerPaneFill" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="rgba(9, 24, 38, 0.9)" />
+          <stop offset="100%" stopColor="rgba(9, 18, 30, 0.74)" />
+        </linearGradient>
+        <linearGradient id="observerImageFill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="rgba(71, 151, 219, 0.2)" />
+          <stop offset="100%" stopColor="rgba(16, 36, 58, 0.06)" />
         </linearGradient>
         <linearGradient id="observerSeaFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="rgba(15, 33, 55, 0.6)" />
-          <stop offset="100%" stopColor="rgba(3, 9, 18, 0.95)" />
+          <stop offset="0%" stopColor="rgba(17, 40, 63, 0.72)" />
+          <stop offset="100%" stopColor="rgba(5, 14, 22, 0.96)" />
         </linearGradient>
-        <linearGradient id="observerPanelFill" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="rgba(9, 24, 38, 0.88)" />
-          <stop offset="100%" stopColor="rgba(9, 18, 30, 0.72)" />
+        <linearGradient id="observerChartFill" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="rgba(14, 29, 45, 0.78)" />
+          <stop offset="100%" stopColor="rgba(9, 18, 29, 0.56)" />
         </linearGradient>
         <filter id="observerGlow" x="-50%" y="-50%" width="200%" height="200%">
           <feGaussianBlur stdDeviation="2.8" result="blur" />
@@ -354,56 +427,97 @@ export function ObserverView({
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
-        {panels.map((panel, index) => (
-          <clipPath key={panel.sceneKey} id={`observer-clip-${panel.sceneKey}`}>
-            <rect
-              x={panelRects[index].x}
-              y={panelRects[index].y}
-              width={panelRects[index].width}
-              height={panelRects[index].height}
-              rx={28}
-            />
-          </clipPath>
-        ))}
+        {panels.flatMap((panel, index) =>
+          panelSubviewRects[index].map((subview) => (
+            <clipPath
+              key={`${panel.sceneKey}-${subview.kind}-clip`}
+              id={`${panel.sceneKey}-${subview.kind}-clip`}
+            >
+              <rect
+                x={subview.rect.x}
+                y={subview.rect.y}
+                width={subview.rect.width}
+                height={subview.rect.height}
+                rx={24}
+              />
+            </clipPath>
+          )),
+        )}
       </defs>
 
       <rect width={svgWidth} height={svgHeight} fill="url(#observerBackdrop)" rx={30} />
       <circle cx="220" cy="160" r="220" fill="rgba(53, 164, 255, 0.08)" />
-      <circle
-        cx={svgWidth - 240}
-        cy="90"
-        r="180"
-        fill="rgba(255, 163, 82, 0.06)"
-      />
+      <circle cx={svgWidth - 240} cy="100" r="180" fill="rgba(255, 163, 82, 0.06)" />
 
       {panels.map((panel, index) => {
         const rect = panelRects[index];
-        const projection = createLinearProjector(
-          rect,
-          panel.bounds,
-          {
-            zoom,
-            verticalZoom,
-            panX,
-            panY,
-            padding: {
-              paddingX: [66, 120],
-              paddingTop: [72, 118],
-              paddingBottom: [94, 148],
-            },
+        const [imageSubview, chartSubview] = panelSubviewRects[index];
+        const imageProjection = createLinearProjector(imageSubview.rect, panel.bounds, {
+          zoom,
+          verticalZoom,
+          panX,
+          panY,
+          padding: {
+            paddingX: [24, 44],
+            paddingTop: [28, 54],
+            paddingBottom: [42, 76],
           },
-        );
-        const project = projection.project;
-        const horizonLeft = project({ x: panel.bounds.minX, y: panel.horizonElevationRad });
-        const horizonRight = project({ x: panel.bounds.maxX, y: panel.horizonElevationRad });
-        const eyeLeft = project({ x: panel.bounds.minX, y: panel.eyeLevelElevationRad });
-        const eyeRight = project({ x: panel.bounds.maxX, y: panel.eyeLevelElevationRad });
-        const seaPolygon = [
-          { x: rect.x, y: horizonLeft.y },
-          { x: rect.x + rect.width, y: horizonRight.y },
-          { x: rect.x + rect.width, y: rect.y + rect.height },
-          { x: rect.x, y: rect.y + rect.height },
+        });
+        const chartProjection = createLinearProjector(chartSubview.rect, panel.bounds, {
+          zoom,
+          verticalZoom,
+          panX,
+          panY,
+          padding: {
+            paddingX: [32, 64],
+            paddingTop: [48, 86],
+            paddingBottom: [74, 130],
+          },
+        });
+        const imageProject = imageProjection.project;
+        const chartProject = chartProjection.project;
+        const horizonLeftImage = imageProject({
+          x: panel.bounds.minX,
+          y: panel.horizonElevationRad,
+        });
+        const horizonRightImage = imageProject({
+          x: panel.bounds.maxX,
+          y: panel.horizonElevationRad,
+        });
+        const eyeLeftImage = imageProject({
+          x: panel.bounds.minX,
+          y: panel.eyeLevelElevationRad,
+        });
+        const eyeRightImage = imageProject({
+          x: panel.bounds.maxX,
+          y: panel.eyeLevelElevationRad,
+        });
+        const imageSeaPolygon = [
+          { x: imageSubview.rect.x, y: horizonLeftImage.y },
+          { x: imageSubview.rect.x + imageSubview.rect.width, y: horizonRightImage.y },
+          { x: imageSubview.rect.x + imageSubview.rect.width, y: imageSubview.rect.y + imageSubview.rect.height },
+          { x: imageSubview.rect.x, y: imageSubview.rect.y + imageSubview.rect.height },
         ];
+        const visibleImageSilhouette = panel.visibleSilhouette.map(imageProject);
+        const ghostImageSilhouette = panel.ghostSilhouette.map(imageProject);
+        const visibleChartSilhouette = panel.visibleSilhouette.map(chartProject);
+        const ghostChartSilhouette = panel.ghostSilhouette.map(chartProject);
+        const horizonLeftChart = chartProject({
+          x: panel.bounds.minX,
+          y: panel.horizonElevationRad,
+        });
+        const horizonRightChart = chartProject({
+          x: panel.bounds.maxX,
+          y: panel.horizonElevationRad,
+        });
+        const eyeLeftChart = chartProject({
+          x: panel.bounds.minX,
+          y: panel.eyeLevelElevationRad,
+        });
+        const eyeRightChart = chartProject({
+          x: panel.bounds.maxX,
+          y: panel.eyeLevelElevationRad,
+        });
 
         return (
           <g key={panel.sceneKey}>
@@ -413,63 +527,267 @@ export function ObserverView({
               width={rect.width}
               height={rect.height}
               rx={28}
-              fill="url(#observerPanelFill)"
+              fill="url(#observerPaneFill)"
               stroke="rgba(141, 192, 255, 0.18)"
             />
 
-            <g clipPath={`url(#observer-clip-${panel.sceneKey})`}>
+            <text
+              x={rect.x + 30}
+              y={rect.y + 34}
+              fill="#f5f2e8"
+              fontSize={22}
+              fontWeight={600}
+              fontFamily="'Trebuchet MS', 'Segoe UI Variable Display', sans-serif"
+            >
+              {panel.title}
+            </text>
+            <text
+              x={rect.x + 30}
+              y={rect.y + 60}
+              fill="rgba(219, 237, 255, 0.7)"
+              fontSize={14}
+              fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
+            >
+              {panel.subtitle}
+            </text>
+
+            {[imageSubview, chartSubview].map((subview) => (
               <rect
-                x={rect.x}
-                y={rect.y}
-                width={rect.width}
-                height={rect.height}
-                fill="url(#observerSkyFill)"
-                opacity={0.82}
+                key={`${panel.sceneKey}-${subview.kind}`}
+                x={subview.rect.x}
+                y={subview.rect.y}
+                width={subview.rect.width}
+                height={subview.rect.height}
+                rx={24}
+                fill={subview.kind === "image" ? "url(#observerImageFill)" : "url(#observerChartFill)"}
+                stroke="rgba(141, 192, 255, 0.12)"
               />
+            ))}
+
+            <text
+              x={imageSubview.rect.x + 18}
+              y={imageSubview.rect.y + 28}
+              fill="rgba(240, 245, 252, 0.88)"
+              fontSize={14}
+              fontWeight={600}
+            >
+              {t(language, "observerReconstructionTitle")}
+            </text>
+            <text
+              x={chartSubview.rect.x + 18}
+              y={chartSubview.rect.y + 28}
+              fill="rgba(240, 245, 252, 0.88)"
+              fontSize={14}
+              fontWeight={600}
+            >
+              {t(language, "observerView")}
+            </text>
+            <text
+              x={chartSubview.rect.x + 18}
+              y={chartSubview.rect.y + 48}
+              fill="rgba(181, 205, 230, 0.72)"
+              fontSize={12}
+            >
+              Angular trace of the reconstructed profile.
+            </text>
+
+            <g clipPath={`url(#${panel.sceneKey}-image-clip)`}>
               <polygon
-                points={polylinePoints(seaPolygon)}
+                points={polylinePoints(imageSeaPolygon)}
                 fill="url(#observerSeaFill)"
-                opacity={0.98}
+                opacity={0.96}
               />
+              {showScaleGuides
+                ? Array.from({ length: 5 }, (_, gridIndex) => {
+                    const fraction = (gridIndex + 1) / 6;
+                    const x = imageSubview.rect.x + fraction * imageSubview.rect.width;
+                    const y = imageSubview.rect.y + fraction * imageSubview.rect.height;
+                    return (
+                      <g key={`${panel.sceneKey}-image-grid-${gridIndex}`}>
+                        <line
+                          x1={x}
+                          y1={imageSubview.rect.y + 18}
+                          x2={x}
+                          y2={imageSubview.rect.y + imageSubview.rect.height - 18}
+                          stroke="rgba(138, 177, 219, 0.08)"
+                          strokeDasharray="4 12"
+                        />
+                        <line
+                          x1={imageSubview.rect.x + 18}
+                          y1={y}
+                          x2={imageSubview.rect.x + imageSubview.rect.width - 18}
+                          y2={y}
+                          stroke="rgba(138, 177, 219, 0.06)"
+                          strokeDasharray="4 12"
+                        />
+                      </g>
+                    );
+                  })
+                : null}
 
               <line
-                x1={eyeLeft.x}
-                y1={eyeLeft.y}
-                x2={eyeRight.x}
-                y2={eyeRight.y}
-                stroke="rgba(168, 178, 255, 0.78)"
-                strokeWidth={1.4}
+                x1={eyeLeftImage.x}
+                y1={eyeLeftImage.y}
+                x2={eyeRightImage.x}
+                y2={eyeRightImage.y}
+                stroke="rgba(168, 178, 255, 0.74)"
+                strokeWidth={1.25}
                 strokeDasharray="10 10"
               />
               <line
-                x1={horizonLeft.x}
-                y1={horizonLeft.y}
-                x2={horizonRight.x}
-                y2={horizonRight.y}
-                stroke="rgba(141, 255, 203, 0.94)"
-                strokeWidth={2.1}
+                x1={horizonLeftImage.x}
+                y1={horizonLeftImage.y}
+                x2={horizonRightImage.x}
+                y2={horizonRightImage.y}
+                stroke="rgba(141, 255, 203, 0.96)"
+                strokeWidth={2}
                 strokeDasharray="14 10"
                 filter="url(#observerGlow)"
               />
 
-              {panel.ghostSilhouette.length > 1 ? (
+              {ghostImageSilhouette.length > 1 ? (
                 <polyline
-                  points={polylinePoints(panel.ghostSilhouette.map(project))}
+                  points={polylinePoints(ghostImageSilhouette)}
                   fill="none"
-                  stroke="rgba(220, 231, 242, 0.42)"
-                  strokeWidth={2.1}
-                  strokeDasharray="12 10"
+                  stroke="rgba(220, 231, 242, 0.34)"
+                  strokeWidth={2.2}
+                  strokeDasharray="10 10"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
               ) : null}
 
-              {panel.visibleSilhouette.length > 1 ? (
+              {visibleImageSilhouette.length > 1 ? (
+                <>
+                  <polyline
+                    points={polylinePoints(visibleImageSilhouette)}
+                    fill="none"
+                    stroke="rgba(255, 208, 126, 0.26)"
+                    strokeWidth={10}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    filter="url(#observerGlow)"
+                  />
+                  <polyline
+                    points={polylinePoints(visibleImageSilhouette)}
+                    fill="none"
+                    stroke="#ffd07e"
+                    strokeWidth={3.2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </>
+              ) : null}
+
+              {panel.samplePoints.map((sample, sampleIndex) => {
+                if (sampleIndex % Math.max(1, Math.floor(panel.samplePoints.length / 18)) !== 0) {
+                  return null;
+                }
+                const point = imageProject({
+                  x: sample.point.x,
+                  y: sample.apparentElevationRad ?? sample.actualElevationRad,
+                });
+                return (
+                  <circle
+                    key={`${sample.id}-image`}
+                    cx={point.x}
+                    cy={point.y}
+                    r={sample.visible ? 3.1 : 2.3}
+                    fill={sample.visible ? "#8ff1bf" : "rgba(255,255,255,0.26)"}
+                  />
+                );
+              })}
+
+              {annotated ? (
+                <>
+                  <text
+                    x={eyeLeftImage.x + 14}
+                    y={eyeLeftImage.y - 12}
+                    fill="rgba(223, 231, 255, 0.88)"
+                    fontSize={12}
+                    fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
+                  >
+                    {t(language, "observerHorizontalLabel")}
+                  </text>
+                  <text
+                    x={horizonLeftImage.x + 14}
+                    y={horizonLeftImage.y - 12}
+                    fill="rgba(168, 255, 210, 0.9)"
+                    fontSize={12}
+                    fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
+                  >
+                    {t(language, "apparentHorizonLabel")}
+                  </text>
+                </>
+              ) : null}
+            </g>
+
+            <g clipPath={`url(#${panel.sceneKey}-chart-clip)`}>
+              {showScaleGuides
+                ? Array.from({ length: 5 }, (_, gridIndex) => {
+                    const fraction = (gridIndex + 1) / 6;
+                    const x = chartSubview.rect.x + fraction * chartSubview.rect.width;
+                    const y = chartSubview.rect.y + fraction * chartSubview.rect.height;
+                    return (
+                      <g key={`${panel.sceneKey}-chart-grid-${gridIndex}`}>
+                        <line
+                          x1={x}
+                          y1={chartSubview.rect.y + 18}
+                          x2={x}
+                          y2={chartSubview.rect.y + chartSubview.rect.height - 18}
+                          stroke="rgba(138, 177, 219, 0.08)"
+                          strokeDasharray="4 10"
+                        />
+                        <line
+                          x1={chartSubview.rect.x + 18}
+                          y1={y}
+                          x2={chartSubview.rect.x + chartSubview.rect.width - 18}
+                          y2={y}
+                          stroke="rgba(138, 177, 219, 0.08)"
+                          strokeDasharray="4 10"
+                        />
+                      </g>
+                    );
+                  })
+                : null}
+
+              <line
+                x1={eyeLeftChart.x}
+                y1={eyeLeftChart.y}
+                x2={eyeRightChart.x}
+                y2={eyeRightChart.y}
+                stroke="rgba(168, 178, 255, 0.7)"
+                strokeWidth={1.2}
+                strokeDasharray="10 10"
+              />
+              <line
+                x1={horizonLeftChart.x}
+                y1={horizonLeftChart.y}
+                x2={horizonRightChart.x}
+                y2={horizonRightChart.y}
+                stroke="rgba(141, 255, 203, 0.94)"
+                strokeWidth={1.7}
+                strokeDasharray="14 10"
+              />
+
+              {ghostChartSilhouette.length > 1 ? (
                 <polyline
-                  points={polylinePoints(panel.visibleSilhouette.map(project))}
+                  points={polylinePoints(ghostChartSilhouette)}
                   fill="none"
-                  stroke="rgba(255, 208, 126, 0.98)"
-                  strokeWidth={3.6}
+                  stroke="rgba(220, 231, 242, 0.44)"
+                  strokeWidth={2.2}
+                  strokeDasharray="10 10"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              ) : null}
+
+              {visibleChartSilhouette.length > 1 ? (
+                <polyline
+                  points={polylinePoints(visibleChartSilhouette)}
+                  fill="none"
+                  stroke="#ffd07e"
+                  strokeWidth={2.9}
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   filter="url(#observerGlow)"
@@ -480,22 +798,23 @@ export function ObserverView({
                 if (sampleIndex % Math.max(1, Math.floor(panel.samplePoints.length / 16)) !== 0) {
                   return null;
                 }
-
-                const point = project(sample.point);
+                const point = chartProject({
+                  x: sample.point.x,
+                  y: sample.apparentElevationRad ?? sample.actualElevationRad,
+                });
                 return (
                   <circle
-                    key={sample.id}
+                    key={`${sample.id}-chart`}
                     cx={point.x}
                     cy={point.y}
-                    r={2.6}
-                    fill={sample.visible ? "#ffd07e" : "#a7b9cb"}
-                    opacity={sample.visible ? 0.82 : 0.4}
+                    r={sample.visible ? 3 : 2.2}
+                    fill={sample.visible ? "#ffd07e" : "rgba(215, 228, 241, 0.3)"}
                   />
                 );
               })}
 
               {panel.markers.map((marker) => {
-                const point = project(marker.point);
+                const point = chartProject(marker.point);
                 return (
                   <g key={marker.id}>
                     <circle
@@ -520,63 +839,52 @@ export function ObserverView({
                 );
               })}
 
-              {annotated ? (
-                <>
-                  <text
-                    x={eyeLeft.x + 14}
-                    y={eyeLeft.y - 10}
-                    fill="rgba(223, 231, 255, 0.86)"
-                    fontSize={12}
-                    fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
-                  >
-                    {t(language, "observerHorizontalLabel")}
-                  </text>
-                  <text
-                    x={horizonLeft.x + 14}
-                    y={horizonLeft.y - 10}
-                    fill="rgba(168, 255, 210, 0.88)"
-                    fontSize={12}
-                    fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
-                  >
-                    {t(language, "apparentHorizonLabel")} {panel.stats.horizonDipLabel}
-                  </text>
-                </>
-              ) : null}
-
               {showScaleGuides
-                ? renderObserverScaleGuide(panel, project, unitPreferences, language)
+                ? renderObserverScaleGuide(
+                    panel,
+                    chartProject,
+                    chartSubview.rect,
+                    unitPreferences,
+                    language,
+                  )
                 : null}
             </g>
 
-            <text
-              x={rect.x + 30}
-              y={rect.y + 34}
-              fill="#f5f2e8"
-              fontSize={22}
-              fontWeight="600"
-              fontFamily="'Trebuchet MS', 'Segoe UI Variable Display', sans-serif"
-            >
-              {panel.title}
-            </text>
-            <text
-              x={rect.x + 30}
-              y={rect.y + 60}
-              fill="rgba(219, 237, 255, 0.7)"
-              fontSize={14}
-              fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
-            >
-              {panel.subtitle}
-            </text>
-            <text
-              x={rect.x + rect.width - 30}
-              y={rect.y + 34}
-              textAnchor="end"
-              fill="rgba(226, 239, 251, 0.82)"
-              fontSize={13}
-              fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
-            >
-              {`${panel.stats.visibleSamples} ${t(language, "visibleSamples").toLowerCase()} • ${panel.stats.blockedSamples} ${t(language, "blockedSamples").toLowerCase()} • ${panel.stats.visibilityFractionLabel}`}
-            </text>
+            <g transform={`translate(${rect.x + rect.width - 312}, ${rect.y + 22})`}>
+              <rect
+                x={0}
+                y={0}
+                width={286}
+                height={108}
+                rx={18}
+                fill="rgba(7, 18, 28, 0.84)"
+                stroke="rgba(141, 192, 255, 0.18)"
+              />
+              <text x={16} y={24} fill="rgba(171, 201, 228, 0.76)" fontSize={11.5}>
+                {t(language, "visibleSamples")}
+              </text>
+              <text x={168} y={24} fill="#f5f2e8" fontSize={11.8} fontWeight={600}>
+                {String(panel.stats.visibleSamples)}
+              </text>
+              <text x={16} y={44} fill="rgba(171, 201, 228, 0.76)" fontSize={11.5}>
+                {t(language, "blockedSamples")}
+              </text>
+              <text x={168} y={44} fill="#f5f2e8" fontSize={11.8} fontWeight={600}>
+                {String(panel.stats.blockedSamples)}
+              </text>
+              <text x={16} y={64} fill="rgba(171, 201, 228, 0.76)" fontSize={11.5}>
+                {t(language, "apparentHorizonDip")}
+              </text>
+              <text x={168} y={64} fill="#f5f2e8" fontSize={11.8} fontWeight={600}>
+                {panel.stats.horizonDipLabel}
+              </text>
+              <text x={16} y={84} fill="rgba(171, 201, 228, 0.76)" fontSize={11.5}>
+                {t(language, "apparentProfileSpan")}
+              </text>
+              <text x={168} y={84} fill="#f5f2e8" fontSize={11.8} fontWeight={600}>
+                {formatDistance(panel.stats.apparentProfileSpanM, unitPreferences.distance)}
+              </text>
+            </g>
           </g>
         );
       })}

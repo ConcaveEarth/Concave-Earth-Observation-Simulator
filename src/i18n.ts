@@ -150,8 +150,14 @@ const en: TranslationDictionary = {
   refractionObserverPane: "Observer reconstruction",
   refractionRayPane: "Ray field",
   refractionVisibleEnvelope: "Visible envelope",
+  refractionCurvaturePane: "Curvature behavior",
+  refractionCurvaturePaneHint:
+    "Intrinsic, atmospheric, and net turn-rate trends are plotted against altitude to audit how the active model bends light through the frame.",
   refractionBundlePaneHint:
     "Sampled rays and refracted paths are shown in the same frame so visibility and received image can be read together.",
+  sampleHeightAxis: "Sample height",
+  curvatureRatioAxis: "Signed curvature / R",
+  topFrameNetBend: "Top-frame net bend",
   sweepSummaryTitle: "Parameter Sweep Overview",
   sweepSummaryBody:
     "Repeated solves across a controlled range reveal where the active models diverge, plateau, or cross threshold behavior.",

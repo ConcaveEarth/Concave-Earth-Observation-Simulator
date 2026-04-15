@@ -1,6 +1,12 @@
 import { useMemo, useRef } from "react";
 import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from "react";
 import type { ObserverViewPanelData, RayBundlePanelData } from "../../domain/analysis";
+import {
+  getAtmosphereCurvatureMagnitudeAtHeight,
+  getIntrinsicCurvatureMagnitude,
+} from "../../domain/curvature";
+import { getObserverTotalHeightM, getTargetTopElevationM } from "../../domain/scenario";
+import type { VisibilitySolveResult, Vec2 } from "../../domain/types";
 import { formatAngle, formatDistance, type UnitPreferences } from "../../domain/units";
 import { t, type LanguageMode } from "../../i18n";
 import type { CompareLayoutMode } from "../../state/appState";
@@ -16,6 +22,7 @@ import {
 interface RefractionLabViewProps {
   observerPanels: ObserverViewPanelData[];
   bundlePanels: RayBundlePanelData[];
+  results: VisibilitySolveResult[];
   compareLayout: Exclude<CompareLayoutMode, "auto">;
   unitPreferences: UnitPreferences;
   language: LanguageMode;
@@ -42,8 +49,144 @@ interface SubviewRect {
   rect: PanelRect;
 }
 
+interface CurvatureSeries {
+  id: string;
+  label: string;
+  color: string;
+  dashed?: boolean;
+  points: Vec2[];
+}
+
+interface CurvatureViewData {
+  bounds: {
+    minX: number;
+    maxX: number;
+    minY: number;
+    maxY: number;
+  };
+  maxHeightM: number;
+  series: CurvatureSeries[];
+  seaLevelNetLabel: string;
+  topFrameNetLabel: string;
+}
+
 function polylinePoints(points: Array<{ x: number; y: number }>) {
   return points.map((point) => `${point.x},${point.y}`).join(" ");
+}
+
+function formatCurvatureRatio(valuePerM: number, radiusM: number) {
+  const ratio = valuePerM * radiusM;
+  if (Math.abs(ratio) < 1e-6) {
+    return "0.00 / R";
+  }
+  return `${ratio.toFixed(2)} / R`;
+}
+
+function createCurvatureBounds(series: CurvatureSeries[]) {
+  const allPoints = series.flatMap((entry) => entry.points);
+  const xs = allPoints.map((point) => point.x);
+  const ys = [...allPoints.map((point) => point.y), 0];
+  const minX = Math.min(...xs, 0);
+  const maxX = Math.max(...xs, 1);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  const xSpan = Math.max(maxX - minX, 1);
+  const ySpan = Math.max(maxY - minY, 0.4);
+  const yPad = Math.max(ySpan * 0.16, 0.12);
+
+  return {
+    minX,
+    maxX: maxX + xSpan * 0.04,
+    minY: minY - yPad,
+    maxY: maxY + yPad,
+  };
+}
+
+function createCurvatureView(
+  result: VisibilitySolveResult,
+  language: LanguageMode,
+): CurvatureViewData {
+  const observerTopM = getObserverTotalHeightM(result.scenario);
+  const targetTopM = getTargetTopElevationM(result.scenario);
+  const atmosphereTopM =
+    result.model.atmosphere.mode === "layered"
+      ? result.model.atmosphere.transitionHeightM + result.model.atmosphere.inversionDepthM
+      : 0;
+  const structuralTopM = Math.max(observerTopM, targetTopM, atmosphereTopM, 150);
+  const maxHeightM = Math.min(
+    Math.max(
+      structuralTopM < 300
+        ? 300
+        : structuralTopM < 2_000
+          ? 2_000
+          : structuralTopM < 12_000
+            ? 12_000
+            : Math.ceil((structuralTopM * 1.2) / 5_000) * 5_000,
+      300,
+    ),
+    80_000,
+  );
+  const sampleCount = maxHeightM <= 2_000 ? 36 : 48;
+  const heights = Array.from({ length: sampleCount }, (_, index) =>
+    (maxHeightM * index) / (sampleCount - 1),
+  );
+  const intrinsicPerM =
+    result.model.geometryMode === "concave"
+      ? getIntrinsicCurvatureMagnitude(result.model, result.scenario)
+      : 0;
+  const intrinsicPoints = heights.map((heightM) => ({
+    x: heightM,
+    y: intrinsicPerM * result.scenario.radiusM,
+  }));
+  const atmospherePoints = heights.map((heightM) => ({
+    x: heightM,
+    y:
+      -getAtmosphereCurvatureMagnitudeAtHeight(result.model, result.scenario, heightM) *
+      result.scenario.radiusM,
+  }));
+  const netPoints = heights.map((heightM, index) => ({
+    x: heightM,
+    y: intrinsicPoints[index].y + atmospherePoints[index].y,
+  }));
+
+  const series: CurvatureSeries[] = [
+    {
+      id: "intrinsic",
+      label: t(language, "intrinsicBend"),
+      color: "#8d95ff",
+      dashed: true,
+      points: intrinsicPoints,
+    },
+    {
+      id: "atmosphere",
+      label: t(language, "atmosphericBend"),
+      color: "#7be2ff",
+      dashed: true,
+      points: atmospherePoints,
+    },
+    {
+      id: "net",
+      label: t(language, "netBend"),
+      color: "#ffd07e",
+      points: netPoints,
+    },
+  ];
+
+  return {
+    bounds: createCurvatureBounds(series),
+    maxHeightM,
+    series,
+    seaLevelNetLabel: formatCurvatureRatio(
+      intrinsicPerM -
+        getAtmosphereCurvatureMagnitudeAtHeight(result.model, result.scenario, 0),
+      result.scenario.radiusM,
+    ),
+    topFrameNetLabel: formatCurvatureRatio(
+      intrinsicPerM -
+        getAtmosphereCurvatureMagnitudeAtHeight(result.model, result.scenario, maxHeightM),
+      result.scenario.radiusM,
+    ),
+  };
 }
 
 function buildSubviewRects(panelRect: PanelRect): SubviewRect[] {
@@ -261,6 +404,7 @@ function renderRayMarkers(
   panel: RayBundlePanelData,
   project: (point: { x: number; y: number }) => { x: number; y: number },
   annotated: boolean,
+  language: LanguageMode,
 ) {
   return panel.markers.map((marker) => {
     const projected = project(marker.point);
@@ -282,7 +426,11 @@ function renderRayMarkers(
             fontSize={11.5}
             fontFamily="'Segoe UI Variable Text', 'Segoe UI', sans-serif"
           >
-            {marker.id === "observer" ? t("en" as LanguageMode, "observerHeight") : marker.id === "target" ? t("en" as LanguageMode, "targetHeight") : marker.featureId}
+            {marker.id === "observer"
+              ? t(language, "observerHeight")
+              : marker.id === "target"
+                ? t(language, "targetHeight")
+                : marker.featureId}
           </text>
         ) : null}
       </g>
@@ -290,9 +438,200 @@ function renderRayMarkers(
   });
 }
 
+function renderCurvatureInset(
+  curvatureView: CurvatureViewData,
+  rect: PanelRect,
+  unitPreferences: UnitPreferences,
+  language: LanguageMode,
+) {
+  const insetRect: PanelRect = {
+    x: rect.x + 22,
+    y: rect.y + rect.height * 0.67,
+    width: rect.width - 44,
+    height: Math.max(rect.height * 0.27, 170),
+  };
+  const projector = createLinearProjector(insetRect, curvatureView.bounds, {
+    zoom: 1,
+    verticalZoom: 1,
+    panX: 0,
+    panY: 0,
+    padding: {
+      paddingX: [40, 18],
+      paddingTop: [18, 18],
+      paddingBottom: [28, 34],
+    },
+  });
+  const project = projector.project;
+  const baselineStart = project({ x: curvatureView.bounds.minX, y: 0 });
+  const baselineEnd = project({ x: curvatureView.bounds.maxX, y: 0 });
+  const xTickStep = niceStep(curvatureView.maxHeightM, 4);
+  const ySpan = curvatureView.bounds.maxY - curvatureView.bounds.minY;
+  const yTickStep = Math.max(niceStep(ySpan, 4), 0.25);
+
+  return (
+    <g>
+      <rect
+        x={insetRect.x}
+        y={insetRect.y}
+        width={insetRect.width}
+        height={insetRect.height}
+        rx={18}
+        fill="rgba(7, 19, 31, 0.82)"
+        stroke="rgba(141, 192, 255, 0.16)"
+      />
+      <text
+        x={insetRect.x + 14}
+        y={insetRect.y + 20}
+        fill="rgba(240, 245, 252, 0.9)"
+        fontSize={12}
+        fontWeight={600}
+      >
+        {t(language, "refractionCurvaturePane")}
+      </text>
+      <text
+        x={insetRect.x + 14}
+        y={insetRect.y + 36}
+        fill="rgba(181, 205, 230, 0.74)"
+        fontSize={10.5}
+      >
+        {t(language, "refractionCurvaturePaneHint")}
+      </text>
+
+      <line
+        x1={baselineStart.x}
+        y1={baselineStart.y}
+        x2={baselineEnd.x}
+        y2={baselineEnd.y}
+        stroke="rgba(196, 211, 233, 0.26)"
+        strokeWidth={1}
+        strokeDasharray="5 7"
+      />
+
+      {Array.from({ length: 5 }, (_, index) => index).map((step) => {
+        const heightM = Math.min(curvatureView.maxHeightM, step * xTickStep);
+        const point = project({ x: heightM, y: curvatureView.bounds.minY });
+        return (
+          <g key={`curvature-x-${heightM}`}>
+            <line
+              x1={point.x}
+              y1={insetRect.y + insetRect.height - 26}
+              x2={point.x}
+              y2={insetRect.y + insetRect.height - 18}
+              stroke="rgba(229, 238, 249, 0.62)"
+              strokeWidth={1}
+            />
+            <text
+              x={point.x}
+              y={insetRect.y + insetRect.height - 6}
+              textAnchor="middle"
+              fill="rgba(231, 240, 250, 0.76)"
+              fontSize={10.5}
+            >
+              {formatDistance(heightM, unitPreferences.height)}
+            </text>
+          </g>
+        );
+      })}
+
+      {Array.from({ length: 5 }, (_, index) => index - 2).map((step) => {
+        const value = step * yTickStep;
+        if (value < curvatureView.bounds.minY || value > curvatureView.bounds.maxY) {
+          return null;
+        }
+        const point = project({ x: curvatureView.bounds.minX, y: value });
+        return (
+          <g key={`curvature-y-${value}`}>
+            <line
+              x1={insetRect.x + 12}
+              y1={point.y}
+              x2={insetRect.x + 20}
+              y2={point.y}
+              stroke="rgba(229, 238, 249, 0.62)"
+              strokeWidth={1}
+            />
+            <text
+              x={insetRect.x + 8}
+              y={point.y + 4}
+              textAnchor="end"
+              fill="rgba(231, 240, 250, 0.72)"
+              fontSize={10.5}
+            >
+              {formatCurvatureRatio(value / 1, 1)}
+            </text>
+          </g>
+        );
+      })}
+
+      {curvatureView.series.map((series) => {
+        const projected = series.points.map(project);
+        const end = projected[projected.length - 1];
+        return (
+          <g key={series.id}>
+            <polyline
+              points={polylinePoints(projected)}
+              fill="none"
+              stroke={series.color}
+              strokeWidth={series.id === "net" ? 2.2 : 1.6}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray={series.dashed ? "7 7" : undefined}
+            />
+            <text
+              x={end.x + 8}
+              y={end.y - 6}
+              fill={series.color}
+              fontSize={10.5}
+              fontWeight={600}
+            >
+              {series.label}
+            </text>
+          </g>
+        );
+      })}
+
+      <text
+        x={insetRect.x + insetRect.width - 12}
+        y={insetRect.y + 20}
+        textAnchor="end"
+        fill="rgba(231, 240, 250, 0.76)"
+        fontSize={10.5}
+      >
+        {`${t(language, "netBend")}: ${curvatureView.seaLevelNetLabel}`}
+      </text>
+      <text
+        x={insetRect.x + insetRect.width - 12}
+        y={insetRect.y + 36}
+        textAnchor="end"
+        fill="rgba(171, 201, 228, 0.72)"
+        fontSize={10.5}
+      >
+        {`${t(language, "topFrameNetBend")}: ${curvatureView.topFrameNetLabel}`}
+      </text>
+      <text
+        x={insetRect.x + insetRect.width / 2}
+        y={insetRect.y + insetRect.height - 6}
+        textAnchor="middle"
+        fill="rgba(231, 240, 250, 0.68)"
+        fontSize={10.5}
+      >
+        {t(language, "sampleHeightAxis")}
+      </text>
+      <text
+        x={insetRect.x + 12}
+        y={insetRect.y + 12}
+        fill="rgba(231, 240, 250, 0.68)"
+        fontSize={10.5}
+      >
+        {t(language, "curvatureRatioAxis")}
+      </text>
+    </g>
+  );
+}
+
 export function RefractionLabView({
   observerPanels,
   bundlePanels,
+  results,
   compareLayout,
   unitPreferences,
   language,
@@ -329,6 +668,10 @@ export function RefractionLabView({
   const panelSubviewRects = useMemo(
     () => panelRects.map((panelRect) => buildSubviewRects(panelRect)),
     [panelRects],
+  );
+  const curvatureViews = useMemo(
+    () => results.map((result) => createCurvatureView(result, language)),
+    [results, language],
   );
 
   function getSvgPoint(event: { clientX: number; clientY: number }) {
@@ -516,8 +859,9 @@ export function RefractionLabView({
       {panelRects.map((panelRect, panelIndex) => {
         const observerPanel = observerPanels[panelIndex];
         const bundlePanel = bundlePanels[panelIndex];
+        const curvatureView = curvatureViews[panelIndex];
 
-        if (!observerPanel || !bundlePanel) {
+        if (!observerPanel || !bundlePanel || !curvatureView) {
           return null;
         }
 
@@ -839,7 +1183,7 @@ export function RefractionLabView({
               );
             })}
 
-            {renderRayMarkers(bundlePanel, rayProject, annotated)}
+            {renderRayMarkers(bundlePanel, rayProject, annotated, language)}
 
             {showScaleGuides ? (
               <>
@@ -847,6 +1191,13 @@ export function RefractionLabView({
                 {renderRayScaleGuide(bundlePanel, rayProject, unitPreferences, language)}
               </>
             ) : null}
+
+            {renderCurvatureInset(
+              curvatureView,
+              raySubview.rect,
+              unitPreferences,
+              language,
+            )}
 
             <g transform={`translate(${panelRect.x + panelRect.width - 338}, ${panelRect.y + 22})`}>
               <rect

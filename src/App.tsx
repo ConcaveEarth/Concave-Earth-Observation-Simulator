@@ -1607,6 +1607,8 @@ export default function App() {
                       {stackedCompareView ? (
                         observerPanels.map((observerPanel, panelIndex) => {
                           const bundlePanel = bundlePanels[panelIndex];
+                          const result =
+                            panelIndex === 0 ? primaryResult : comparisonResult;
 
                           if (!bundlePanel) {
                             return null;
@@ -1620,6 +1622,7 @@ export default function App() {
                               <RefractionLabView
                                 observerPanels={[observerPanel]}
                                 bundlePanels={[bundlePanel]}
+                                results={[result]}
                                 compareLayout="side-by-side"
                                 unitPreferences={state.unitPreferences}
                                 language={state.language}
@@ -1647,6 +1650,15 @@ export default function App() {
                         <RefractionLabView
                           observerPanels={observerPanels}
                           bundlePanels={bundlePanels}
+                          results={
+                            deferredState.viewMode === "compare"
+                              ? [primaryResult, comparisonResult]
+                              : [
+                                  deferredState.focusedModel === "primary"
+                                    ? primaryResult
+                                    : comparisonResult,
+                                ]
+                          }
                           compareLayout={resolvedCompareLayout}
                           unitPreferences={state.unitPreferences}
                           language={state.language}
