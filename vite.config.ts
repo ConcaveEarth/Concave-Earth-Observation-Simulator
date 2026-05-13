@@ -1,10 +1,8 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-const defaultBasePath = "/";
-
 export default defineConfig({
-  base: process.env.NODE_ENV === "production" ? process.env.VITE_BASE_PATH ?? defaultBasePath : "/",
+  base: "/",
   plugins: [react()],
   build: {
     chunkSizeWarningLimit: 700,
