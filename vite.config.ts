@@ -1,10 +1,10 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-const repositoryBase = "/Concave-Earth-Observation-Simulator/";
+const defaultBasePath = "/";
 
 export default defineConfig({
-  base: process.env.NODE_ENV === "production" ? repositoryBase : "/",
+  base: process.env.NODE_ENV === "production" ? process.env.VITE_BASE_PATH ?? defaultBasePath : "/",
   plugins: [react()],
   build: {
     chunkSizeWarningLimit: 700,

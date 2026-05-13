@@ -1,6 +1,6 @@
-# Concave-Earth-Observation-Simulator
+# Geodesy One
 
-Demo : https://truemodeloftheworld.github.io/Concave-Earth-Observation-Simulator/
+Demo : https://geodesy-one.vercel.app/
 
 Observation Geometry Lab is a Vite + React + TypeScript web app for comparing
 long-range observation scenarios across convex-sphere and concave-shell models
@@ -112,10 +112,13 @@ npm run build
   export helpers
 - `src/test`: domain, state, and UI tests
 
-## GitHub Pages
+## Vercel Deployment
 
-This repo is configured for project-site deployment on GitHub Pages.
+This repo is configured for Vercel domain-root deployment.
 
-- Expected site URL: `https://concaveearth.github.io/Concave-Earth-Observation-Simulator/`
-- Deployment workflow: `.github/workflows/deploy-pages.yml`
-- Requirement: push the current branch to `main`, then enable Pages in the repository settings if GitHub has not auto-enabled the workflow-backed source yet.
+- Expected site URL: `https://geodesy-one.vercel.app/`
+- Framework Preset: `Vite`
+- Install Command: `npm ci`
+- Build Command: `npm run build`
+- Output Directory: `dist`
+- Production builds use `/` as the Vite base path by default. Set `VITE_BASE_PATH` only for a custom subpath.

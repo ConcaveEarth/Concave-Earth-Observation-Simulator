@@ -1,8 +1,13 @@
 {
-  "name": "observation-geometry-lab",
+  "name": "geodesy-one",
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "homepage": "https://geodesy-one.vercel.app/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TRUEMODELOFTHEWORLD/Geodesy.git"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
