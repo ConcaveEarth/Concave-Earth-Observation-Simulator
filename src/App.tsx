@@ -91,11 +91,11 @@ const SweepChart = lazy(() =>
 );
 
 function getSceneFilename(analysisTab: string, viewMode: string): string {
-  return `observation-geometry-lab-${analysisTab}-${viewMode}.png`;
+  return `geodesy-${analysisTab}-${viewMode}.png`;
 }
 
 function getExportBasename(analysisTab: string, viewMode: string) {
-  return `observation-geometry-lab-${analysisTab}-${viewMode}`;
+  return `geodesy-${analysisTab}-${viewMode}`;
 }
 
 function getAnalysisViewportFamily(analysisTab: string) {
@@ -185,7 +185,7 @@ class AnalysisErrorBoundary extends Component<
   }
 
   componentDidCatch(error: unknown, errorInfo: ErrorInfo) {
-    console.error("Observation Geometry Lab analysis view failed", error, errorInfo);
+    console.error("Geodesy analysis view failed", error, errorInfo);
   }
 
   componentDidUpdate(previousProps: AnalysisErrorBoundaryProps) {
@@ -1003,7 +1003,7 @@ export default function App() {
   function handleExportReport() {
     try {
       downloadHtmlReport(`${getExportBasename(state.analysisTab, state.viewMode)}.html`, {
-        title: "Observation Geometry Lab Report",
+        title: "Geodesy Report",
         generatedAt: new Date().toLocaleString(),
         sections: [
           {

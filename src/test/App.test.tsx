@@ -5,7 +5,7 @@ describe("App", () => {
   it("renders the simulator shell and key controls", () => {
     render(<App />);
 
-    expect(screen.getAllByText("Observation Geometry Lab").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Geodesy").length).toBeGreaterThan(0);
     expect(
       screen.getByText("Comparison-first observation simulator"),
     ).toBeInTheDocument();
@@ -17,6 +17,6 @@ describe("App", () => {
       "scene-toolbar__button",
       "scene-toolbar__button--active",
     );
-    expect(screen.getByRole("textbox", { name: "Observer height value" })).toHaveValue("2");
+    expect(screen.getByRole("textbox", { name: "Observer height value" })).toHaveValue("5");
   });
 });

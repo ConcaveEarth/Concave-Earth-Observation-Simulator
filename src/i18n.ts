@@ -13,8 +13,8 @@ export const languageOptions: Array<{ value: LanguageMode; label: string }> = [
 type TranslationDictionary = Record<string, string>;
 
 const en: TranslationDictionary = {
-  appEyebrow: "Observation Geometry Lab",
-  simulatorTitle: "Concave Earth Observation Simulator",
+  appEyebrow: "Convex / Concave Observation Lab",
+  simulatorTitle: "Geodesy",
   panelIntroTitle: "Comparison-first observation simulator",
   panelIntroBody:
     "One shared ray engine drives both the convex baseline and the concave shell interpretation.",
@@ -394,7 +394,7 @@ const en: TranslationDictionary = {
 };
 
 const es: Partial<TranslationDictionary> = {
-  simulatorTitle: "Simulador de Observación de Tierra Cóncava",
+  simulatorTitle: "Geodesy",
   panelIntroTitle: "Simulador de observación con enfoque comparativo",
   panelIntroBody:
     "Un solo motor de rayos impulsa tanto la base convexa como la interpretación de cascarón cóncavo.",
@@ -477,7 +477,7 @@ const es: Partial<TranslationDictionary> = {
 };
 
 const it: Partial<TranslationDictionary> = {
-  simulatorTitle: "Simulatore di Osservazione della Terra Concava",
+  simulatorTitle: "Geodesy",
   panelIntroTitle: "Simulatore osservativo orientato al confronto",
   panelIntroBody:
     "Un unico motore di raggi guida sia la base convessa sia l'interpretazione a guscio concavo.",
@@ -543,7 +543,7 @@ const it: Partial<TranslationDictionary> = {
 };
 
 const pt: Partial<TranslationDictionary> = {
-  simulatorTitle: "Simulador de Observação da Terra Côncava",
+  simulatorTitle: "Geodesy",
   panelIntroTitle: "Simulador de observação com foco em comparação",
   panelIntroBody:
     "Um único motor de raios conduz tanto a linha de base convexa quanto a interpretação de casca côncava.",
@@ -605,7 +605,7 @@ const pt: Partial<TranslationDictionary> = {
 };
 
 const ru: Partial<TranslationDictionary> = {
-  simulatorTitle: "Симулятор наблюдений вогнутой Земли",
+  simulatorTitle: "Geodesy",
   panelIntroTitle: "Симулятор наблюдений с упором на сравнение",
   panelIntroBody:
     "Один общий лучевой движок управляет как выпуклой базовой моделью, так и вогнутой оболочкой.",
